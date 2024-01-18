@@ -17,12 +17,12 @@ func (GoogleCredentials) TableName() string {
 }
 
 type GoogeAuthStorage interface {
-	CreateTicket(*Ticket) error
-	DeleteTicket(int) error
-	UpdateTicket(*Ticket) error
-	GetTickets() ([]*Ticket, error)
-	GetTicketByID(int) (*Ticket, error)
-	GetTicketByNumber(int) (*Ticket, error)
+	CreateGoogleCred(*GoogleCredentials) error
+	DeleteGoogleCred(int) error
+	UpdateGoogleCred(*GoogleCredentials) error
+	GetGoogleCreds() ([]*GoogleCredentials, error)
+	GetGoogleCredByID(int) (*GoogleCredentials, error)
+	GetGoogleCredByNumber(int) (*GoogleCredentials, error)
 }
 
 // UserModel handles database operations for User

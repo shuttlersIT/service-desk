@@ -10,7 +10,7 @@ import (
 
 type Assets struct {
 	gorm.Model
-	ID            int             `gorm:"primaryKey" json:"asset_id"`
+	ID            uint            `gorm:"primaryKey" json:"asset_id"`
 	Tag           AssetTag        `json:"asset_tag" gorm:"foreignKey:AssetID"`
 	AssetType     AssetType       `json:"asset_type" gorm:"embedded"`
 	AssetName     string          `json:"asset_name"`
@@ -24,7 +24,7 @@ type Assets struct {
 	Vendor        string          `json:"vendor"`
 	Site          string          `json:"site"`
 	Status        string          `json:"status"`
-	CreatedBy     int             `json:"created_by"`
+	CreatedBy     uint            `json:"created_by"`
 	CreatedAt     time.Time       `json:"created_at"`
 	UpdatedAt     time.Time       `json:"updated_at"`
 }
@@ -79,31 +79,31 @@ func (AssetAssignment) TableName() string {
 	return "asset_assignment"
 }
 
-type AssetStorage interface {
-	CreateTicket(*Ticket) error
-	DeleteTicket(int) error
-	UpdateTicket(*Ticket) error
-	GetTickets() ([]*Ticket, error)
-	GetTicketByID(int) (*Ticket, error)
-	GetTicketByNumber(int) (*Ticket, error)
+type AssetsStorage interface {
+	CreateAsset(*Assets) error
+	DeleteAsset(int) error
+	UpdateAsset(*Assets) error
+	GetAssets() ([]*Assets, error)
+	GetAssetByID(int) (*Assets, error)
+	GetAssetByNumber(int) (*Assets, error)
 }
 
 type AssetTypeStorage interface {
-	CreateTicket(*Ticket) error
-	DeleteTicket(int) error
-	UpdateTicket(*Ticket) error
-	GetTickets() ([]*Ticket, error)
-	GetTicketByID(int) (*Ticket, error)
-	GetTicketByNumber(int) (*Ticket, error)
+	CreateAssetType(*AssetType) error
+	DeleteAssetType(int) error
+	UpdateAssetType(*AssetType) error
+	GetAssetType() ([]*AssetType, error)
+	GetAssetTypeByID(int) (*AssetType, error)
+	GetAssetTypeByNumber(int) (*AssetType, error)
 }
 
 type AssetAssignmentStorage interface {
-	CreateTicket(*Ticket) error
-	DeleteTicket(int) error
-	UpdateTicket(*Ticket) error
-	GetTickets() ([]*Ticket, error)
-	GetTicketByID(int) (*Ticket, error)
-	GetTicketByNumber(int) (*Ticket, error)
+	CreateAssetAssignment(*AssetAssignment) error
+	DeleteAssetAssignment(int) error
+	UpdateAssetAssignment(*AssetAssignment) error
+	GetAssetAssignment() ([]*AssetAssignment, error)
+	GetAssetAssignmentByID(int) (*AssetAssignment, error)
+	GetAssetAssignmentByNumber(int) (*AssetAssignment, error)
 }
 
 // AssetModel handles database operations for Asset
@@ -116,4 +116,39 @@ func NewAssetDBModel(db *gorm.DB) *AssetDBModel {
 	return &AssetDBModel{
 		DB: db,
 	}
+}
+
+// CreateAssets creates a new asset.
+func (as *AssetDBModel) CreateAsset(asset *Assets) error {
+	return as.DB.Create(asset).Error
+}
+
+// GetAssetsByID retrieves a user by its ID.
+func (as *AssetDBModel) GetAssetByID(id uint) (*Assets, error) {
+	var asset Assets
+	err := as.DB.Where("id = ?", id).First(&asset).Error
+	return &asset, err
+}
+
+// UpdateAssets updates the details of an existing asset.
+func (as *AssetDBModel) UpdateAsset(asset *Assets) error {
+	if err := as.DB.Save(asset).Error; err != nil {
+		return err
+	}
+	return nil
+}
+
+// DeleteAssets deletes a asset from the database.
+func (as *AssetDBModel) DeleteAsset(id uint) error {
+	if err := as.DB.Delete(&Assets{}, id).Error; err != nil {
+		return err
+	}
+	return nil
+}
+
+// GetAllAssets retrieves all Assets from the database.
+func (as *AssetDBModel) GetAllAssets() (*[]Assets, error) {
+	var assets []Assets
+	err := as.DB.Find(&assets).Error
+	return &assets, err
 }

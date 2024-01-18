@@ -187,63 +187,63 @@ type TicketStorage interface {
 	CreateTicket(*Ticket) error
 	DeleteTicket(int) error
 	UpdateTicket(*Ticket) error
-	GetTickets() ([]*Ticket, error)
+	GetTickets() (*[]Ticket, error)
 	GetTicketByID(int) (*Ticket, error)
 	GetTicketByNumber(int) (*Ticket, error)
 }
 
 type SlaStorage interface {
-	CreateTicket(*Ticket) error
-	DeleteTicket(int) error
-	UpdateTicket(*Ticket) error
-	GetTickets() ([]*Ticket, error)
-	GetTicketByID(int) (*Ticket, error)
-	GetTicketByNumber(int) (*Ticket, error)
+	CreateSla(*Sla) error
+	DeleteSla(int) error
+	UpdateSla(*Sla) error
+	GetAllSla() (*[]Sla, error)
+	GetSlaByID(int) (*Sla, error)
+	GetSlaByNumber(int) (*Sla, error)
 }
 
 type PriorityStorage interface {
-	CreateTicket(*Ticket) error
-	DeleteTicket(int) error
-	UpdateTicket(*Ticket) error
-	GetTickets() ([]*Ticket, error)
-	GetTicketByID(int) (*Ticket, error)
-	GetTicketByNumber(int) (*Ticket, error)
+	CreatePriority(*Priority) error
+	DeletePriority(int) error
+	UpdatePriority(*Priority) error
+	GetPriorities() (*[]Priority, error)
+	GetPriorityByID(int) (*Priority, error)
+	GetPriorityByNumber(int) (*Priority, error)
 }
 
 type SatisfactionStorage interface {
-	CreateTicket(*Ticket) error
-	DeleteTicket(int) error
-	UpdateTicket(*Ticket) error
-	GetTickets() ([]*Ticket, error)
-	GetTicketByID(int) (*Ticket, error)
-	GetTicketByNumber(int) (*Ticket, error)
+	CreateSatisfaction(*Satisfaction) error
+	DeleteSatisfaction(int) error
+	UpdateSatisfaction(*Satisfaction) error
+	GetSatisfactions() (*[]Satisfaction, error)
+	GetSatisfactionByID(int) (*Satisfaction, error)
+	GetSatisfactionByNumber(int) (*Satisfaction, error)
 }
 
 type CategoryStorage interface {
-	CreateTicket(*Ticket) error
-	DeleteTicket(int) error
-	UpdateTicket(*Ticket) error
-	GetTickets() ([]*Ticket, error)
-	GetTicketByID(int) (*Ticket, error)
-	GetTicketByNumber(int) (*Ticket, error)
+	CreateCategory(*Category) error
+	DeleteCategory(int) error
+	UpdateCategory(*Category) error
+	GetAllCategories() (*[]Category, error)
+	GetCategoryByID(int) (*Category, error)
+	GetCategoryByNumber(int) (*Category, error)
 }
 
 type SubCategoryStorage interface {
-	CreateTicket(*Ticket) error
-	DeleteTicket(int) error
-	UpdateTicket(*Ticket) error
-	GetTickets() ([]*Ticket, error)
-	GetTicketByID(int) (*Ticket, error)
-	GetTicketByNumber(int) (*Ticket, error)
+	CreateSubCategory(*SubCategory) error
+	DeleteSubCategory(int) error
+	UpdateSubCategory(*SubCategory) error
+	GetAllSubCategories() (*[]SubCategory, error)
+	GetSubCategoryByID(int) (*SubCategory, error)
+	GetSubCategoryByNumber(int) (*SubCategory, error)
 }
 
 type StatusStorage interface {
-	CreateTicket(*Ticket) error
-	DeleteTicket(int) error
-	UpdateTicket(*Ticket) error
-	GetTickets() ([]*Ticket, error)
-	GetTicketByID(int) (*Ticket, error)
-	GetTicketByNumber(int) (*Ticket, error)
+	CreateStatus(*Status) error
+	DeleteStatus(int) error
+	UpdateStatus(*Status) error
+	GetStatus() (*[]Status, error)
+	GetStatusByID(int) (*Status, error)
+	GetStatusByNumber(int) (*Status, error)
 }
 
 // TicketModel handles database operations for Ticket
@@ -256,4 +256,39 @@ func NewTicketDBModel(db *gorm.DB) *TicketDBModel {
 	return &TicketDBModel{
 		DB: db,
 	}
+}
+
+// CreateTicket creates a new Ticket.
+func (as *TicketDBModel) CreateTicket(ticket *Ticket) error {
+	return as.DB.Create(ticket).Error
+}
+
+// GetTicketByID retrieves a Ticket by its ID.
+func (as *TicketDBModel) GetTicketByID(id uint) (*Ticket, error) {
+	var ticket Ticket
+	err := as.DB.Where("id = ?", id).First(&ticket).Error
+	return &ticket, err
+}
+
+// UpdateTicket updates the details of an existing Ticket.
+func (as *TicketDBModel) UpdateTicket(ticket *Ticket) error {
+	if err := as.DB.Save(ticket).Error; err != nil {
+		return err
+	}
+	return nil
+}
+
+// DeleteTicket deletes a ticket from the database.
+func (as *TicketDBModel) DeleteTicket(id uint) error {
+	if err := as.DB.Delete(&Ticket{}, id).Error; err != nil {
+		return err
+	}
+	return nil
+}
+
+// GetAllTickets retrieves all tickets from the database.
+func (as *TicketDBModel) GetAllTickets() (*[]Ticket, error) {
+	var tickets []Ticket
+	err := as.DB.Find(&tickets).Error
+	return &tickets, err
 }

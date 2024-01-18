@@ -10,7 +10,7 @@ import (
 
 type Users struct {
 	gorm.Model
-	ID          int                   `gorm:"primaryKey" json:"user_id"`
+	ID          uint                  `gorm:"primaryKey" json:"user_id"`
 	FirstName   string                `json:"first_name" binding:"required"`
 	LastName    string                `json:"last_name" binding:"required"`
 	Email       string                `json:"staff_email" binding:"required,email"`
@@ -26,21 +26,6 @@ type Users struct {
 // TableName sets the table name for the Users model.
 func (Users) TableName() string {
 	return "users"
-}
-
-type UsersLoginCredentials struct {
-	gorm.Model
-	ID        int       `gorm:"primaryKey" json:"_"`
-	Username  string    `json:"username"`
-	Password  string    `json:"password"`
-	UserID    int       `json:"user_id"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
-}
-
-// TableName sets the table name for the UsersLoginCredentials model.
-func (UsersLoginCredentials) TableName() string {
-	return "usersLoginCredentials"
 }
 
 type Position struct {
@@ -72,39 +57,30 @@ func (Department) TableName() string {
 }
 
 type UserStorage interface {
-	CreateTicket(*Ticket) error
-	DeleteTicket(int) error
-	UpdateTicket(*Ticket) error
-	GetTickets() ([]*Ticket, error)
-	GetTicketByID(int) (*Ticket, error)
-	GetTicketByNumber(int) (*Ticket, error)
+	CreateUser(*Users) error
+	DeleteUser(int) error
+	UpdateUser(*Users) error
+	GetUsers() (*[]Users, error)
+	GetUserByID(int) (*Users, error)
+	GetUserByNumber(int) (*Users, error)
 }
 
 type PositionStorage interface {
-	CreateTicket(*Ticket) error
-	DeleteTicket(int) error
-	UpdateTicket(*Ticket) error
-	GetTickets() ([]*Ticket, error)
-	GetTicketByID(int) (*Ticket, error)
-	GetTicketByNumber(int) (*Ticket, error)
+	CreatePosition(*Position) error
+	DeletePosition(int) error
+	UpdatePosition(*Position) error
+	GetPosition() (*[]Position, error)
+	GetPositionByID(int) (*Position, error)
+	GetPositionByNumber(int) (*Position, error)
 }
 
 type DepartmentStorage interface {
-	CreateTicket(*Ticket) error
-	DeleteTicket(int) error
-	UpdateTicket(*Ticket) error
-	GetTickets() ([]*Ticket, error)
-	GetTicketByID(int) (*Ticket, error)
-	GetTicketByNumber(int) (*Ticket, error)
-}
-
-type UserPasswordLoginStorage interface {
-	CreateTicket(*Ticket) error
-	DeleteTicket(int) error
-	UpdateTicket(*Ticket) error
-	GetTickets() ([]*Ticket, error)
-	GetTicketByID(int) (*Ticket, error)
-	GetTicketByNumber(int) (*Ticket, error)
+	CreateDepartment(*Department) error
+	DeleteDepartment(int) error
+	UpdateDepartment(*Department) error
+	GetDepartments() (*[]Department, error)
+	GetDepartmentByID(int) (*Department, error)
+	GetDepartmentByNumber(int) (*Department, error)
 }
 
 // UserModel handles database operations for User
@@ -117,4 +93,39 @@ func NewUserDBModel(db *gorm.DB) *UserDBModel {
 	return &UserDBModel{
 		DB: db,
 	}
+}
+
+// CreateUser creates a new user.
+func (as *UserDBModel) CreateUser(user *Users) error {
+	return as.DB.Create(user).Error
+}
+
+// GetUserByID retrieves a user by its ID.
+func (as *UserDBModel) GetUserByID(id uint) (*Users, error) {
+	var user Users
+	err := as.DB.Where("id = ?", id).First(&user).Error
+	return &user, err
+}
+
+// UpdateUser updates the details of an existing user.
+func (as *UserDBModel) UpdateUser(user *Users) error {
+	if err := as.DB.Save(user).Error; err != nil {
+		return err
+	}
+	return nil
+}
+
+// DeleteUser deletes a user from the database.
+func (as *UserDBModel) DeleteUser(id uint) error {
+	if err := as.DB.Delete(&Users{}, id).Error; err != nil {
+		return err
+	}
+	return nil
+}
+
+// GetAllUsers retrieves all users from the database.
+func (as *UserDBModel) GetAllUsers() (*[]Users, error) {
+	var users []Users
+	err := as.DB.Find(&users).Error
+	return &users, err
 }

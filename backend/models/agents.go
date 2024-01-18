@@ -10,7 +10,7 @@ import (
 
 type Agents struct {
 	gorm.Model
-	ID           int                   `gorm:"primaryKey" json:"agent_id"`
+	ID           uint                  `gorm:"primaryKey" json:"agent_id"`
 	FirstName    string                `json:"first_name" binding:"required"`
 	LastName     string                `json:"last_name" binding:"required"`
 	AgentEmail   string                `json:"agent_email" binding:"required,email"`
@@ -26,21 +26,6 @@ type Agents struct {
 // TableName sets the table name for the Agent model.
 func (Agents) TableName() string {
 	return "agents"
-}
-
-type AgentLoginCredentials struct {
-	gorm.Model
-	ID        int       `gorm:"primaryKey" json:"_"`
-	Username  string    `json:"username"`
-	Password  string    `json:"password"`
-	AgentID   int       `json:"agent_id"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
-}
-
-// TableName sets the table name for the Agent model.
-func (AgentLoginCredentials) TableName() string {
-	return "agentLoginDetails"
 }
 
 type Unit struct {
@@ -71,39 +56,30 @@ func (Role) TableName() string {
 }
 
 type AgentStorage interface {
-	CreateTicket(*Ticket) error
-	DeleteTicket(int) error
-	UpdateTicket(*Ticket) error
-	GetTickets() ([]*Ticket, error)
-	GetTicketByID(int) (*Ticket, error)
-	GetTicketByNumber(int) (*Ticket, error)
-}
-
-type AgentPasswordLoginStorage interface {
-	CreateTicketOperation(*Ticket) error
-	DeleteTicket(int) error
-	UpdateTicket(*Ticket) error
-	GetTickets() ([]*Ticket, error)
-	GetTicketByID(int) (*Ticket, error)
-	GetTicketByNumber(int) (*Ticket, error)
+	CreateAgent(*Agents) error
+	DeleteAgent(int) error
+	UpdateAgent(*Agents) error
+	GetAgents() ([]*Agents, error)
+	GetAgentByID(int) (*Agents, error)
+	GetAgentByNumber(int) (*Agents, error)
 }
 
 type UnitStorage interface {
-	CreateTicket(*Ticket) error
-	DeleteTicket(int) error
-	UpdateTicket(*Ticket) error
-	GetTickets() ([]*Ticket, error)
-	GetTicketByID(int) (*Ticket, error)
-	GetTicketByNumber(int) (*Ticket, error)
+	CreateUnit(*Unit) error
+	DeleteUnit(int) error
+	UpdateUnit(*Unit) error
+	GetUnits() ([]*Unit, error)
+	GetUnitByID(int) (*Unit, error)
+	GetUnitByNumber(int) (*Unit, error)
 }
 
 type RoleStorage interface {
-	CreateTicket(*Ticket) error
-	DeleteTicket(int) error
-	UpdateTicket(*Ticket) error
-	GetTickets() ([]*Ticket, error)
-	GetTicketByID(int) (*Ticket, error)
-	GetTicketByNumber(int) (*Ticket, error)
+	CreateRole(*Role) error
+	DeleteRole(int) error
+	UpdateRole(*Role) error
+	GetRoles() ([]*Role, error)
+	GetRoleByID(int) (*Role, error)
+	GetRoleByNumber(int) (*Role, error)
 }
 
 // AgentModel handles database operations for Agent
@@ -116,4 +92,39 @@ func NewAgentDBModel(db *gorm.DB) *AgentDBModel {
 	return &AgentDBModel{
 		DB: db,
 	}
+}
+
+// CreateAgent creates a new Agent.
+func (as *AgentDBModel) CreateAgent(agent *Agents) error {
+	return as.DB.Create(agent).Error
+}
+
+// GetAgentByID retrieves a user by its ID.
+func (as *AgentDBModel) GetAgentByID(id uint) (*Agents, error) {
+	var agent Agents
+	err := as.DB.Where("id = ?", id).First(&agent).Error
+	return &agent, err
+}
+
+// UpdateAgent updates the details of an existing agent.
+func (as *AgentDBModel) UpdateAgent(agent *Agents) error {
+	if err := as.DB.Save(agent).Error; err != nil {
+		return err
+	}
+	return nil
+}
+
+// DeleteUser deletes a Agent from the database.
+func (as *AgentDBModel) DeleteAgent(id uint) error {
+	if err := as.DB.Delete(&Agents{}, id).Error; err != nil {
+		return err
+	}
+	return nil
+}
+
+// GetAllAgents retrieves all Agent from the database.
+func (as *AgentDBModel) GetAllAgents() (*[]Agents, error) {
+	var agents []Agents
+	err := as.DB.Find(&agents).Error
+	return &agents, err
 }
