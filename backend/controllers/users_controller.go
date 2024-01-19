@@ -104,3 +104,5 @@ func (pc *UserController) GetAllUsers(ctx *gin.Context) {
 //ctx.Param("id")
 
 // Implement controller methods like GetUsers, CreateUsers, GetUser, UpdateUser, DeleteUser
+
+////////////////////////////////////////////////////////////////////////////////////////

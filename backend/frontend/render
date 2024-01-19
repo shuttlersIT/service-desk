@@ -1,0 +1,39 @@
+// backend/frontend/render.go
+
+package frontend
+
+import (
+	"html/template"
+	"net/http"
+)
+
+func RenderTemplate(w http.ResponseWriter, tmpl string, data interface{}) {
+	t, err := template.ParseFiles(tmpl)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	err = t.Execute(w, data)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+// Generate and include a CSRF token in your forms.
+func GenerateCSRFToken() string {
+	// Generate a unique token for each user session.
+	// Store this token in the user's session data.
+	return uniqueToken
+}
+
+// Validate the CSRF token when processing POST requests.
+func HandlePostRequest(w http.ResponseWriter, r *http.Request) {
+	userToken := r.FormValue("csrf_token")
+	storedToken := userSession.CSRFToken
+	if userToken != storedToken {
+		// CSRF token mismatch; reject the request.
+		http.Error(w, "CSRF token mismatch", http.StatusForbidden)
+		return
+	}
+	// Continue processing the request.
+}

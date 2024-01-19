@@ -76,3 +76,44 @@ func (ps *DefaultUserService) DeleteUser(userID uint) (bool, error) {
 	status = true
 	return status, nil
 }
+
+func (us *DefaultUserService) ResetPassword(userID uint, newPassword string) error {
+	// Retrieve the user by userID
+	user, err := us.UserDBModel.GetUserByID(userID)
+	if err != nil {
+		return err
+	}
+
+	// Update the user's password with the new password
+	user.Credentials.Password = newPassword
+
+	// Save the updated user
+	err = us.UserDBModel.UpdateUser(user)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (us *DefaultUserService) UpdateUserProfile(userID uint, updatedUser *models.Users) error {
+	// Retrieve the user by userID
+	user, err := us.UserDBModel.GetUserByID(userID)
+	if err != nil {
+		return err
+	}
+
+	// Update user profile details
+	user.FirstName = updatedUser.FirstName
+	user.LastName = updatedUser.LastName
+	user.Email = updatedUser.Email
+	user.Phone = updatedUser.Phone
+
+	// Save the updated user profile
+	err = us.UserDBModel.UpdateUser(user)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}

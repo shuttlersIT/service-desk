@@ -9,10 +9,10 @@ import (
 
 func SetAuthRoutes(r *gin.Engine, auths *controllers.AuthController) {
 
-	//auth := r.Group("/auths")
-	//auth.GET("/", auth.GetAllAdvertisements)
-	//auth.GET("/:id", auth.GetAdvertisementByID)
-	//auth.POST("/", auth.CreateAdvertisement)
+	//authG := r.Group("/auth")
+	//authG.POST("/auth/register", auths.GoogleRegister)
+	//authG.GET("/auth/login", auths.GoogleLogin)
+	//authG.GET("/auth/callback", auths.GoogleCallback)
 	//auth.PUT("/:id", auth.UpdateAdvertisement)
 	//auth.DELETE("/:id", auth.DeleteAdvertisement)
 

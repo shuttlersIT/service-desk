@@ -25,14 +25,41 @@ type Ticket struct {
 	AssetID          []Assets                `json:"asset_id" gorm:"embedded"`
 	RelatedTickets   []RelatedTicket         `json:"related_ticket_id" gorm:"foreignKey:TicketID"`
 	MediaAttachments []TicketMediaAttachment `json:"mediaAttachments" gorm:"foreignKey:TicketID"`
-	Tags             []Tags                  `json:"hashtags" gorm:"foreignKey:TicketID"`
+	Tags             []Tags                  `json:"tags" gorm:"foreignKey:TicketID"`
 	Site             string                  `json:"site"`
 	Status           Status                  `json:"status" gorm:"embedded"`
+	Comments         []Comment               `json:"hashtags" gorm:"foreignKey:TicketID"`
 }
 
 // TableName sets the table name for the Ticket model.
 func (Ticket) TableName() string {
 	return "tickets"
+}
+
+type Comment struct {
+	gorm.Model
+	ID          uint      `gorm:"primaryKey" json:"comment_id"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+	Author      Users     `json:"author" gorm:"embedded"`
+	Description string    `json:"description"`
+	TicketID    uint      `json:"_"`
+}
+
+func (Comment) TableName() string {
+	return "comment"
+}
+
+type TicketHistoryEntry struct {
+	ID        uint      `gorm:"primaryKey" json:"comment_id"`
+	TicketID  uint      `json:"_"`
+	Action    string    `json:"action"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+func (TicketHistoryEntry) TableName() string {
+	return "ticket_history_entry"
 }
 
 // RelatedAd struct for storing related advertisements
@@ -192,6 +219,24 @@ type TicketStorage interface {
 	GetTicketByNumber(int) (*Ticket, error)
 }
 
+type CommentStorage interface {
+	CreateTicketComment(*Comment) error
+	//DeleteSubCategory(int) error
+	//UpdateSubCategory(*SubCategory) error
+	//GetAllSubCategories() (*[]SubCategory, error)
+	//GetSubCategoryByID(int) (*SubCategory, error)
+	//GetSubCategoryByNumber(int) (*SubCategory, error)
+}
+
+type TicketHistoryEntryStorage interface {
+	CreateTicketHistoryEntry(*TicketHistoryEntry) error
+	//DeleteSubCategory(int) error
+	//UpdateSubCategory(*SubCategory) error
+	//GetAllSubCategories() (*[]SubCategory, error)
+	//GetSubCategoryByID(int) (*SubCategory, error)
+	//GetSubCategoryByNumber(int) (*SubCategory, error)
+}
+
 type SlaStorage interface {
 	CreateSla(*Sla) error
 	DeleteSla(int) error
@@ -258,6 +303,30 @@ func NewTicketDBModel(db *gorm.DB) *TicketDBModel {
 	}
 }
 
+// TicketModel handles database operations for Ticket
+type TicketCommentDBModel struct {
+	DB *gorm.DB
+}
+
+// NewTicketModel creates a new instance of TicketModel
+func NewTicketCommentDBModel(db *gorm.DB) *TicketCommentDBModel {
+	return &TicketCommentDBModel{
+		DB: db,
+	}
+}
+
+// TicketModel handles database operations for Ticket
+type TicketHistoryEntryDBModel struct {
+	DB *gorm.DB
+}
+
+// NewTicketModel creates a new instance of TicketModel
+func NewTicketHistoryEntryDBModel(db *gorm.DB) *TicketHistoryEntryDBModel {
+	return &TicketHistoryEntryDBModel{
+		DB: db,
+	}
+}
+
 // CreateTicket creates a new Ticket.
 func (as *TicketDBModel) CreateTicket(ticket *Ticket) error {
 	return as.DB.Create(ticket).Error
@@ -291,4 +360,38 @@ func (as *TicketDBModel) GetAllTickets() (*[]Ticket, error) {
 	var tickets []Ticket
 	err := as.DB.Find(&tickets).Error
 	return &tickets, err
+}
+
+// ////////////////////////////////////////////////////////////////////////////////////
+// CreateTicketComment creates a new TicketComment.
+func (as *TicketCommentDBModel) CreateTicketComment(ticketID uint, c string) (*Comment, error) {
+	var comment Comment
+	comment.TicketID = ticketID
+	//comment.Author = getCurrentUser()
+	comment.Description = c
+	id := as.DB.Create(comment).RowsAffected
+	return as.GetCommentByID(uint(id))
+}
+
+// GetCommentByID retrieves a Comment by its ID.
+func (as *TicketCommentDBModel) GetCommentByID(id uint) (*Comment, error) {
+	var comment Comment
+	err := as.DB.Where("id = ?", id).First(&comment).Error
+	return &comment, err
+}
+
+// CreateTicketHistoryEntry creates a new TicketHistoryEntry.
+func (as *TicketHistoryEntryDBModel) CreateTicketHistoryEntry(ticketHistory *TicketHistoryEntry, action string) error {
+	ticketHistory.Action = action
+	return as.DB.Create(ticketHistory).Error
+}
+
+// GetCommentByID retrieves a Comment by its ID.
+func (as *TicketHistoryEntryDBModel) GetHistoryEntriesByTicketID(ticketID uint) *[]TicketHistoryEntry {
+	var ticketHistory []TicketHistoryEntry
+	err := as.DB.Find(&ticketHistory).Error
+	if err != nil {
+		return nil
+	}
+	return &ticketHistory
 }
