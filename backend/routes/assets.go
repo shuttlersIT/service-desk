@@ -1,3 +1,5 @@
+// backend/routes/assets.go
+
 package routes
 
 import (

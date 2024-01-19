@@ -1,3 +1,5 @@
+// backend/controllers/agent_controllers.go
+
 package controllers
 
 import (
@@ -94,7 +96,7 @@ func (pc *AgentController) DeleteAgent(ctx *gin.Context) {
 func (pc *AgentController) GetAllAgents(ctx *gin.Context) {
 	agents, err := pc.AgentService.GetAllAgents()
 	if err != nil {
-		ctx.JSON(http.StatusNotFound, gin.H{"error": "users not found"})
+		ctx.JSON(http.StatusNotFound, gin.H{"error": "agents not found"})
 		return
 	}
 	ctx.JSON(http.StatusOK, agents)

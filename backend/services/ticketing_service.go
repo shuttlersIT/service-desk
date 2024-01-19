@@ -1,4 +1,4 @@
-// backend/services/advertisement_service.go
+// backend/services/ticketing_service.go
 
 package services
 
@@ -16,14 +16,14 @@ type TicketingServiceInterface interface {
 	GetAllTickets() *[]models.Ticket
 }
 
-// DefaultAdvertisementService is the default implementation of AdvertisementService
+// DefaultUserService is the default implementation of UserService
 type DefaultTicketingService struct {
 	DB            *gorm.DB
 	TicketDBModel *models.TicketDBModel
 	// Add any dependencies or data needed for the service
 }
 
-// NewDefaultAdvertisementService creates a new DefaultAdvertisementService.
+// NewDefaultUserService creates a new DefaultUserService.
 func NewDefaultTicketingService(ticketDBModel *models.TicketDBModel) *DefaultTicketingService {
 	return &DefaultTicketingService{
 		TicketDBModel: ticketDBModel,

@@ -7,7 +7,7 @@ import (
 	"gorm.io/gorm"
 )
 
-// AdvertisementServiceInterface provides methods for managing advertisements.
+// UserServiceInterface provides methods for managing users.
 type UserServiceInterface interface {
 	CreateUser(user *models.Users) (*models.Users, error)
 	UpdateUser(user *models.Users) (*models.Users, error)
@@ -16,14 +16,14 @@ type UserServiceInterface interface {
 	GetAllUsers() *[]models.Users
 }
 
-// DefaultAdvertisementService is the default implementation of AdvertisementService
+// DefaultUserService is the default implementation of UserService
 type DefaultUserService struct {
 	DB          *gorm.DB
 	UserDBModel *models.UserDBModel
 	// Add any dependencies or data needed for the service
 }
 
-// NewDefaultAdvertisementService creates a new DefaultAdvertisementService.
+// NewDefaultUserService creates a new DefaultUserService.
 func NewDefaultUserService(users *models.UserDBModel) *DefaultUserService {
 	return &DefaultUserService{
 		UserDBModel: users,

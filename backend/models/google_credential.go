@@ -1,4 +1,4 @@
-//
+// models/google_credentials.go
 
 package models
 

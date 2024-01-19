@@ -20,5 +20,5 @@ func main() {
 	// Set up API routes
 	//routes.SetupRoutes(router)
 	// Start the server
-	router.Run(":8080")
+	router.Run(":6195")
 }
