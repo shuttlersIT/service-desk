@@ -21,33 +21,33 @@ func NewAuthController(authService *services.DefaultAuthService) *AuthController
 }
 
 // User registration
-func (a *AuthController) Registration(c *gin.Context) {
+func (a *AuthController) Registration(ctx *gin.Context) {
 	var user models.Users
-	if err := c.BindJSON(&user); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if err := ctx.BindJSON(&user); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 	newUser, token, err := a.AuthService.Registration(&user)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create user"})
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create user"})
 		return
 	}
-	c.JSON(http.StatusCreated, gin.H{"message": "User registered successfully", "token": token, "loggedInUser": newUser})
+	ctx.JSON(http.StatusCreated, gin.H{"message": "User registered successfully", "token": token, "loggedInUser": newUser})
 }
 
 // User login
-func (a *AuthController) Login(c *gin.Context) {
+func (a *AuthController) Login(ctx *gin.Context) {
 	var loginInfo *services.LoginInfo
-	loginInfo.Email = c.PostForm("email")
-	loginInfo.Password = c.PostForm("secret")
-	if err := c.BindJSON(&loginInfo); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	loginInfo.Email = ctx.PostForm("email")
+	loginInfo.Password = ctx.PostForm("secret")
+	if err := ctx.BindJSON(&loginInfo); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 	token, err := a.AuthService.Login(loginInfo)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create user"})
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create user"})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"token": token})
+	ctx.JSON(http.StatusOK, gin.H{"token": token})
 }

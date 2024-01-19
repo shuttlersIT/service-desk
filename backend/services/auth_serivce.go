@@ -55,6 +55,11 @@ func (a *DefaultAuthService) Registration(user *models.Users) (*models.Users, st
 	if er != nil {
 		return nil, "", fmt.Errorf("failed to create users credentials")
 	}
+
+	e := a.UserDBModel.CreateUser(user)
+	if e != nil {
+		return nil, "", e
+	}
 	// Generate a JWT token for successful login
 	token, err := generateJWTToken(user.ID)
 	if err != nil {
