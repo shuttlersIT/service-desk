@@ -23,6 +23,7 @@ type Assets struct {
 	PurchasePrice string          `json:"purchase_price"`
 	Vendor        string          `json:"vendor"`
 	Site          string          `json:"site"`
+	Location      string          `json:"location"`
 	Status        string          `json:"status"`
 	CreatedBy     uint            `json:"created_by"`
 	CreatedAt     time.Time       `json:"created_at"`

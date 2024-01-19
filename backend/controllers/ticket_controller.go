@@ -22,17 +22,17 @@ func NewTicketController() *TicketController {
 
 // Implement controller methods like GetTickets, CreateTicket, GetTicket, UpdateTicket, DeleteTicket, GetAllTickets
 
-// CreateTicket handles the HTTP request to create a new Ticket.
-func (pc *TicketController) CreateTicket(ctx *gin.Context) {
+func (tc *TicketController) CreateTicket(ctx *gin.Context) {
 	var newTicket models.Ticket
 	if err := ctx.ShouldBindJSON(&newTicket); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request payload"})
 		return
 	}
 
-	err := pc.TicketService.CreateTicket(&newTicket)
+	err := tc.TicketService.CreateTicket(&newTicket)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create ticket"})
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create Ticket"})
+		return
 	}
 
 	ctx.JSON(http.StatusCreated, gin.H{"message": "Ticket created successfully"})

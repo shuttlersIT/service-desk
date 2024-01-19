@@ -23,56 +23,55 @@ func NewAssetController(asset *services.DefaultAssetService) *AssetController {
 
 // Implement controller methods like GetAssets, CreateAssett, GetAsset, UpdateAsset, DeleteAsset
 
-// CreateAsset handles the HTTP request to create a new Asset.
-func (pc *AssetController) CreateAsset(ctx *gin.Context) {
+func (ac *AssetController) CreateAsset(ctx *gin.Context) {
 	var newAsset models.Assets
 	if err := ctx.ShouldBindJSON(&newAsset); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request payload"})
 		return
 	}
 
-	err := pc.AssetService.CreateAsset(&newAsset)
+	err := ac.AssetService.CreateAsset(&newAsset)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create Assett"})
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create Asset"})
+		return
 	}
 
-	ctx.JSON(http.StatusCreated, gin.H{"message": "Assets created successfully"})
+	ctx.JSON(http.StatusCreated, gin.H{"message": "Asset created successfully"})
 }
 
-// GetAssetByID handles the HTTP request to retrieve a assets by ID.
-func (pc *AssetController) GetAssetByID(ctx *gin.Context) {
+func (ac *AssetController) GetAssetByID(ctx *gin.Context) {
 	assetID, _ := strconv.Atoi(ctx.Param("id"))
-	asset, err := pc.AssetService.GetAssetByID(uint(assetID))
+	asset, err := ac.AssetService.GetAssetByID(uint(assetID))
 	if err != nil {
-		ctx.JSON(http.StatusNotFound, gin.H{"error": "asset not found"})
+		ctx.JSON(http.StatusNotFound, gin.H{"error": "Asset not found"})
 		return
 	}
 	ctx.JSON(http.StatusOK, asset)
 }
 
 // UpdateAsset handles PUT /Asset/:id route.
-func (pc *AssetController) UpdateAsset(ctx *gin.Context) {
+func (ac *AssetController) UpdateAsset(ctx *gin.Context) {
 	id, err := strconv.ParseUint(ctx.Param("id"), 10, 64)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID"})
 		return
 	}
 
-	var ad models.Assets
-	if err := ctx.ShouldBindJSON(&ad); err != nil {
+	var asset models.Assets
+	if err := ctx.ShouldBindJSON(&asset); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	ad.ID = uint(id)
+	asset.ID = uint(id)
 
-	updatedAd, err := pc.AssetService.UpdateAsset(&ad)
+	updatedAsset, err := ac.AssetService.UpdateAsset(&asset)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	ctx.JSON(http.StatusOK, updatedAd)
+	ctx.JSON(http.StatusOK, updatedAsset)
 }
 
 // DeleteAsset handles DELETE /assets/:id route.
@@ -92,11 +91,10 @@ func (pc *AssetController) DeleteAsset(ctx *gin.Context) {
 	ctx.JSON(http.StatusNoContent, status)
 }
 
-// GetAssetByID handles the HTTP request to retrieve a assets by ID.
-func (pc *AssetController) GetAllAssets(ctx *gin.Context) {
-	assets, err := pc.AssetService.GetAllAssets()
+func (ac *AssetController) GetAllAssets(ctx *gin.Context) {
+	assets, err := ac.AssetService.GetAllAssets()
 	if err != nil {
-		ctx.JSON(http.StatusNotFound, gin.H{"error": "assets not found"})
+		ctx.JSON(http.StatusNotFound, gin.H{"error": "Assets not found"})
 		return
 	}
 	ctx.JSON(http.StatusOK, assets)

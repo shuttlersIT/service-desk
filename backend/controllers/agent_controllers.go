@@ -51,28 +51,28 @@ func (pc *AgentController) GetAgentByID(ctx *gin.Context) {
 }
 
 // UpdateAgents handles PUT /Agents/:id route.
-func (pc *AgentController) UpdateAgent(ctx *gin.Context) {
+func (ac *AgentController) UpdateAgent(ctx *gin.Context) {
 	id, err := strconv.ParseUint(ctx.Param("id"), 10, 64)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID"})
 		return
 	}
 
-	var ad models.Agents
-	if err := ctx.ShouldBindJSON(&ad); err != nil {
+	var agent models.Agents
+	if err := ctx.ShouldBindJSON(&agent); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	ad.ID = uint(id)
+	agent.ID = uint(id)
 
-	updatedAd, err := pc.AgentService.UpdateAgent(&ad)
+	updatedAgent, err := ac.AgentService.UpdateAgent(&agent)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	ctx.JSON(http.StatusOK, updatedAd)
+	ctx.JSON(http.StatusOK, updatedAgent)
 }
 
 // DeleteAgent handles DELETE /users/:id route.
