@@ -3,6 +3,8 @@
 package models
 
 import (
+	"fmt"
+	"sort"
 	"time"
 
 	"gorm.io/gorm"
@@ -25,7 +27,7 @@ type Ticket struct {
 	AssetID          []Assets                `json:"asset_id" gorm:"embedded"`
 	RelatedTickets   []RelatedTicket         `json:"related_ticket_id" gorm:"foreignKey:TicketID"`
 	MediaAttachments []TicketMediaAttachment `json:"mediaAttachments" gorm:"foreignKey:TicketID"`
-	Tags             []Tags                  `json:"tags" gorm:"foreignKey:TicketID"`
+	Tags             Tags                    `json:"tags" gorm:"foreignKey:TicketID"`
 	Site             string                  `json:"site"`
 	Status           Status                  `json:"status" gorm:"embedded"`
 	Comments         []Comment               `json:"hashtags" gorm:"foreignKey:TicketID"`
@@ -214,7 +216,7 @@ type TicketStorage interface {
 	CreateTicket(*Ticket) error
 	DeleteTicket(int) error
 	UpdateTicket(*Ticket) error
-	GetTickets() (*[]Ticket, error)
+	GetTickets() ([]*Ticket, error)
 	GetTicketByID(int) (*Ticket, error)
 	GetTicketByNumber(int) (*Ticket, error)
 }
@@ -223,7 +225,7 @@ type CommentStorage interface {
 	CreateTicketComment(*Comment) error
 	//DeleteSubCategory(int) error
 	//UpdateSubCategory(*SubCategory) error
-	//GetAllSubCategories() (*[]SubCategory, error)
+	//GetAllSubCategories() ([]*SubCategory, error)
 	//GetSubCategoryByID(int) (*SubCategory, error)
 	//GetSubCategoryByNumber(int) (*SubCategory, error)
 }
@@ -232,7 +234,7 @@ type TicketHistoryEntryStorage interface {
 	CreateTicketHistoryEntry(*TicketHistoryEntry) error
 	//DeleteSubCategory(int) error
 	//UpdateSubCategory(*SubCategory) error
-	//GetAllSubCategories() (*[]SubCategory, error)
+	//GetAllSubCategories() ([]*SubCategory, error)
 	//GetSubCategoryByID(int) (*SubCategory, error)
 	//GetSubCategoryByNumber(int) (*SubCategory, error)
 }
@@ -241,7 +243,7 @@ type SlaStorage interface {
 	CreateSla(*Sla) error
 	DeleteSla(int) error
 	UpdateSla(*Sla) error
-	GetAllSla() (*[]Sla, error)
+	GetAllSla() ([]*Sla, error)
 	GetSlaByID(int) (*Sla, error)
 	GetSlaByNumber(int) (*Sla, error)
 }
@@ -250,7 +252,7 @@ type PriorityStorage interface {
 	CreatePriority(*Priority) error
 	DeletePriority(int) error
 	UpdatePriority(*Priority) error
-	GetPriorities() (*[]Priority, error)
+	GetPriorities() ([]*Priority, error)
 	GetPriorityByID(int) (*Priority, error)
 	GetPriorityByNumber(int) (*Priority, error)
 }
@@ -259,7 +261,7 @@ type SatisfactionStorage interface {
 	CreateSatisfaction(*Satisfaction) error
 	DeleteSatisfaction(int) error
 	UpdateSatisfaction(*Satisfaction) error
-	GetSatisfactions() (*[]Satisfaction, error)
+	GetSatisfactions() ([]*Satisfaction, error)
 	GetSatisfactionByID(int) (*Satisfaction, error)
 	GetSatisfactionByNumber(int) (*Satisfaction, error)
 }
@@ -268,7 +270,7 @@ type CategoryStorage interface {
 	CreateCategory(*Category) error
 	DeleteCategory(int) error
 	UpdateCategory(*Category) error
-	GetAllCategories() (*[]Category, error)
+	GetAllCategories() ([]*Category, error)
 	GetCategoryByID(int) (*Category, error)
 	GetCategoryByNumber(int) (*Category, error)
 }
@@ -277,7 +279,7 @@ type SubCategoryStorage interface {
 	CreateSubCategory(*SubCategory) error
 	DeleteSubCategory(int) error
 	UpdateSubCategory(*SubCategory) error
-	GetAllSubCategories() (*[]SubCategory, error)
+	GetAllSubCategories() ([]*SubCategory, error)
 	GetSubCategoryByID(int) (*SubCategory, error)
 	GetSubCategoryByNumber(int) (*SubCategory, error)
 }
@@ -286,7 +288,7 @@ type StatusStorage interface {
 	CreateStatus(*Status) error
 	DeleteStatus(int) error
 	UpdateStatus(*Status) error
-	GetStatus() (*[]Status, error)
+	GetStatus() ([]*Status, error)
 	GetStatusByID(int) (*Status, error)
 	GetStatusByNumber(int) (*Status, error)
 }
@@ -356,10 +358,10 @@ func (as *TicketDBModel) DeleteTicket(id uint) error {
 }
 
 // GetAllTickets retrieves all tickets from the database.
-func (as *TicketDBModel) GetAllTickets() (*[]Ticket, error) {
-	var tickets []Ticket
+func (as *TicketDBModel) GetAllTickets() ([]*Ticket, error) {
+	var tickets []*Ticket
 	err := as.DB.Find(&tickets).Error
-	return &tickets, err
+	return tickets, err
 }
 
 // ////////////////////////////////////////////////////////////////////////////////////
@@ -380,6 +382,8 @@ func (as *TicketCommentDBModel) GetCommentByID(id uint) (*Comment, error) {
 	return &comment, err
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////
+
 // CreateTicketHistoryEntry creates a new TicketHistoryEntry.
 func (as *TicketHistoryEntryDBModel) CreateTicketHistoryEntry(ticketHistory *TicketHistoryEntry, action string) error {
 	ticketHistory.Action = action
@@ -387,11 +391,437 @@ func (as *TicketHistoryEntryDBModel) CreateTicketHistoryEntry(ticketHistory *Tic
 }
 
 // GetCommentByID retrieves a Comment by its ID.
-func (as *TicketHistoryEntryDBModel) GetHistoryEntriesByTicketID(ticketID uint) *[]TicketHistoryEntry {
-	var ticketHistory []TicketHistoryEntry
+func (as *TicketHistoryEntryDBModel) GetHistoryEntriesByTicketID(ticketID uint) []*TicketHistoryEntry {
+	var ticketHistory []*TicketHistoryEntry
 	err := as.DB.Find(&ticketHistory).Error
 	if err != nil {
 		return nil
 	}
-	return &ticketHistory
+	return ticketHistory
+}
+
+// ///////////////////////////////////////////////////////////////////////////////////////////
+// CreateTicket creates a new Ticket.
+func (as *TicketDBModel) CreateTag(ticketID uint, tag string) (bool, error) {
+	addTagStatus := false
+	ticket, err := as.GetTicketByID(ticketID)
+	if err != nil {
+		return addTagStatus, fmt.Errorf("ticket not found")
+	}
+	ticket.Tags.Tags = append(ticket.Tags.Tags, tag)
+	erro := as.UpdateTicket(ticket)
+	if erro != nil {
+		return addTagStatus, fmt.Errorf("ticket not found")
+	}
+	addTagStatus = true
+	return addTagStatus, nil
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////
+
+func (tdb *TicketDBModel) AssignTicketToAgent(ticketID uint, agent *Agents) error {
+	// Assign a ticket to an agent by updating the AgentID field in the ticket
+	ticket := &Ticket{}
+	if err := tdb.DB.First(&ticket, ticketID).Error; err != nil {
+		return err
+	}
+
+	ticket.AgentID = *agent
+	if err := tdb.DB.Save(&ticket).Error; err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (tdb *TicketDBModel) ChangeTicketStatus(ticketID uint, newStatus *Status) error {
+	// Change the status of a ticket
+	ticket := &Ticket{}
+	if err := tdb.DB.First(&ticket, ticketID).Error; err != nil {
+		return err
+	}
+
+	ticket.Status = *newStatus
+	if err := tdb.DB.Save(ticket).Error; err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (tdb *TicketDBModel) AddCommentToTicket(ticketID uint, comment string) error {
+	// Add a comment to a ticket
+	ticketComment := &Comment{
+		TicketID:    ticketID,
+		Description: comment,
+		//Comment:  comment,
+	}
+	if err := tdb.DB.Create(&ticketComment).Error; err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (tdb *TicketDBModel) GetTicketHistory(ticketID uint) ([]*TicketHistoryEntry, error) {
+	// Retrieve the history of a ticket, including comments and status changes
+	var history []*TicketHistoryEntry
+
+	// Get all comments for the ticket
+	if err := tdb.DB.Where("ticket_id = ?", ticketID).Find(&history).Error; err != nil {
+		return nil, err
+	}
+
+	// Include status changes in the history
+	statusChanges := make([]*TicketHistoryEntry, 0)
+	if err := tdb.DB.Where("ticket_id = ? AND field = ?", ticketID, "status").Find(&statusChanges).Error; err != nil {
+		return nil, err
+	}
+
+	history = append(history, statusChanges...)
+
+	// Sort the history by timestamp
+	sort.Slice(history, func(i, j int) bool {
+		return history[i].CreatedAt.Before(history[j].CreatedAt)
+	})
+
+	return history, nil
+}
+
+///////////////////////////////////////////////////////// SLA
+
+func (tdb *TicketDBModel) CreateSla(sla *Sla) error {
+	// Create a new SLA
+	if err := tdb.DB.Create(sla).Error; err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (tdb *TicketDBModel) UpdateSla(sla *Sla) error {
+	// Update an existing SLA
+	if err := tdb.DB.Save(sla).Error; err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (tdb *TicketDBModel) DeleteSla(slaID uint) error {
+	// Delete an SLA by its ID
+	if err := tdb.DB.Delete(&Sla{}, slaID).Error; err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// GetAllSLAs retrieves all SLAs from the database.
+func (as *TicketDBModel) GetAllSLAs() ([]*Sla, error) {
+	var slas []*Sla
+	err := as.DB.Find(&slas).Error
+	if err != nil {
+		return nil, err
+	}
+	return slas, nil
+}
+
+// GetSLAByID retrieves an SLA by its ID.
+func (as *TicketDBModel) GetSLAByID(id uint) (*Sla, error) {
+	var sla Sla
+	err := as.DB.Where("id = ?", id).First(&sla).Error
+	if err != nil {
+		return nil, err
+	}
+	return &sla, nil
+}
+
+// GetSLAByNumber retrieves an SLA by its SLA number.
+func (as *TicketDBModel) GetSLAByNumber(slaNumber int) (*Sla, error) {
+	var sla Sla
+	err := as.DB.Where("sla_id = ?", slaNumber).First(&sla).Error
+	if err != nil {
+		return nil, err
+	}
+	return &sla, nil
+}
+
+///////////////////////////////////////////////////////// PRIORITY
+
+func (tdb *TicketDBModel) CreatePriority(priority *Priority) error {
+	// Create a new priority level
+	if err := tdb.DB.Create(priority).Error; err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (tdb *TicketDBModel) UpdatePriority(priority *Priority) error {
+	// Update an existing priority level
+	if err := tdb.DB.Save(priority).Error; err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (tdb *TicketDBModel) DeletePriority(priorityID uint) error {
+	// Delete a priority level by its ID
+	if err := tdb.DB.Delete(&Priority{}, priorityID).Error; err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// GetAllPriorities retrieves all priority levels from the database.
+func (as *TicketDBModel) GetAllPriorities() ([]*Priority, error) {
+	var priorities []*Priority
+	err := as.DB.Find(&priorities).Error
+	if err != nil {
+		return nil, err
+	}
+	return priorities, nil
+}
+
+// GetPriorityByID retrieves a priority level by its ID.
+func (as *TicketDBModel) GetPriorityByID(id uint) (*Priority, error) {
+	var priority Priority
+	err := as.DB.Where("id = ?", id).First(&priority).Error
+	if err != nil {
+		return nil, err
+	}
+	return &priority, nil
+}
+
+// GetPriorityByNumber retrieves a priority level by its priority number.
+func (as *TicketDBModel) GetPriorityByNumber(priorityNumber int) (*Priority, error) {
+	var priority Priority
+	err := as.DB.Where("priority_id = ?", priorityNumber).First(&priority).Error
+	if err != nil {
+		return nil, err
+	}
+	return &priority, nil
+}
+
+///////////////////////////////////////////////////////// TAGS
+
+func (tdb *TicketDBModel) AddTagToTicket(ticketID uint, tag string) error {
+	// Add a tag to a ticket
+	ticket := &Ticket{}
+	if err := tdb.DB.First(&ticket, ticketID).Error; err != nil {
+		return err
+	}
+
+	// Append the tag to the ticket's Tags field
+	ticket.Tags.Tags = append(ticket.Tags.Tags, tag)
+
+	if err := tdb.DB.Save(&ticket).Error; err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (tdb *TicketDBModel) RemoveTagFromTicket(ticketID uint, tag string) error {
+	// Remove a tag from a ticket
+	ticket := &Ticket{}
+	if err := tdb.DB.First(&ticket, ticketID).Error; err != nil {
+		return err
+	}
+
+	// Remove the tag from the ticket's Tags field
+	for i, existingTag := range ticket.Tags.Tags {
+		if existingTag == tag {
+			ticket.Tags.Tags = append(ticket.Tags.Tags[:i], ticket.Tags.Tags[i+1:]...)
+			break
+		}
+	}
+
+	if err := tdb.DB.Save(&ticket).Error; err != nil {
+		return err
+	}
+
+	return nil
+}
+
+///////////////////////////////////////////////////////// STATUS
+
+func (tdb *TicketDBModel) CreateStatus(status *Status) error {
+	// Create a new ticket status
+	if err := tdb.DB.Create(&status).Error; err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (tdb *TicketDBModel) UpdateStatus(status *Status) error {
+	// Update an existing ticket status
+	if err := tdb.DB.Save(&status).Error; err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (tdb *TicketDBModel) DeleteStatus(statusID uint) error {
+	// Delete a ticket status by its ID
+	if err := tdb.DB.Delete(&Status{}, statusID).Error; err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// GetAllStatuses retrieves all ticket statuses from the database.
+func (as *TicketDBModel) GetAllStatuses() ([]*Status, error) {
+	var statuses []*Status
+	err := as.DB.Find(&statuses).Error
+	if err != nil {
+		return nil, err
+	}
+	return statuses, nil
+}
+
+// GetStatusByID retrieves a ticket status by its ID.
+func (as *TicketDBModel) GetStatusByID(id uint) (*Status, error) {
+	var status Status
+	err := as.DB.Where("id = ?", id).First(&status).Error
+	if err != nil {
+		return nil, err
+	}
+	return &status, nil
+}
+
+// GetStatusByNumber retrieves a ticket status by its status number.
+func (as *TicketDBModel) GetStatusByNumber(statusNumber int) (*Status, error) {
+	var status Status
+	err := as.DB.Where("status_id = ?", statusNumber).First(&status).Error
+	if err != nil {
+		return nil, err
+	}
+	return &status, nil
+}
+
+////////////////////////////////////////////////////////// CATEGORY
+
+func (tdb *TicketDBModel) CreateCategory(category *Category) error {
+	// Create a new category
+	if err := tdb.DB.Create(&category).Error; err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (tdb *TicketDBModel) UpdateCategory(category *Category) error {
+	// Update an existing category
+	if err := tdb.DB.Save(&category).Error; err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (tdb *TicketDBModel) DeleteCategory(categoryID uint) error {
+	// Delete a category by its ID
+	if err := tdb.DB.Delete(&Category{}, categoryID).Error; err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// GetAllCategories retrieves all categories from the database.
+func (as *TicketDBModel) GetAllCategories() ([]*Category, error) {
+	var categories []*Category
+	err := as.DB.Find(&categories).Error
+	if err != nil {
+		return nil, err
+	}
+	return categories, nil
+}
+
+// GetCategoryByID retrieves a category by its ID.
+func (as *TicketDBModel) GetCategoryByID(id uint) (*Category, error) {
+	var category Category
+	err := as.DB.Where("id = ?", id).First(&category).Error
+	if err != nil {
+		return nil, err
+	}
+	return &category, nil
+}
+
+// GetCategoryByNumber retrieves a category by its category number.
+func (as *TicketDBModel) GetCategoryByNumber(categoryNumber int) (*Category, error) {
+	var category Category
+	err := as.DB.Where("category_id = ?", categoryNumber).First(&category).Error
+	if err != nil {
+		return nil, err
+	}
+	return &category, nil
+}
+
+//////////////////////////////////////////////////////// SUBCATEGORY
+
+// backend/models/ticket_db_model.go
+
+func (tdb *TicketDBModel) CreateSubcategory(subcategory *SubCategory) error {
+	// Create a new subcategory
+	if err := tdb.DB.Create(&subcategory).Error; err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (tdb *TicketDBModel) UpdateSubcategory(subcategory *SubCategory) error {
+	// Update an existing subcategory
+	if err := tdb.DB.Save(&subcategory).Error; err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (tdb *TicketDBModel) DeleteSubcategory(subcategoryID uint) error {
+	// Delete a subcategory by its ID
+	if err := tdb.DB.Delete(&SubCategory{}, subcategoryID).Error; err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// GetAllSubcategories retrieves all subcategories from the database.
+func (as *TicketDBModel) GetAllSubcategories() ([]*SubCategory, error) {
+	var subcategories []*SubCategory
+	err := as.DB.Find(&subcategories).Error
+	if err != nil {
+		return nil, err
+	}
+	return subcategories, nil
+}
+
+// GetSubcategoryByID retrieves a subcategory by its ID.
+func (as *TicketDBModel) GetSubcategoryByID(id uint) (*SubCategory, error) {
+	var subcategory SubCategory
+	err := as.DB.Where("id = ?", id).First(&subcategory).Error
+	if err != nil {
+		return nil, err
+	}
+	return &subcategory, nil
+}
+
+// GetSubcategoryByNumber retrieves a subcategory by its subcategory number.
+func (as *TicketDBModel) GetSubcategoryByNumber(subcategoryNumber int) (*SubCategory, error) {
+	var subcategory SubCategory
+	err := as.DB.Where("subcategory_id = ?", subcategoryNumber).First(&subcategory).Error
+	if err != nil {
+		return nil, err
+	}
+	return &subcategory, nil
 }

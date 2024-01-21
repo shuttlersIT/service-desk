@@ -3,8 +3,10 @@
 package models
 
 import (
+	"fmt"
 	"time"
 
+	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
 
@@ -95,8 +97,70 @@ func (as *AuthDBModel) DeleteUserCredentials(id uint) error {
 }
 
 // GetAllUsers retrieves all users from the database.
-func (as *AuthDBModel) GetAllUserCreds() ([]UsersLoginCredentials, error) {
-	var usersCredentials []UsersLoginCredentials
+func (as *AuthDBModel) GetAllUserCreds() ([]*UsersLoginCredentials, error) {
+	var usersCredentials []*UsersLoginCredentials
+	err := as.DB.Find(&usersCredentials).Error
+	return usersCredentials, err
+}
+
+type LoginInfo struct {
+	Email    string `json:"email"`
+	Password string `json:"password"`
+}
+
+type RegisterModel struct {
+	a *UserDBModel
+	b *AuthDBModel
+}
+
+// NewUserModel creates a new instance of UserModel
+func NewRegisterModel(a *UserDBModel, b *AuthDBModel) *RegisterModel {
+	return &RegisterModel{
+		a: a,
+		b: b,
+	}
+}
+
+// Register New User
+func (ab *RegisterModel) Registration(user *Users) (*Users, error) {
+	// Hash the user's password before storing it in the database
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(user.Credentials.Password), bcrypt.DefaultCost)
+	if err != nil {
+		return nil, fmt.Errorf("failed to hash password")
+	}
+	user.Credentials.Password = string(hashedPassword)
+	newUser, erro := ab.a.CreateUser(user)
+	if erro != nil {
+		return nil, fmt.Errorf("failed to create users")
+	}
+	er := ab.b.CreateUserCredentials(&newUser.Credentials)
+	if er != nil {
+		return nil, fmt.Errorf("failed to create users credentials")
+	}
+	e := ab.a.UpdateUser(newUser)
+	if e != nil {
+		return nil, fmt.Errorf("unable to update new users credentials")
+	}
+
+	return newUser, nil
+}
+
+// Login User
+func (a *AuthDBModel) Login(login *LoginInfo) (*Users, error) {
+	loginInfo := login
+	var user Users
+	if err := a.DB.Where("email = ?", loginInfo.Email).First(&user).Error; err != nil {
+		return nil, err
+	}
+	if err := bcrypt.CompareHashAndPassword([]byte(user.Credentials.Password), []byte(loginInfo.Password)); err != nil {
+		return nil, err
+	}
+	return &user, nil
+}
+
+// ResetUserPassword retrieves all users from the database.
+func (as *AuthDBModel) ResetUserPassword(uint, string) ([]*UsersLoginCredentials, error) {
+	var usersCredentials []*UsersLoginCredentials
 	err := as.DB.Find(&usersCredentials).Error
 	return usersCredentials, err
 }
@@ -126,8 +190,8 @@ func (as *AuthDBModel) DeleteAgentCredentials(id uint) error {
 }
 
 // GetAllUsers retrieves all users from the database.
-func (as *AuthDBModel) GetAllAgentCreds() ([]AgentLoginCredentials, error) {
-	var agentCredentials []AgentLoginCredentials
+func (as *AuthDBModel) GetAllAgentCreds() ([]*AgentLoginCredentials, error) {
+	var agentCredentials []*AgentLoginCredentials
 	err := as.DB.Find(&agentCredentials).Error
 	return agentCredentials, err
 }

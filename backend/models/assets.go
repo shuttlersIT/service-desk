@@ -52,7 +52,7 @@ func (AssetTag) TableName() string {
 
 type AssetType struct {
 	gorm.Model
-	ID        int       `gorm:"primaryKey" json:"asset_type_id"`
+	ID        uint      `gorm:"primaryKey" json:"asset_type_id"`
 	AssetType string    `json:"asset_type"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
@@ -65,10 +65,10 @@ func (AssetType) TableName() string {
 
 type AssetAssignment struct {
 	gorm.Model
-	ID             int       `gorm:"primaryKey" json:"assignment_id"`
-	AssetID        int       `json:"_"`
-	UserID         int       `json:"user_id"`
-	AssignedBy     int       `json:"assigned_by"`
+	ID             uint      `gorm:"primaryKey" json:"assignment_id"`
+	AssetID        uint      `json:"_"`
+	UserID         uint      `json:"user_id"`
+	AssignedBy     uint      `json:"assigned_by"`
 	AssignmentType string    `json:"assignment_type"`
 	DueAt          time.Time `json:"due_at"`
 	CreatedAt      time.Time `json:"created_at"`
@@ -107,15 +107,29 @@ type AssetAssignmentStorage interface {
 	GetAssetAssignmentByNumber(int) (*AssetAssignment, error)
 }
 
-// AssetModel handles database operations for Asset
-type AssetDBModel struct {
+// AssetAssignmentModel handles database operations for Asset
+type AssetAssignmentDBModel struct {
 	DB *gorm.DB
 }
 
-// NewAssetModel creates a new instance of TicketModel
-func NewAssetDBModel(db *gorm.DB) *AssetDBModel {
-	return &AssetDBModel{
+// NewAssetAssignmentModel creates a new instance of TicketModel
+func NewAssetAssignmentDBModel(db *gorm.DB) *AssetAssignmentDBModel {
+	return &AssetAssignmentDBModel{
 		DB: db,
+	}
+}
+
+// AssetModel handles database operations for Asset
+type AssetDBModel struct {
+	DB              *gorm.DB
+	AssetAssignment *AssetAssignmentDBModel
+}
+
+// NewAssetModel creates a new instance of TicketModel
+func NewAssetDBModel(db *gorm.DB, assetAssignment *AssetAssignmentDBModel) *AssetDBModel {
+	return &AssetDBModel{
+		DB:              db,
+		AssetAssignment: assetAssignment,
 	}
 }
 
@@ -124,11 +138,14 @@ func (as *AssetDBModel) CreateAsset(asset *Assets) error {
 	return as.DB.Create(asset).Error
 }
 
-// GetAssetsByID retrieves a user by its ID.
+// GetAssetByID retrieves an asset by its ID.
 func (as *AssetDBModel) GetAssetByID(id uint) (*Assets, error) {
 	var asset Assets
 	err := as.DB.Where("id = ?", id).First(&asset).Error
-	return &asset, err
+	if err != nil {
+		return nil, err
+	}
+	return &asset, nil
 }
 
 // UpdateAssets updates the details of an existing asset.
@@ -148,8 +165,116 @@ func (as *AssetDBModel) DeleteAsset(id uint) error {
 }
 
 // GetAllAssets retrieves all Assets from the database.
-func (as *AssetDBModel) GetAllAssets() (*[]Assets, error) {
-	var assets []Assets
+func (as *AssetDBModel) GetAllAssets() ([]*Assets, error) {
+	var assets []*Assets
 	err := as.DB.Find(&assets).Error
-	return &assets, err
+	if err != nil {
+		return nil, err
+	}
+	return assets, err
+}
+
+// GetAssetByNumber retrieves an asset by its asset number.
+func (as *AssetDBModel) GetAssetByNumber(assetNumber int) (*Assets, error) {
+	var asset Assets
+	err := as.DB.Where("asset_id = ?", assetNumber).First(&asset).Error
+	if err != nil {
+		return nil, err
+	}
+	return &asset, nil
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////
+
+// GetAssetAssignmentByID retrieves a AssetAssignment by its ID.
+func (as *AssetAssignmentDBModel) GetAssetAssignmentByID(id uint) (*AssetAssignment, error) {
+	var asset AssetAssignment
+	err := as.DB.Where("id = ?", id).First(&asset).Error
+	return &asset, err
+}
+
+// UpdateAssetAssignment updates the assignment of an existing asset.
+func (as *AssetAssignmentDBModel) AssignAsset(asset *Assets, userID uint) (*AssetAssignment, error) {
+	var assetAssignment AssetAssignment
+	assetAssignment.AssetID = asset.ID
+	assetAssignment.AssignmentType = "permanent"
+	assetAssignment.CreatedAt = time.Now()
+
+	id := as.DB.Save(&assetAssignment).RowsAffected
+	assignment, err := as.GetAssetAssignmentByID(uint(id))
+	if err != nil {
+		return nil, err
+	}
+
+	return assignment, nil
+}
+
+// UpdateAssetAssignment updates the assignment of an existing asset.
+func (as *AssetAssignmentDBModel) UnassignAsset(assetAssignment *AssetAssignment) (*AssetAssignment, error) {
+	assetAssignment, err := as.GetAssetAssignmentByID(assetAssignment.ID)
+	if err != nil {
+		return nil, err
+	}
+	assetAssignment.AssignmentType = "unassigned"
+	assetAssignment.AssetID = 0
+
+	id := as.DB.Save(&assetAssignment).RowsAffected
+	assignment, err := as.GetAssetAssignmentByID(uint(id))
+	if err != nil {
+		return nil, err
+	}
+
+	return assignment, nil
+}
+
+func (tdb *AssetDBModel) AssignAssetToUser(assetID, userID uint) error {
+	// Assign an asset to a user
+	asset := &Assets{}
+	if err := tdb.DB.First(asset, assetID).Error; err != nil {
+		return err
+	}
+
+	// Update the asset's UserID
+	asset.ID = userID
+	if err := tdb.DB.Save(asset).Error; err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (tdb *AssetDBModel) UnassignAsset(assetID uint) error {
+	// Unassign an asset from a user
+	asset := &Assets{}
+	if err := tdb.DB.First(asset, assetID).Error; err != nil {
+		return err
+	}
+
+	// Clear the asset's UserID
+	asset.ID = 0
+	if err := tdb.DB.Save(asset).Error; err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// backend/models/asset_db_model.go
+
+func (adb *AssetDBModel) AssignAssetToUser2(assetID, userID uint) error {
+	// Assign an asset to a user by updating the user_id field in the asset record
+	if err := adb.DB.Model(&Assets{}).Where("id = ?", assetID).Update("user_id", userID).Error; err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (adb *AssetDBModel) UnassignAssetUser2(assetID uint) error {
+	// Unassign an asset from a user by setting the user_id field to null
+	if err := adb.DB.Model(&Assets{}).Where("id = ?", assetID).Update("user_id", nil).Error; err != nil {
+		return err
+	}
+
+	return nil
 }

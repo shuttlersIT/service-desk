@@ -37,7 +37,7 @@ func (ac *AuthController) Registration(ctx *gin.Context) {
 }
 
 func (ac *AuthController) Login(ctx *gin.Context) {
-	var loginInfo *services.LoginInfo
+	var loginInfo *models.LoginInfo
 	loginInfo.Email = ctx.PostForm("email")
 	loginInfo.Password = ctx.PostForm("secret")
 	if err := ctx.BindJSON(&loginInfo); err != nil {
@@ -53,6 +53,10 @@ func (ac *AuthController) Login(ctx *gin.Context) {
 }
 
 func (ac *AuthController) Logout(ctx *gin.Context) {
+	// Implement logout logic here
+}
+
+func (ac *AuthController) ResetPassword(ctx *gin.Context) {
 	// Implement logout logic here
 }
 

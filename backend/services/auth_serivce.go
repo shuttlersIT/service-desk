@@ -3,12 +3,10 @@
 package services
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/golang-jwt/jwt"
 	"github.com/shuttlersit/service-desk/backend/models"
-	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
 
@@ -25,9 +23,10 @@ type AuthServiceInterface interface {
 
 // DefaultAuthService is the default implementation of AuthService
 type DefaultAuthService struct {
-	DB          *gorm.DB
-	AuthDBModel *models.AuthDBModel
-	UserDBModel *models.UserDBModel
+	DB            *gorm.DB
+	AuthDBModel   *models.AuthDBModel
+	UserDBModel   *models.UserDBModel
+	RegisterModel *models.RegisterModel
 	// Add any dependencies or data needed for the service
 }
 
@@ -41,42 +40,23 @@ func NewDefaultAuthService(authDBModel *models.AuthDBModel) *DefaultAuthService 
 // User registration
 func (a *DefaultAuthService) Registration(user *models.Users) (*models.Users, string, error) {
 
-	// Hash the user's password before storing it in the database
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(user.Credentials.Password), bcrypt.DefaultCost)
-	if err != nil {
-		return nil, "", fmt.Errorf("failed to hash password")
-	}
-	user.Credentials.Password = string(hashedPassword)
-	erro := a.UserDBModel.CreateUser(user)
-	if erro != nil {
-		return nil, "", fmt.Errorf("failed to create users")
-	}
-	er := a.AuthDBModel.CreateUserCredentials(&user.Credentials)
-	if er != nil {
-		return nil, "", fmt.Errorf("failed to create users credentials")
-	}
-
-	e := a.UserDBModel.CreateUser(user)
+	u, e := a.RegisterModel.Registration(user)
 	if e != nil {
 		return nil, "", e
 	}
 	// Generate a JWT token for successful login
-	token, err := generateJWTToken(user.ID)
+	token, err := generateJWTToken(u.ID)
 	if err != nil {
 		return nil, "", err
 	}
-	return user, token, nil
+	return u, token, nil
 }
 
 // User login
-func (a *DefaultAuthService) Login(login *LoginInfo) (string, error) {
-	loginInfo := login
-	var user models.Users
-	if err := a.DB.Where("email = ?", loginInfo.Email).First(&user).Error; err != nil {
+func (a *DefaultAuthService) Login(loginInfo *models.LoginInfo) (string, error) {
+	user, err := a.AuthDBModel.Login(loginInfo)
+	if err != nil {
 		return "", err
-	}
-	if err := bcrypt.CompareHashAndPassword([]byte(user.Credentials.Password), []byte(loginInfo.Password)); err != nil {
-		return "", fmt.Errorf("invalid email or password")
 	}
 	// Generate a JWT token for successful login
 	token, err := generateJWTToken(user.ID)
@@ -93,4 +73,35 @@ func generateJWTToken(userID uint) (string, error) {
 		"exp":    time.Now().Add(time.Hour * 24).Unix(), // Token expires in 24 hours
 	})
 	return token.SignedString([]byte("your-secret-key"))
+}
+
+// backend/services/user_service.go
+
+func (us *DefaultAuthService) ResetUserPassword(userID uint, newPassword string) error {
+	// Reset the user's password
+	_, err := us.AuthDBModel.ResetUserPassword(userID, newPassword)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (us *DefaultUserService) ResetUserPassword2(userID uint, newPassword string) error {
+	// Retrieve the user by userID
+	user, err := us.UserDBModel.GetUserByID(userID)
+	if err != nil {
+		return err
+	}
+
+	// Update the user's password with the new password
+	user.Credentials.Password = newPassword
+
+	// Save the updated user
+	err = us.UserDBModel.UpdateUser(user)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

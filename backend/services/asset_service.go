@@ -13,25 +13,27 @@ type AssetServiceInterface interface {
 	UpdateAsset(asset *models.Assets) (*models.Assets, error)
 	GetAssetByID(id uint) (*models.Assets, error)
 	DeleteAsset(assetID uint) (bool, error)
-	GetAllAssets() *[]models.Assets
+	GetAllAssets() []*models.Assets
 }
 
 // DefaultAssetService is the default implementation of AssettService
 type DefaultAssetService struct {
-	DB           *gorm.DB
-	AssetDBModel *models.AssetDBModel
+	DB                     *gorm.DB
+	AssetDBModel           *models.AssetDBModel
+	AssetAssignmentDBModel *models.AssetAssignmentDBModel
 	// Add any dependencies or data needed for the service
 }
 
 // NewDefaultAssetService creates a new DefaultAssetService.
-func NewDefaultAssetService(assetDBModel *models.AssetDBModel) *DefaultAssetService {
+func NewDefaultAssetService(assetDBModel *models.AssetDBModel, assetAssignmentDBModel *models.AssetAssignmentDBModel) *DefaultAssetService {
 	return &DefaultAssetService{
-		AssetDBModel: assetDBModel,
+		AssetDBModel:           assetDBModel,
+		AssetAssignmentDBModel: assetAssignmentDBModel,
 	}
 }
 
 // GetAllAssets retrieves all assets.
-func (ps *DefaultAssetService) GetAllAssets() (*[]models.Assets, error) {
+func (ps *DefaultAssetService) GetAllAssets() ([]*models.Assets, error) {
 	assets, err := ps.AssetDBModel.GetAllAssets()
 	if err != nil {
 		return nil, err
@@ -75,4 +77,56 @@ func (ps *DefaultAssetService) DeleteAsset(id uint) (bool, error) {
 	}
 	status = true
 	return status, nil
+}
+
+// backend/services/asset_service.go
+
+func (as *DefaultAssetService) AssignAssetToUser(assetID, userID uint) error {
+	// Retrieve the asset by assetID
+	// Update the asset user ID
+	asset, err := as.GetAssetByID(assetID)
+	if err != nil {
+		return err
+	}
+
+	assetAssignment, err := as.AssetAssignmentDBModel.AssignAsset(asset, userID)
+	if err != nil {
+		return err
+	}
+
+	asset.Status = "assigned"
+	asset.Assignment = *assetAssignment
+
+	// Save the updated asset
+	err = as.AssetDBModel.UpdateAsset(asset)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (as *DefaultAssetService) UnassignAsset(assetID uint) error {
+	// Retrieve the asset by assetID
+	// Update the asset user ID
+	asset, err := as.GetAssetByID(assetID)
+	if err != nil {
+		return err
+	}
+
+	assetAssignment, err := as.AssetAssignmentDBModel.UnassignAsset(&asset.Assignment)
+	if err != nil {
+		return err
+	}
+
+	asset.Status = "unassigned"
+	asset.Assignment = *assetAssignment
+
+	// Save the updated asset
+	err = as.AssetDBModel.UpdateAsset(asset)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

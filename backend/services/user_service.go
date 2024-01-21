@@ -13,7 +13,7 @@ type UserServiceInterface interface {
 	UpdateUser(user *models.Users) (*models.Users, error)
 	GetUserByID(id uint) (*models.Users, error)
 	DeleteUser(userID uint) (bool, error)
-	GetAllUsers() *[]models.Users
+	GetAllUsers() []*models.Users
 }
 
 // DefaultUserService is the default implementation of UserService
@@ -31,7 +31,7 @@ func NewDefaultUserService(users *models.UserDBModel) *DefaultUserService {
 }
 
 // GetAllUsers retrieves all users.
-func (ps *DefaultUserService) GetAllUsers() (*[]models.Users, error) {
+func (ps *DefaultUserService) GetAllUsers() ([]*models.Users, error) {
 	users, err := ps.UserDBModel.GetAllUsers()
 	if err != nil {
 		return nil, err
@@ -41,7 +41,7 @@ func (ps *DefaultUserService) GetAllUsers() (*[]models.Users, error) {
 
 // CreateUser creates a new user.
 func (ps *DefaultUserService) CreateUser(user *models.Users) error {
-	err := ps.UserDBModel.CreateUser(user)
+	_, err := ps.UserDBModel.CreateUser(user)
 	if err != nil {
 		return err
 	}
@@ -77,25 +77,6 @@ func (ps *DefaultUserService) DeleteUser(userID uint) (bool, error) {
 	return status, nil
 }
 
-func (us *DefaultUserService) ResetPassword(userID uint, newPassword string) error {
-	// Retrieve the user by userID
-	user, err := us.UserDBModel.GetUserByID(userID)
-	if err != nil {
-		return err
-	}
-
-	// Update the user's password with the new password
-	user.Credentials.Password = newPassword
-
-	// Save the updated user
-	err = us.UserDBModel.UpdateUser(user)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
 func (us *DefaultUserService) UpdateUserProfile(userID uint, updatedUser *models.Users) error {
 	// Retrieve the user by userID
 	user, err := us.UserDBModel.GetUserByID(userID)
@@ -111,6 +92,26 @@ func (us *DefaultUserService) UpdateUserProfile(userID uint, updatedUser *models
 
 	// Save the updated user profile
 	err = us.UserDBModel.UpdateUser(user)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (us *DefaultUserService) UpdateUserProfile2(userID uint, updatedUser *models.Users) error {
+	// Update the user's profile details
+	err := us.UserDBModel.UpdateUser(updatedUser)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (us *DefaultUserService) DeleteUser2(userID uint) error {
+	// Delete a user by user ID
+	err := us.UserDBModel.DeleteUser(userID)
 	if err != nil {
 		return err
 	}

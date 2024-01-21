@@ -13,7 +13,7 @@ type AgentServiceInterface interface {
 	GetAgentByID(id uint) (*models.Agents, error)
 	UpdateAgent(agent *models.Agents) (*models.Agents, error)
 	DeleteAgent(agentID uint) (bool, error)
-	GetAllAgents() *[]models.Agents
+	GetAllAgents() []*models.Agents
 }
 
 // DefaultAgentService is the default implementation of AgentService
@@ -31,7 +31,7 @@ func NewDefaultAgentService(agentDBModel *models.AgentDBModel) *DefaultAgentServ
 }
 
 // GetAllAgents retrieves all agents.
-func (ps *DefaultAgentService) GetAllAgents() (*[]models.Agents, error) {
+func (ps *DefaultAgentService) GetAllAgents() ([]*models.Agents, error) {
 	agents, err := ps.AgentDBModel.GetAllAgents()
 	if err != nil {
 		return nil, err
