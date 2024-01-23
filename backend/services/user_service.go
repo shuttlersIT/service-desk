@@ -14,6 +14,18 @@ type UserServiceInterface interface {
 	GetUserByID(id uint) (*models.Users, error)
 	DeleteUser(userID uint) (bool, error)
 	GetAllUsers() []*models.Users
+	CreatePosition(*models.Position) error
+	DeletePosition(int) error
+	UpdatePosition(*models.Position) error
+	GetPosition() ([]*models.Position, error)
+	GetPositionByID(int) (*models.Position, error)
+	GetPositionByNumber(int) (*models.Position, error)
+	CreateDepartment(*models.Department) error
+	DeleteDepartment(int) error
+	UpdateDepartment(*models.Department) error
+	GetDepartments() ([]*models.Department, error)
+	GetDepartmentByID(int) (*models.Department, error)
+	GetDepartmentByNumber(int) (*models.Department, error)
 }
 
 // DefaultUserService is the default implementation of UserService

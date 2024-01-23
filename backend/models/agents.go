@@ -17,6 +17,7 @@ type Agents struct {
 	Credentials  AgentLoginCredentials `json:"agent_credentials" gorm:"foreignKey:AgentID"`
 	Phone        string                `json:"phoneNumber" binding:"required,e164"`
 	RoleID       Role                  `json:"role_id" gorm:"embedded"`
+	Team         Teams                 `json:"team_id" gorm:"embedded"`
 	Unit         Unit                  `json:"unit" gorm:"embedded"`
 	SupervisorID int                   `json:"supervisor_id"`
 	CreatedAt    time.Time             `json:"created_at"`
@@ -39,6 +40,19 @@ type Unit struct {
 // TableName sets the table name for the Agent model.
 func (Unit) TableName() string {
 	return "unit"
+}
+
+type Teams struct {
+	ID        int       `gorm:"primaryKey" json:"team_id"`
+	TeamName  string    `json:"team_name"`
+	Emoji     string    `json:"emoji"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+// TableName sets the table name for the Agent model.
+func (Teams) TableName() string {
+	return "team"
 }
 
 type Role struct {
@@ -69,6 +83,15 @@ type UnitStorage interface {
 	GetUnits() ([]*Unit, error)
 	GetUnitByID(int) (*Unit, error)
 	GetUnitByNumber(int) (*Unit, error)
+}
+
+type TeamStorage interface {
+	CreateTeam(*Teams) error
+	DeleteTeam(int) error
+	UpdateTeam(*Teams) error
+	GetTeams() ([]*Teams, error)
+	GetTeamByID(int) (*Teams, error)
+	GetTeamByNumber(int) (*Teams, error)
 }
 
 type RoleStorage interface {
@@ -234,4 +257,52 @@ func (as *AgentDBModel) GetRoleByNumber(roleNumber int) (*Role, error) {
 		return nil, err
 	}
 	return &role, nil
+}
+
+// CreateUnit creates a new unit.
+func (as *AgentDBModel) CreateTeam(team *Teams) error {
+	return as.DB.Create(team).Error
+}
+
+// DeleteUnit deletes a unit from the database.
+func (as *AgentDBModel) DeleteTeam(id int) error {
+	if err := as.DB.Delete(&Teams{}, id).Error; err != nil {
+		return err
+	}
+	return nil
+}
+
+// UpdateUnit updates the details of an existing unit.
+func (as *AgentDBModel) UpdateTeam(team *Teams) error {
+	return as.DB.Save(team).Error
+}
+
+// GetUnits retrieves all units from the database.
+func (as *AgentDBModel) GetTeams() ([]*Teams, error) {
+	var teams []*Teams
+	err := as.DB.Find(&teams).Error
+	if err != nil {
+		return nil, err
+	}
+	return teams, nil
+}
+
+// GetUnitByID retrieves a unit by its ID.
+func (as *AgentDBModel) GetTeamByID(id int) (*Teams, error) {
+	var team Teams
+	err := as.DB.Where("team_id = ?", id).First(&team).Error
+	if err != nil {
+		return nil, err
+	}
+	return &team, nil
+}
+
+// GetUnitByNumber retrieves a unit by its unit number.
+func (as *AgentDBModel) GetTeamByNumber(teamNumber int) (*Teams, error) {
+	var team Teams
+	err := as.DB.Where("team_id = ?", teamNumber).First(&team).Error
+	if err != nil {
+		return nil, err
+	}
+	return &team, nil
 }

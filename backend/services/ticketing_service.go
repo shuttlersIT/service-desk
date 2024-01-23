@@ -11,11 +11,35 @@ import (
 
 // TicketServiceInterface provides methods for managing ticketss.
 type TicketingServiceInterface interface {
-	CreateTicket(ticket *models.Ticket) (*models.Ticket, error)
-	UpdateTicket(ticket *models.Ticket) (*models.Ticket, error)
+	CreateTicket(ticket *models.Ticket) error
+	UpdateTicket(ticket *models.Ticket) error
 	GetTicketByID(id uint) (*models.Ticket, error)
-	DeleteTicket(ticketID uint) (bool, error)
-	GetAllTickets() []*models.Ticket
+	DeleteTicket(ticketID uint) error
+	GetAllTickets() ([]*models.Ticket, error)
+	AssignTicketToAgent(ticketID, agentID uint) error
+	ChangeTicketStatus(ticketID uint, newStatus models.Status) error
+	AddCommentToTicket(ticketID uint, c string) error
+	GetTicketHistory(ticketID uint) ([]*models.TicketHistoryEntry, error)
+	CreateCategory(category *models.Category) error
+	UpdateCategory(category *models.Category) error
+	DeleteCategory(categoryID uint) error
+	CreateSubcategory(subcategory *models.SubCategory) error
+	UpdateSubcategory(subcategory *models.SubCategory) error
+	DeleteSubcategory(subcategoryID uint) error
+	CreateTag(ticketID uint, tag string) (*models.Tags, error)
+	AddTagToTicket(ticketID uint, tag string) error
+	IndirectlyAddTagToTicket(ticketID uint, tag string) error
+	RemoveTagFromTicket(ticketID uint, tag string) error
+	IndirectlyRemoveTagFromTicket(ticketID uint, tag string) error
+	CreateSLA(sla *models.Sla) error
+	UpdateSLA(sla *models.Sla) error
+	DeleteSLA(slaID uint) error
+	CreatePriority(priority *models.Priority) error
+	UpdatePriority(priority *models.Priority) error
+	DeletePriority(priorityID uint) error
+	CreateStatus(status *models.Status) error
+	UpdateStatus(status *models.Status) error
+	DeleteStatus(statusID uint) error
 }
 
 // DefaultUserService is the default implementation of UserService

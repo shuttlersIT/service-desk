@@ -9,9 +9,20 @@ import (
 
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/mattn/go-sqlite3"
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
 )
 
 var status string
+
+func ConnectDB() (*gorm.DB, error) {
+	// Initialize Database
+	db, err := gorm.Open(sqlite.Open("root:1T$hutt!ers@tcp(mysqlDB:3306)/itsm"), &gorm.Config{})
+	if err != nil {
+		log.Fatalf("Failed to connect to database: %v", err)
+	}
+	return db, err
+}
 
 func ConnectMysql() (string, *sql.DB) {
 

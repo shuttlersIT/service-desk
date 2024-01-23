@@ -19,6 +19,8 @@ type LoginInfo struct {
 type AuthServiceInterface interface {
 	Registration(user *models.Users) (*models.Users, string, error)
 	Login(login *LoginInfo) (string, error)
+	ResetUserPassword(userID uint, newPassword string) error
+	ResetUserPassword2(userID uint, newPassword string) error
 }
 
 // DefaultAuthService is the default implementation of AuthService
