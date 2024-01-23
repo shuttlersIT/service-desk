@@ -66,9 +66,13 @@ func (ac *AgentController) UpdateAgent(ctx *gin.Context) {
 
 	agent.ID = uint(id)
 
-	updatedAgent, err := ac.AgentService.UpdateAgent(&agent)
-	if err != nil {
+	erro := ac.AgentService.UpdateAgent(&agent)
+	if erro != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	updatedAgent, err := ac.AgentService.GetAgentByID(agent.ID)
+	if err != nil {
 		return
 	}
 
@@ -83,13 +87,13 @@ func (pc *AgentController) DeleteAgent(ctx *gin.Context) {
 		return
 	}
 
-	status, err := pc.AgentService.DeleteAgent(uint(id))
-	if err != nil {
+	erro := pc.AgentService.DeleteAgent(uint(id))
+	if erro != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	ctx.JSON(http.StatusNoContent, status)
+	ctx.JSON(http.StatusNoContent, "agent deleted successfully")
 }
 
 // GetAgentByID handles the HTTP request to retrieve a agents by ID.
