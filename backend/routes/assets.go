@@ -7,13 +7,24 @@ import (
 	"github.com/shuttlersit/service-desk/backend/controllers"
 )
 
-func SetAssetsRoutes(r *gin.Engine, assets *controllers.AssetController) {
+func SetAssetsRoutes(router *gin.Engine, assetController *controllers.AssetController) {
 
-	a := r.Group("/assets")
-	a.GET("/", assets.GetAllAssets)
-	a.GET("/:id", assets.GetAssetByID)
-	a.POST("/", assets.CreateAsset)
-	a.PUT("/:id", assets.UpdateAsset)
-	a.DELETE("/:id", assets.DeleteAsset)
-
+	// Define Asset routes
+	assetRoutes := router.Group("/assets")
+	{
+		assetRoutes.POST("/", assetController.CreateAsset)
+		assetRoutes.PUT("/:id", assetController.UpdateAsset)
+		assetRoutes.GET("/:id", assetController.GetAssetByID)
+		assetRoutes.DELETE("/:id", assetController.DeleteAsset)
+		assetRoutes.GET("/", assetController.GetAllAssets)
+	}
+	// Define Asset Assignment routes
+	assetAssignmentRoutes := router.Group("/asset-assignments")
+	{
+		assetAssignmentRoutes.POST("/", assetController.CreateAssetAssignAsset)
+		assetAssignmentRoutes.PUT("/:id", assetController.UpdateAssetAssignmentHandler)
+		assetAssignmentRoutes.GET("/:id", assetController.GetAssetAssignmentByIDHandler)
+		assetAssignmentRoutes.DELETE("/:id", assetController.DeleteAssetAssignmentHandler)
+		assetAssignmentRoutes.GET("/", assetController.GetAllAssetAssignmentsHandler)
+	}
 }

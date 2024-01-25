@@ -44,6 +44,7 @@ type ServiceRequestHistoryEntry struct {
 type ServiceRequestStorage interface {
 	CreateServiceRequest(request *ServiceRequest) error
 	UpdateServiceRequest(request *ServiceRequest) error
+	GetAllServiceRequests() ([]*ServiceRequest, error)
 	GetServiceRequestByID(requestID uint) (*ServiceRequest, error)
 	GetUserServiceRequests(userID uint) ([]*ServiceRequest, error)
 	CloseServiceRequest(requestID uint) error
@@ -101,6 +102,13 @@ type ServiceRequestStorage interface {
 // ServiceRequestDBModel is the database model for service requests.
 type ServiceRequestDBModel struct {
 	DB *gorm.DB
+}
+
+// GetAllServiceRequests retrieves all service requests from the database.
+func (srm *ServiceRequestDBModel) GetAllServiceRequests() ([]*ServiceRequest, error) {
+	var serviceRequests []*ServiceRequest
+	err := srm.DB.Find(&serviceRequests).Error
+	return serviceRequests, err
 }
 
 // GetServiceRequestCountBySubCategoryAndStatus retrieves the count of service requests grouped by sub-category and status.

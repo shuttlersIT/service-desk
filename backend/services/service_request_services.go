@@ -19,6 +19,7 @@ type ServiceRequestService interface {
 	GetServiceRequestComments(requestID uint) ([]*models.ServiceRequestComment, error)
 	GetOpenServiceRequests() ([]*models.ServiceRequest, error)
 	GetClosedServiceRequests() ([]*models.ServiceRequest, error)
+	GetAllServiceRequests() ([]*models.ServiceRequest, error)
 	DeleteServiceRequest(requestID uint) error
 	UpdateServiceRequestStatus(requestID uint, status string) error
 	GetServiceRequestsByCategory(categoryID uint) ([]*models.ServiceRequest, error)
@@ -86,6 +87,11 @@ func (s *DefaultServiceRequestService) CloseServiceRequest(requestID uint) error
 func (s *DefaultServiceRequestService) ReopenServiceRequest(requestID uint) error {
 	// You can directly call the corresponding method from the DB model.
 	return s.ServiceRequestDBModel.ReopenServiceRequest(requestID)
+}
+
+func (s *DefaultServiceRequestService) GetAllServiceRequests() ([]*models.ServiceRequest, error) {
+	// You can directly call the corresponding method from the DB model.
+	return s.ServiceRequestDBModel.GetAllServiceRequests()
 }
 
 func (s *DefaultServiceRequestService) GetServiceRequestHistory(requestID uint) ([]*models.ServiceRequestHistoryEntry, error) {

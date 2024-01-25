@@ -21,6 +21,17 @@ func NewIncidentController(service *services.DefaultIncidentService) *IncidentCo
 	}
 }
 
+// GetAllIncidentsHandler retrieves all incidents from database.
+func (ctrl *IncidentController) GetAllIncidentsHandler(c *gin.Context) {
+	incidents, err := ctrl.IncidentService.GetAllIncidents()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve incidents"})
+		return
+	}
+
+	c.JSON(http.StatusOK, incidents)
+}
+
 // CreateIncidentHandler creates a new incident.
 func (ctrl *IncidentController) CreateIncidentHandler(c *gin.Context) {
 	var incident models.Incident
@@ -113,6 +124,25 @@ func (ctrl *IncidentController) ResolveIncidentHandler(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Incident resolved successfully"})
+}
+
+// GetIncidentComments retrieves comments to an incident
+func (ctrl *IncidentController) GetIncidentCommentsHandler(c *gin.Context) {
+	id := c.Param("incident_id")
+	incidentID, err := strconv.ParseUint(id, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid incident ID"})
+		return
+	}
+
+	// Call the GetServiceRequestComments method from the ServiceRequestService.
+	comments, err := ctrl.IncidentService.GetIncidentComments(uint(incidentID))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve service request comments"})
+		return
+	}
+
+	c.JSON(http.StatusOK, comments)
 }
 
 // AddIncidentCommentHandler adds a comment to an incident.

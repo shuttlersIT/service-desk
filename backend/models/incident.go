@@ -45,6 +45,7 @@ type IncidentComment struct {
 
 // IncidentStorage defines the methods for managing incidents.
 type IncidentStorage interface {
+	GetAllIncidents() ([]*Incident, error)
 	CreateIncident(incident *Incident) error
 	UpdateIncident(incident *Incident) error
 	GetIncidentByID(incidentID uint) (*Incident, error)
@@ -85,6 +86,13 @@ func NewIncidentDBModel(db *gorm.DB) *IncidentDBModel {
 	return &IncidentDBModel{
 		DB: db,
 	}
+}
+
+// GetAllIncidents retrieves all service requests from the database.
+func (idm *IncidentDBModel) GetAllIncidents() ([]*Incident, error) {
+	var incidents []*Incident
+	err := idm.DB.Find(&incidents).Error
+	return incidents, err
 }
 
 // CreateIncident creates a new incident report.

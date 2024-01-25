@@ -10,6 +10,7 @@ type IncidentService interface {
 	UpdateIncident(incident *models.Incident) error
 	GetIncidentByID(incidentID uint) (*models.Incident, error)
 	GetIncidentsBySeverity(severity string) ([]*models.Incident, error)
+	GetAllIncidents() ([]*models.Incident, error)
 	AssignIncidentToTeam(incidentID uint, teamID uint) error
 	ResolveIncident(incidentID uint) error
 	AddIncidentComment(incidentID uint, comment string) error
@@ -45,6 +46,11 @@ func NewDefaultIncidentService(db *gorm.DB, incidentDBModel *models.IncidentDBMo
 		DB:              db,
 		IncidentDBModel: incidentDBModel,
 	}
+}
+
+func (s *DefaultIncidentService) GetAllIncidents() ([]*models.Incident, error) {
+	// Implement logic to retrieve all incidents from the database.
+	return s.IncidentDBModel.GetAllIncidents()
 }
 
 func (s *DefaultIncidentService) CloseIncident(incidentID uint) error {

@@ -626,3 +626,185 @@ func (tc *TicketController) CreateTag(c *gin.Context) {
 
 	c.JSON(http.StatusCreated, tag)
 }
+
+// GetTicketByIDHandler retrieves a ticket by its ID.
+func (tc *TicketController) GetTicketByIDHandler(c *gin.Context) {
+	ticketID, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ticket ID"})
+		return
+	}
+
+	// Assuming you have a ticket service method to get a ticket by its ID.
+	ticket, err := tc.TicketService.GetTicketByID(uint(ticketID))
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Ticket not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, ticket)
+}
+
+// GetTicketHistoryHandler retrieves the history of a ticket.
+func (tc *TicketController) GetTicketHistoryHandler(c *gin.Context) {
+	ticketID, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ticket ID"})
+		return
+	}
+
+	// Assuming you have a ticket service method to get the history of a ticket.
+	history, err := tc.TicketService.GetTicketHistory(uint(ticketID))
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Ticket history not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, history)
+}
+
+// GetAllTicketsHandler retrieves all tickets.
+func (tc *TicketController) GetAllTicketsHandler(c *gin.Context) {
+	// Assuming you have a ticket service method to get all tickets.
+	tickets, err := tc.TicketService.GetAllTickets()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve tickets"})
+		return
+	}
+
+	c.JSON(http.StatusOK, tickets)
+}
+
+// DeleteTicketHandler deletes a ticket by its ID.
+func (tc *TicketController) DeleteTicketHandler(c *gin.Context) {
+	ticketID, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ticket ID"})
+		return
+	}
+
+	status, err := tc.TicketService.DeleteTicket(uint(ticketID))
+	if err != nil || !status {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete ticket"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Ticket deleted successfully"})
+}
+
+// AssignTicketToAgentHandler assigns a ticket to a specific agent.
+func (tc *TicketController) AssignTicketToAgentHandler(c *gin.Context) {
+	ticketID, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ticket ID"})
+		return
+	}
+
+	agentID, err := strconv.ParseUint(c.Param("agent_id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid agent ID"})
+		return
+	}
+
+	// Assuming you have a ticket service method to assign a ticket to an agent.
+	err = tc.TicketService.AssignTicketToAgent(uint(ticketID), uint(agentID))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to assign ticket to agent"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Ticket assigned to agent successfully"})
+}
+
+// ChangeTicketStatusHandler changes the status of a ticket.
+func (tc *TicketController) ChangeTicketStatusHandler(c *gin.Context) {
+	ticketID, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ticket ID"})
+		return
+	}
+
+	var newStatus models.Status
+	if err := c.ShouldBindJSON(&newStatus); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request payload"})
+		return
+	}
+
+	// Assuming you have a ticket service method to change the status of a ticket.
+	err = tc.TicketService.ChangeTicketStatus(uint(ticketID), newStatus)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to change ticket status"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Ticket status changed successfully"})
+}
+
+// AddCommentToTicketHandler adds a comment to a ticket.
+func (tc *TicketController) AddCommentToTicketHandler(c *gin.Context) {
+	ticketID, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ticket ID"})
+		return
+	}
+
+	var comment string
+	if err := c.ShouldBindJSON(&comment); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request payload"})
+		return
+	}
+
+	// Assuming you have a ticket service method to add a comment to a ticket.
+	err = tc.TicketService.AddCommentToTicket(uint(ticketID), comment)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to add comment to ticket"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Comment added to ticket successfully"})
+}
+
+// GetTicketByIDHandler retrieves a ticket by its ID.
+func (tc *TicketController) GetTicketByIDHandler2(c *gin.Context) {
+	ticketID, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ticket ID"})
+		return
+	}
+
+	ticket, err := tc.TicketService.GetTicketByID(uint(ticketID))
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Ticket not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, ticket)
+}
+
+// DeleteTicketHandler deletes a ticket by its ID.
+func (tc *TicketController) DeleteTicketHandler2(c *gin.Context) {
+	ticketID, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ticket ID"})
+		return
+	}
+
+	status, err := tc.TicketService.DeleteTicket(uint(ticketID))
+	if err != nil || !status {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Ticket not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Ticket deleted successfully"})
+}
+
+// GetAllTicketsHandler retrieves all tickets.
+func (tc *TicketController) GetAllTicketsHandler2(c *gin.Context) {
+	tickets, err := tc.TicketService.GetAllTickets()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch tickets"})
+		return
+	}
+
+	c.JSON(http.StatusOK, tickets)
+}

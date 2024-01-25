@@ -3,6 +3,7 @@
 package models
 
 import (
+	"fmt"
 	"time"
 
 	"gorm.io/gorm"
@@ -65,14 +66,15 @@ func (AssetType) TableName() string {
 
 type AssetAssignment struct {
 	gorm.Model
-	ID             uint      `gorm:"primaryKey" json:"assignment_id"`
-	AssetID        uint      `json:"_"`
-	UserID         uint      `json:"user_id"`
-	AssignedBy     uint      `json:"assigned_by"`
-	AssignmentType string    `json:"assignment_type"`
-	DueAt          time.Time `json:"due_at"`
-	CreatedAt      time.Time `json:"created_at"`
-	UpdatedAt      time.Time `json:"updated_at"`
+	ID               uint      `gorm:"primaryKey" json:"assignment_id"`
+	AssetID          uint      `json:"_"`
+	UserID           uint      `json:"user_id"`
+	AssignedBy       uint      `json:"assigned_by"`
+	AssignmentType   string    `json:"assignment_type"`
+	AssignmentStatus string    `json:"assignment_status"`
+	DueAt            time.Time `json:"due_at"`
+	CreatedAt        time.Time `json:"created_at"`
+	UpdatedAt        time.Time `json:"updated_at"`
 }
 
 // TableName sets the table name for the Asset Assignment model.
@@ -87,6 +89,9 @@ type AssetsStorage interface {
 	GetAssets() ([]*Assets, error)
 	GetAssetByID(int) (*Assets, error)
 	GetAssetByNumber(int) (*Assets, error)
+	UnassignAsset(uint) error
+	AssignAssetToUser2(assetID, userID uint) error
+	UnassignAssetUser2(assetID uint) error
 }
 
 type AssetTypeStorage interface {
@@ -99,12 +104,14 @@ type AssetTypeStorage interface {
 }
 
 type AssetAssignmentStorage interface {
-	CreateAssetAssignment(*AssetAssignment) error
+	CreateAssetAssignment(assetAssignment *AssetAssignment) error
 	DeleteAssetAssignment(int) error
 	UpdateAssetAssignment(*AssetAssignment) error
 	GetAssetAssignment() ([]*AssetAssignment, error)
 	GetAssetAssignmentByID(int) (*AssetAssignment, error)
 	GetAssetAssignmentByNumber(int) (*AssetAssignment, error)
+	AssignAsset(asset *Assets, userID uint) (*AssetAssignment, error)
+	UnassignAsset(assetAssignment *AssetAssignment, agentID uint) (*AssetAssignment, error)
 }
 
 // AssetAssignmentModel handles database operations for Asset
@@ -210,21 +217,28 @@ func (as *AssetAssignmentDBModel) AssignAsset(asset *Assets, userID uint) (*Asse
 }
 
 // UpdateAssetAssignment updates the assignment of an existing asset.
-func (as *AssetAssignmentDBModel) UnassignAsset(assetAssignment *AssetAssignment) (*AssetAssignment, error) {
+func (as *AssetAssignmentDBModel) UnassignAsset(assetAssignment *AssetAssignment, agentID uint) (*AssetAssignment, error) {
+
 	assetAssignment, err := as.GetAssetAssignmentByID(assetAssignment.ID)
 	if err != nil {
 		return nil, err
 	}
-	assetAssignment.AssignmentType = "unassigned"
-	assetAssignment.AssetID = 0
-
-	id := as.DB.Save(&assetAssignment).RowsAffected
-	assignment, err := as.GetAssetAssignmentByID(uint(id))
-	if err != nil {
-		return nil, err
+	newAssetAssignment := &AssetAssignment{
+		AssetID:          assetAssignment.AssetID,
+		UserID:           0,
+		AssignedBy:       agentID,      // Assuming the same user assigns the asset
+		AssignmentType:   "unassigned", // Update as needed
+		AssignmentStatus: "unassigned",
+		DueAt:            time.Now().AddDate(1, 0, 0), // Due date example
+		CreatedAt:        time.Now(),
 	}
 
-	return assignment, nil
+	erro := as.CreateAssetAssignment(newAssetAssignment)
+	if erro != nil {
+		return nil, fmt.Errorf("unable to assign asset")
+	}
+
+	return newAssetAssignment, nil
 }
 
 func (tdb *AssetDBModel) AssignAssetToUser(assetID, userID uint) error {
@@ -235,12 +249,16 @@ func (tdb *AssetDBModel) AssignAssetToUser(assetID, userID uint) error {
 	}
 
 	// Update the asset's UserID
-	asset.ID = userID
+	asset.Assignment.UserID = userID
 	if err := tdb.DB.Save(asset).Error; err != nil {
 		return err
 	}
 
 	return nil
+}
+
+func (ass *AssetAssignmentDBModel) CreateAssetAssignment(assetAssignment *AssetAssignment) error {
+	return ass.DB.Create(assetAssignment).Error
 }
 
 func (tdb *AssetDBModel) UnassignAsset(assetID uint) error {
@@ -250,8 +268,18 @@ func (tdb *AssetDBModel) UnassignAsset(assetID uint) error {
 		return err
 	}
 
+	newAssetAssignment := &AssetAssignment{
+		AssetID:          assetID,
+		UserID:           0,
+		AssignedBy:       0,            // Assuming the same user assigns the asset
+		AssignmentType:   "unassigned", // Update as needed
+		AssignmentStatus: "unassigned",
+		DueAt:            time.Now().AddDate(1, 0, 0), // Due date example
+		CreatedAt:        time.Now(),
+	}
+
 	// Clear the asset's UserID
-	asset.ID = 0
+	asset.Assignment = *newAssetAssignment
 	if err := tdb.DB.Save(asset).Error; err != nil {
 		return err
 	}

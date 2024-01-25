@@ -116,6 +116,17 @@ func (ctrl *ServiceRequestController) ReopenServiceRequestHandler(c *gin.Context
 	c.JSON(http.StatusOK, gin.H{"message": "Service request reopened successfully"})
 }
 
+// GetServiceRequestByIDHandler retrieves all service request from the database.
+func (ctrl *ServiceRequestController) GetAllServiceRequestsHandler(c *gin.Context) {
+	serviceRequest, err := ctrl.ServiceRequest.GetAllServiceRequests()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve service requests"})
+		return
+	}
+
+	c.JSON(http.StatusOK, serviceRequest)
+}
+
 // GetServiceRequestHistoryHandler retrieves the history entries of a service request by its ID.
 func (ctrl *ServiceRequestController) GetServiceRequestHistoryHandler(c *gin.Context) {
 	id := c.Param("id")
@@ -164,7 +175,7 @@ func (ctrl *ServiceRequestController) AddCommentToServiceRequestHandler(c *gin.C
 
 // GetServiceRequestCommentsHandler retrieves comments of a service request by its ID.
 func (ctrl *ServiceRequestController) GetServiceRequestCommentsHandler(c *gin.Context) {
-	id := c.Param("id")
+	id := c.Param("service_request_id")
 	requestID, err := strconv.ParseUint(id, 10, 32)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid service request ID"})
