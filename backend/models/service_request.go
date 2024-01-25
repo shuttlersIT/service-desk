@@ -14,8 +14,17 @@ type ServiceRequest struct {
 	Status        string    `json:"status" binding:"required"`
 	CategoryID    uint      `json:"category_id" binding:"required"`
 	SubCategoryID uint      `json:"subcategory_id"`
+	Location      Location  `json:"location" gorm:"embedded"`
 	CreatedAt     time.Time `json:"created_at"`
 	UpdatedAt     time.Time `json:"updated_at"`
+}
+
+type Location struct {
+	gorm.Model
+	ID           uint      `json:"service_request_id"`
+	LocationName string    `json:"location_name"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
 }
 
 type ServiceRequestComment struct {

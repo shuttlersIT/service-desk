@@ -245,6 +245,8 @@ func (as *UserDBModel) DeleteDepartment(id uint) error {
 	return nil
 }
 
+//GetPositions retrieves all the position from the datatbase
+
 // GetAllDepartments retrieves all departments from the database.
 func (as *UserDBModel) GetAllDepartments() ([]*Department, error) {
 	var departments []*Department

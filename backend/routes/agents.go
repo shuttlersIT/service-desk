@@ -9,10 +9,10 @@ import (
 func SetAgentRoutes(r *gin.Engine, agent *controllers.AgentController) {
 
 	a := r.Group("/agents")
-	a.GET("/", agent.GetAllAgents)
-	a.GET("/:id", agent.GetAgentByID)
-	a.POST("/", agent.CreateAgent)
-	a.PUT("/:id", agent.UpdateAgent)
-	a.DELETE("/:id", agent.DeleteAgent)
+	a.GET("/", agent.GetAllAgentsHandler)
+	a.GET("/:id", agent.GetAgentByIDHandler)
+	a.POST("/", agent.CreateAgentHandler)
+	a.PUT("/:id", agent.UpdateAgentHandler)
+	a.DELETE("/:id", agent.DeleteAgentHandler)
 
 }

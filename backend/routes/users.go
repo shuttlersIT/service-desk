@@ -7,13 +7,13 @@ import (
 	"github.com/shuttlersit/service-desk/backend/controllers"
 )
 
-func SetUserRoutes(r *gin.Engine, users *controllers.UserController) {
+func SetUserRoutes(r *gin.Engine, user *controllers.UserController) {
 
 	u := r.Group("/users")
-	u.GET("/", users.GetAllUsers)
-	u.GET("/:id", users.GetUserByID)
-	u.POST("/", users.CreateUser)
-	u.PUT("/:id", users.UpdateUser)
-	u.DELETE("/:id", users.DeleteUser)
+	u.GET("/", user.GetAllUsersHandler)
+	u.GET("/:id", user.GetUserByIDHandler)
+	u.POST("/", user.CreateUserHandler)
+	u.PUT("/:id", user.UpdateUserHandler)
+	u.DELETE("/:id", user.DeleteUserHandler)
 
 }

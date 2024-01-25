@@ -275,3 +275,80 @@ func (s *DefaultIncidentService) GetIncidentStats() (map[string]int, error) {
 	}
 	return stats, nil
 }
+
+func (s *DefaultIncidentService) CreateIncident(incident *models.Incident) error {
+	return s.IncidentDBModel.CreateIncident(incident)
+}
+
+func (s *DefaultIncidentService) UpdateIncident(incident *models.Incident) error {
+	return s.IncidentDBModel.UpdateIncident(incident)
+}
+
+func (s *DefaultIncidentService) GetIncidentByID(incidentID uint) (*models.Incident, error) {
+	return s.IncidentDBModel.GetIncidentByID(incidentID)
+}
+
+func (s *DefaultIncidentService) GetIncidentsBySeverity(severity string) ([]*models.Incident, error) {
+	// Example of custom filtering based on severity
+	allIncidents, err := s.IncidentDBModel.GetOpenIncidents() // Assuming OpenIncidents retrieves all incidents
+	if err != nil {
+		return nil, err
+	}
+
+	filteredIncidents := make([]*models.Incident, 0)
+	for _, incident := range allIncidents {
+		if incident.Severity == severity {
+			filteredIncidents = append(filteredIncidents, incident)
+		}
+	}
+
+	return filteredIncidents, nil
+}
+
+func (s *DefaultIncidentService) AssignIncidentToTeam(incidentID uint, teamID uint) error {
+	// Implement custom logic for assigning an incident to a team
+	// Implement logic to update the status of an incident.
+	err := s.IncidentDBModel.AssignIncidentToTeam(incidentID, teamID)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *DefaultIncidentService) ResolveIncident(incidentID uint) error {
+	// Implement custom logic for resolving an incident
+	err := s.IncidentDBModel.ResolveIncident(incidentID)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *DefaultIncidentService) AddIncidentComment(incidentID uint, comment string) error {
+	return s.IncidentDBModel.AddCommentToIncident(incidentID, comment)
+}
+
+func (s *DefaultIncidentService) GetIncidentComments(incidentID uint) ([]*models.IncidentComment, error) {
+	return s.IncidentDBModel.GetIncidentComments(incidentID)
+}
+
+func (s *DefaultIncidentService) GetIncidentHistory(incidentID uint) ([]*models.IncidentHistoryEntry, error) {
+	return s.IncidentDBModel.GetIncidentHistory(incidentID)
+}
+
+// Alternative Methods
+func (s *DefaultIncidentService) GetAssignedIncidents2(userID uint) ([]*models.Incident, error) {
+	return s.IncidentDBModel.GetAssignedIncidents2(userID)
+}
+
+func (s *DefaultIncidentService) GetIncidentsByTeamAndStatus2(teamID uint, status string) ([]*models.Incident, error) {
+	return s.IncidentDBModel.GetIncidentsByTeamAndStatus2(teamID, status)
+}
+
+func (s *DefaultIncidentService) GetIncidentBySubject2(subject string) (*models.Incident, error) {
+	return s.IncidentDBModel.GetIncidentBySubject2(subject)
+}
+
+func (s *DefaultIncidentService) DeleteIncident2(incidentID uint) error {
+	return s.IncidentDBModel.DeleteIncident2(incidentID)
+}

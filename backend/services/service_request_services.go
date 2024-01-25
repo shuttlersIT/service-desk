@@ -1,6 +1,8 @@
 package services
 
 import (
+	"fmt"
+
 	"github.com/shuttlersit/service-desk/backend/models"
 	"gorm.io/gorm"
 )
@@ -40,6 +42,8 @@ type ServiceRequestService interface {
 	GetServiceRequestCountByCategoryAndLocation(categoryID uint) (map[uint]int, error)
 	GetServiceRequestsByPriorityAndLocation(priority string, locationID uint) ([]*models.ServiceRequest, error)
 	GetServiceRequestCountByPriorityAndLocation(locationID uint) (map[string]int, error)
+	GetServiceRequestsByCategoryAndSubCategory(categoryID uint, subCategoryID uint) ([]*models.ServiceRequest, error)
+	GetServiceRequestsByStatusAndLocation(status string, locationID uint) ([]*models.ServiceRequest, error)
 }
 
 type DefaultServiceRequestService struct {
@@ -272,4 +276,43 @@ func (s *DefaultServiceRequestService) GetServiceRequestsByPriorityAndLocation(p
 func (s *DefaultServiceRequestService) GetServiceRequestCountByPriorityAndLocation(priority string, locationID uint) (map[string]int, error) {
 	// You'll need to implement this method using your database model (ServiceRequestDBModel).
 	return s.ServiceRequestDBModel.GetServiceRequestCountByPriorityAndLocation(priority, locationID)
+}
+
+func (s *DefaultServiceRequestService) GetServiceRequestsByCategoryAndSubCategory(categoryID uint, subCategoryID uint) ([]*models.ServiceRequest, error) {
+
+	requests, err := s.ServiceRequestDBModel.GetServiceRequestsByCategory(categoryID)
+	if err != nil {
+		return nil, err
+	}
+
+	var matchingRequest []*models.ServiceRequest
+	for _, s := range requests {
+		if s.SubCategoryID == subCategoryID {
+			matchingRequest = append(matchingRequest, s)
+		}
+	}
+	if len(matchingRequest) > 0 {
+		return matchingRequest, nil
+	}
+
+	return nil, fmt.Errorf("no matching service request")
+}
+
+func (s *DefaultServiceRequestService) GetServiceRequestsByStatusAndLocation(status string, locationID uint) ([]*models.ServiceRequest, error) {
+	requests, err := s.ServiceRequestDBModel.GetServiceRequestsByStatus(status)
+	if err != nil {
+		return nil, err
+	}
+
+	var matchingRequest []*models.ServiceRequest
+	for _, s := range requests {
+		if s.Location.ID == locationID {
+			matchingRequest = append(matchingRequest, s)
+		}
+	}
+	if len(matchingRequest) > 0 {
+		return matchingRequest, nil
+	}
+
+	return nil, fmt.Errorf("no matching service request")
 }

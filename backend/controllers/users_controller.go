@@ -15,94 +15,244 @@ type UserController struct {
 	UserService *services.DefaultUserService
 }
 
-func NewUserDBController(userService *services.DefaultUserService) *UserController {
+func NewUserController(userService *services.DefaultUserService) *UserController {
 	return &UserController{
 		UserService: userService,
 	}
 }
 
-// CreateUser handles the HTTP request to create a new user.
-func (pc *UserController) CreateUser(ctx *gin.Context) {
-	var newUser models.Users
-	if err := ctx.ShouldBindJSON(&newUser); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request payload"})
+// CreateUserHandler handles the HTTP request to create a new user.
+func (ctrl *UserController) CreateUserHandler(c *gin.Context) {
+	var user models.Users
+	if err := c.ShouldBindJSON(&user); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request payload"})
 		return
 	}
 
-	err := pc.UserService.CreateUser(&newUser)
+	err := ctrl.UserService.CreateUser(&user)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create user"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create user"})
+		return
 	}
 
-	ctx.JSON(http.StatusCreated, gin.H{"message": "User created successfully"})
+	c.JSON(http.StatusCreated, user)
 }
 
-// GetUserByID handles the HTTP request to retrieve a user by ID.
-func (pc *UserController) GetUserByID(ctx *gin.Context) {
-	userID, _ := strconv.Atoi(ctx.Param("id"))
-	user, err := pc.UserService.GetUserByID(uint(userID))
-	if err != nil {
-		ctx.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
+// UpdateUserHandler handles the HTTP request to update an existing user.
+func (ctrl *UserController) UpdateUserHandler(c *gin.Context) {
+	var user models.Users
+	if err := c.ShouldBindJSON(&user); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request payload"})
 		return
 	}
-	ctx.JSON(http.StatusOK, user)
+
+	updatedUser, err := ctrl.UserService.UpdateUser(&user)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user"})
+		return
+	}
+
+	c.JSON(http.StatusOK, updatedUser)
 }
 
-// UpdateUser handles PUT /users/:id route.
-func (pc *UserController) UpdateUser(ctx *gin.Context) {
-	id, err := strconv.ParseUint(ctx.Param("id"), 10, 64)
+// GetUserByIDHandler retrieves a user by their ID.
+func (ctrl *UserController) GetUserByIDHandler(c *gin.Context) {
+	userID, _ := strconv.Atoi(c.Param("user_id"))
+
+	user, err := ctrl.UserService.GetUserByID(uint(userID))
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID"})
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 		return
 	}
 
-	var ad models.Users
-	if err := ctx.ShouldBindJSON(&ad); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	ad.ID = uint(id)
-
-	updatedAd, err := pc.UserService.UpdateUser(&ad)
-	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
-	ctx.JSON(http.StatusOK, updatedAd)
+	c.JSON(http.StatusOK, user)
 }
 
-// DeleteUser handles DELETE /users/:id route.
-func (pc *UserController) DeleteUser(ctx *gin.Context) {
-	id, err := strconv.ParseUint(ctx.Param("id"), 10, 64)
-	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID"})
+// DeleteUserHandler deletes a user by their ID.
+func (ctrl *UserController) DeleteUserHandler(c *gin.Context) {
+	userID, _ := strconv.Atoi(c.Param("user_id"))
+
+	deleted, err := ctrl.UserService.DeleteUser(uint(userID))
+	if err != nil || !deleted {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found or failed to delete"})
 		return
 	}
 
-	status, err := pc.UserService.DeleteUser(uint(id))
-	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
-	ctx.JSON(http.StatusNoContent, status)
+	c.JSON(http.StatusOK, gin.H{"message": "User deleted successfully"})
 }
 
-// GetAgentByID handles the HTTP request to retrieve a agents by ID.
-func (pc *UserController) GetAllUsers(ctx *gin.Context) {
-	users, err := pc.UserService.GetAllUsers()
-	if err != nil {
-		ctx.JSON(http.StatusNotFound, gin.H{"error": "users not found"})
-		return
-	}
-	ctx.JSON(http.StatusOK, users)
+// GetAllUsersHandler retrieves all users.
+func (ctrl *UserController) GetAllUsersHandler(c *gin.Context) {
+	users, _ := ctrl.UserService.GetAllUsers()
+	c.JSON(http.StatusOK, users)
 }
 
-//c.Params.ByName("id")
-//ctx.Param("id")
+// CreatePositionHandler creates a new position.
+func (ctrl *UserController) CreatePositionHandler(c *gin.Context) {
+	var position models.Position
+	if err := c.ShouldBindJSON(&position); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request payload"})
+		return
+	}
 
-// Implement controller methods like GetUsers, CreateUsers, GetUser, UpdateUser, DeleteUser
+	err := ctrl.UserService.CreatePosition(&position)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create position"})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{"message": "Position created successfully"})
+}
+
+// DeletePositionHandler deletes a position by its ID.
+func (ctrl *UserController) DeletePositionHandler(c *gin.Context) {
+	positionID, _ := strconv.Atoi(c.Param("position_id"))
+
+	err := ctrl.UserService.DeletePosition(uint(positionID))
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Position not found or failed to delete"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Position deleted successfully"})
+}
+
+// UpdatePositionHandler updates an existing position.
+func (ctrl *UserController) UpdatePositionHandler(c *gin.Context) {
+	var position models.Position
+	if err := c.ShouldBindJSON(&position); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request payload"})
+		return
+	}
+
+	err := ctrl.UserService.UpdatePosition(&position)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update position"})
+		return
+	}
+
+	c.JSON(http.StatusOK, position)
+}
+
+// GetPositionsHandler retrieves all positions.
+func (ctrl *UserController) GetPositionsHandler(c *gin.Context) {
+	positions, err := ctrl.UserService.GetAllPositions()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve positions"})
+		return
+	}
+
+	c.JSON(http.StatusOK, positions)
+}
+
+// GetPositionByIDHandler retrieves a position by its ID.
+func (ctrl *UserController) GetPositionByIDHandler(c *gin.Context) {
+	positionID, _ := strconv.Atoi(c.Param("position_id"))
+
+	position, err := ctrl.UserService.GetPositionByID(uint(positionID))
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Position not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, position)
+}
+
+// GetPositionByNumberHandler retrieves a position by its number.
+func (ctrl *UserController) GetPositionByNumberHandler(c *gin.Context) {
+	positionNumber, _ := strconv.Atoi(c.Param("position_number"))
+
+	position, err := ctrl.UserService.GetPositionByNumber(positionNumber)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Position not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, position)
+}
+
+// CreateDepartmentHandler creates a new department.
+func (ctrl *UserController) CreateDepartmentHandler(c *gin.Context) {
+	var department models.Department
+	if err := c.ShouldBindJSON(&department); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request payload"})
+		return
+	}
+
+	err := ctrl.UserService.CreateDepartment(&department)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create department"})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{"message": "Department created successfully"})
+}
+
+// DeleteDepartmentHandler deletes a department by its ID.
+func (ctrl *UserController) DeleteDepartmentHandler(c *gin.Context) {
+	departmentID, _ := strconv.Atoi(c.Param("department_id"))
+
+	err := ctrl.UserService.DeleteDepartment(uint(departmentID))
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Department not found or failed to delete"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Department deleted successfully"})
+}
+
+// UpdateDepartmentHandler updates an existing department.
+func (ctrl *UserController) UpdateDepartmentHandler(c *gin.Context) {
+	var department models.Department
+	if err := c.ShouldBindJSON(&department); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request payload"})
+		return
+	}
+
+	err := ctrl.UserService.UpdateDepartment(&department)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update department"})
+		return
+	}
+
+	c.JSON(http.StatusOK, department)
+}
+
+// GetDepartmentsHandler retrieves all departments.
+func (ctrl *UserController) GetDepartmentsHandler(c *gin.Context) {
+	departments, err := ctrl.UserService.GetAllDepartments()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve departments"})
+		return
+	}
+
+	c.JSON(http.StatusOK, departments)
+}
+
+// GetDepartmentByIDHandler retrieves a department by its ID.
+func (ctrl *UserController) GetDepartmentByIDHandler(c *gin.Context) {
+	departmentID, _ := strconv.Atoi(c.Param("department_id"))
+
+	department, err := ctrl.UserService.GetDepartmentByID(uint(departmentID))
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Department not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, department)
+}
+
+// GetDepartmentByNumberHandler retrieves a department by its number.
+func (ctrl *UserController) GetDepartmentByNumberHandler(c *gin.Context) {
+	departmentNumber, _ := strconv.Atoi(c.Param("department_number"))
+
+	department, err := ctrl.UserService.GetDepartmentByNumber(departmentNumber)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Department not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, department)
+}
 
 ////////////////////////////////////////////////////////////////////////////////////////

@@ -94,7 +94,7 @@ func (Tags) TableName() string {
 
 type Sla struct {
 	gorm.Model
-	SlaID          int       `gorm:"primaryKey" json:"sla_id"`
+	SlaID          uint      `gorm:"primaryKey" json:"sla_id"`
 	SlaName        string    `json:"sla_name"`
 	PriorityID     int       `json:"priority_id"`
 	SatisfactionID int       `json:"satisfaction_id"`
@@ -110,7 +110,7 @@ func (Sla) TableName() string {
 
 type Priority struct {
 	gorm.Model
-	PriorityID    int       `gorm:"primaryKey" json:"priority_id"`
+	PriorityID    uint      `gorm:"primaryKey" json:"priority_id"`
 	Name          string    `json:"priority_name"`
 	FirstResponse int       `json:"first_response"`
 	Colour        string    `json:"red"`
@@ -125,7 +125,7 @@ func (Priority) TableName() string {
 
 type Satisfaction struct {
 	gorm.Model
-	SatisfactionID int       `gorm:"primaryKey" json:"satisfaction_id"`
+	SatisfactionID uint      `gorm:"primaryKey" json:"satisfaction_id"`
 	Name           string    `json:"satisfaction_name"`
 	Rank           int       `json:"rank"`
 	Emoji          string    `json:"emoji"`
@@ -140,7 +140,7 @@ func (Satisfaction) TableName() string {
 
 type Category struct {
 	gorm.Model
-	ID           int       `gorm:"primaryKey" json:"category_id"`
+	ID           uint      `gorm:"primaryKey" json:"category_id"`
 	CategoryName string    `json:"category_name"`
 	CreatedAt    time.Time `json:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at"`
@@ -153,9 +153,9 @@ func (Category) TableName() string {
 
 type SubCategory struct {
 	gorm.Model
-	SubCategoryID   int       `gorm:"primaryKey" json:"sub_category_id"`
+	SubCategoryID   uint      `gorm:"primaryKey" json:"sub_category_id"`
 	SubCategoryName string    `json:"sub_category_name"`
-	CategoryID      int       `json:"category_id"`
+	CategoryID      uint      `json:"category_id"`
 	CreatedAt       time.Time `json:"created_at"`
 	UpdatedAt       time.Time `json:"updated_at"`
 }
@@ -167,7 +167,7 @@ func (SubCategory) TableName() string {
 
 type Status struct {
 	gorm.Model
-	StatusID   int       `gorm:"primaryKey" json:"status_id"`
+	StatusID   uint      `gorm:"primaryKey" json:"status_id"`
 	StatusName string    `json:"status_name"`
 	CreatedAt  time.Time `json:"created_at"`
 	UpdatedAt  time.Time `json:"updated_at"`
@@ -180,7 +180,7 @@ func (Status) TableName() string {
 
 type Policies struct {
 	gorm.Model
-	PolicyID     int       `gorm:"primaryKey" json:"policy_id"`
+	PolicyID     uint      `gorm:"primaryKey" json:"policy_id"`
 	PolicyName   string    `json:"policy_name"`
 	EmbeddedLink string    `json:"policy_embed"`
 	PolicyUrl    string    `json:"policy_url"`

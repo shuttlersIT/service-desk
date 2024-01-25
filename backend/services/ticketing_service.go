@@ -256,6 +256,17 @@ func (ts *DefaultTicketingService) CreateTag(ticketID uint, tag string) (*models
 	return &ticket.Tags, nil
 }
 
+func (ts *DefaultTicketingService) CreateTag2(ticketID uint, tag *models.Tags) (*models.Tags, error) {
+
+	status, err := ts.TicketDBModel.CreateTag(ticketID, tag.Tags[0])
+	if !status {
+		return nil, err
+	}
+
+	ticket, _ := ts.GetTicketByID(ticketID)
+	return &ticket.Tags, nil
+}
+
 func (ts *DefaultTicketingService) AddTagToTicket(ticketID uint, tag string) error {
 	err := ts.TicketDBModel.AddTagToTicket(ticketID, tag)
 	if err != nil {

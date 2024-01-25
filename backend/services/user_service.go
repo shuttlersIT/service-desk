@@ -17,13 +17,13 @@ type UserServiceInterface interface {
 	CreatePosition(*models.Position) error
 	DeletePosition(int) error
 	UpdatePosition(*models.Position) error
-	GetPosition() ([]*models.Position, error)
+	GetAllPositions() ([]*models.Position, error)
 	GetPositionByID(int) (*models.Position, error)
 	GetPositionByNumber(int) (*models.Position, error)
 	CreateDepartment(*models.Department) error
 	DeleteDepartment(int) error
 	UpdateDepartment(*models.Department) error
-	GetDepartments() ([]*models.Department, error)
+	GetAllDepartments() ([]*models.Department, error)
 	GetDepartmentByID(int) (*models.Department, error)
 	GetDepartmentByNumber(int) (*models.Department, error)
 }
@@ -129,4 +129,64 @@ func (us *DefaultUserService) DeleteUser2(userID uint) error {
 	}
 
 	return nil
+}
+
+// CreatePosition creates a new position.
+func (us *DefaultUserService) CreatePosition(position *models.Position) error {
+	return us.UserDBModel.CreatePosition(position)
+}
+
+// DeletePosition deletes a position by its ID.
+func (us *DefaultUserService) DeletePosition(positionID uint) error {
+	return us.UserDBModel.DeletePosition(positionID)
+}
+
+// UpdatePosition updates an existing position.
+func (us *DefaultUserService) UpdatePosition(position *models.Position) error {
+	return us.UserDBModel.UpdatePosition(position)
+}
+
+// GetPosition retrieves all positions.
+func (us *DefaultUserService) GetAllPositions() ([]*models.Position, error) {
+	return us.UserDBModel.GetAllPositions()
+}
+
+// GetPositionByID retrieves a position by its ID.
+func (us *DefaultUserService) GetPositionByID(positionID uint) (*models.Position, error) {
+	return us.UserDBModel.GetPositionByID(positionID)
+}
+
+// GetPositionByNumber retrieves a position by its number.
+func (us *DefaultUserService) GetPositionByNumber(positionNumber int) (*models.Position, error) {
+	return us.UserDBModel.GetPositionByNumber(positionNumber)
+}
+
+// CreateDepartment creates a new department.
+func (us *DefaultUserService) CreateDepartment(department *models.Department) error {
+	return us.UserDBModel.CreateDepartment(department)
+}
+
+// DeleteDepartment deletes a department by its ID.
+func (us *DefaultUserService) DeleteDepartment(departmentID uint) error {
+	return us.UserDBModel.DeleteDepartment(departmentID)
+}
+
+// UpdateDepartment updates an existing department.
+func (us *DefaultUserService) UpdateDepartment(department *models.Department) error {
+	return us.UserDBModel.UpdateDepartment(department)
+}
+
+// GetDepartments retrieves all departments.
+func (us *DefaultUserService) GetAllDepartments() ([]*models.Department, error) {
+	return us.UserDBModel.GetAllDepartments()
+}
+
+// GetDepartmentByID retrieves a department by its ID.
+func (us *DefaultUserService) GetDepartmentByID(departmentID uint) (*models.Department, error) {
+	return us.UserDBModel.GetDepartmentByID(departmentID)
+}
+
+// GetDepartmentByNumber retrieves a department by its number.
+func (us *DefaultUserService) GetDepartmentByNumber(departmentNumber int) (*models.Department, error) {
+	return us.UserDBModel.GetDepartmentByNumber(departmentNumber)
 }

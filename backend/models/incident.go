@@ -21,6 +21,7 @@ type Incident struct {
 	HasAttachments bool      `json:"has_attachments"`
 	CreatedAt      time.Time `json:"created_at"`
 	UpdatedAt      time.Time `json:"updated_at"`
+	Severity       string    `json:"severity"`
 }
 
 // IncidentHistoryEntry represents a historical entry related to an incident.
