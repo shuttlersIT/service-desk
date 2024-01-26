@@ -17,14 +17,10 @@ func SetAssetsRoutes(router *gin.Engine, assetController *controllers.AssetContr
 		assetRoutes.GET("/:id", assetController.GetAssetByID)
 		assetRoutes.DELETE("/:id", assetController.DeleteAsset)
 		assetRoutes.GET("/", assetController.GetAllAssets)
-	}
-	// Define Asset Assignment routes
-	assetAssignmentRoutes := router.Group("/asset-assignments")
-	{
-		assetAssignmentRoutes.POST("/", assetController.CreateAssetAssignAsset)
-		assetAssignmentRoutes.PUT("/:id", assetController.UpdateAssetAssignmentHandler)
-		assetAssignmentRoutes.GET("/:id", assetController.GetAssetAssignmentByIDHandler)
-		assetAssignmentRoutes.DELETE("/:id", assetController.DeleteAssetAssignmentHandler)
-		assetAssignmentRoutes.GET("/", assetController.GetAllAssetAssignmentsHandler)
+		assetRoutes.POST("/asset-assignments/assign/:id", assetController.AssignAssetToUser)
+		assetRoutes.PUT("/asset-assignments/assign/unassign/:id", assetController.UnassignAssetFromUser)
+		//assetRoutes.GET("/:id", assetController.GetAssetAssignmentByIDHandler)
+		//assetRoutes.DELETE("/:id", assetController.DeleteAssetAssignmentHandler)
+		//assetRoutes.GET("/", assetController.GetAllAssetAssignmentsHandler)
 	}
 }
