@@ -71,6 +71,14 @@ func (Teams) TableName() string {
 	return "team"
 }
 
+type TeamPermission struct {
+	ID          uint         `gorm:"primaryKey" json:"team_permission_id"`
+	TeamID      uint         `json:"team_id"`
+	Permissions []Permission `json:"permission_id"`
+	CreatedAt   time.Time    `json:"created_at"`
+	UpdatedAt   time.Time    `json:"updated_at"`
+}
+
 type Role struct {
 	ID        uint      `gorm:"primaryKey" json:"role_id"`
 	RoleName  string    `json:"role_name"`
@@ -117,13 +125,49 @@ func (AgentRole) TableName() string {
 	return "agentRoles"
 }
 
+// UserAgent represents the relationship between a user and an agent.
+type UserAgent struct {
+	ID      uint `gorm:"primaryKey"`
+	UserID  uint
+	AgentID uint
+}
+
+// TableName sets the table name for the AgentRole model.
+func (UserAgent) TableName() string {
+	return "userAgent"
+}
+
+// TeamAgent represents the relationship between a team and an agent.
+type TeamAgent struct {
+	ID      uint `gorm:"primaryKey"`
+	TeamID  uint
+	AgentID uint
+}
+
+// TableName sets the table name for the AgentRole model.
+func (TeamAgent) TableName() string {
+	return "teamAgent"
+}
+
+// AgentPermissions represents the relationship between an agent and their granted permissions.
+type AgentPermission struct {
+	ID           uint `gorm:"primaryKey"`
+	AgentID      uint
+	PermissionID uint
+}
+
+// TableName sets the table name for the AgentRole model.
+func (AgentPermission) TableName() string {
+	return "agentPermissions"
+}
+
 type AgentStorage interface {
-	CreateAgent(*Agents) error
-	DeleteAgent(uint) error
-	UpdateAgent(*Agents) error
+	CreateAgent(agent *Agents) error
+	DeleteAgent(agentID uint) error
+	UpdateAgent(agentID *Agents) error
 	GetAllAgents() ([]*Agents, error)
-	GetAgentByID(uint) (*Agents, error)
-	GetAgentByNumber(int) (*Agents, error)
+	GetAgentByID(agentID uint) (*Agents, error)
+	GetAgentByNumber(agentNumber int) (*Agents, error)
 	AssignRolesToAgent(agentID uint, roleNames []string) error
 	GetAgentRoles(agentID uint) ([]*Role, error)
 	RevokeRoleFromAgent(agentID uint, roleName string) error
@@ -139,46 +183,107 @@ type AgentStorage interface {
 	GetPermissions(agentID uint) ([]*Permission, error)
 	AssignPermissions(agentID uint, permissionNames []string) error
 	RevokePermission(agentID uint, permissionName string) error
+	GetAgents() ([]*Agents, error)
+	GetAgentPermissions(agentID uint) ([]*Permission, error)
+	AssignPermissionsToAgent(agentID uint, permissionNames []string) error
+	RevokePermissionFromAgent(agentID uint, permissionName string) error
+	GetAssignedRoles(agentID uint) ([]*Role, error)
+	GetAssignedPermissions(agentID uint) ([]*Permission, error)
 }
 
 type UnitStorage interface {
-	CreateUnit(*Unit) error
-	DeleteUnit(uint) error
-	UpdateUnit(*Unit) error
+	CreateUnit(unit *Unit) error
+	DeleteUnit(unitID uint) error
+	UpdateUnit(unitID *Unit) error
 	GetUnits() ([]*Unit, error)
-	GetUnitByID(uint) (*Unit, error)
-	GetUnitByNumber(int) (*Unit, error)
+	GetUnitByID(unitID uint) (*Unit, error)
+	GetUnitByNumber(unitNumber int) (*Unit, error)
 }
 
 type TeamStorage interface {
-	CreateTeam(*Teams) error
-	DeleteTeam(uint) error
-	UpdateTeam(*Teams) error
+	CreateTeam(team *Teams) error
+	UpdateTeam(team *Teams) error
+	DeleteTeam(id uint) error
+	GetTeamByID(id uint) (*Teams, error)
+	GetTeamByNumber(teamNumber int) (*Teams, error)
 	GetTeams() ([]*Teams, error)
-	GetTeamByID(uint) (*Teams, error)
-	GetTeamByNumber(int) (*Teams, error)
 }
 
 type RoleStorage interface {
-	CreateRole(*Role) error
-	DeleteRole(uint) error
-	UpdateRole(*Role) error
+	CreateRole(role *Role) error
+	DeleteRole(roleID uint) error
+	UpdateRole(roleID *Role) error
 	GetRoles() ([]*Role, error)
-	GetRoleByID(uint) (*Role, error)
-	GetRoleByNumber(int) (*Role, error)
+	GetRoleByID(roleID uint) (*Role, error)
+	GetRoleByNumber(roleNumber int) (*Role, error)
 	AssignRolesToAgent(agentID uint, roleNames []string) error
+	GetAgentRoles(agentID uint) ([]*Role, error)
+	RevokeRoleFromAgent(agentID uint, roleName string) error
+	GetRoleByName(name string) (*Role, error)
+	AssignPermissionsToRole(roleName string, permissionNames []string) error
+	RevokePermissionFromRole(roleName string, permissionName string) error
+	GetRolePermissions(roleID uint) ([]*Permission, error)
+	GetPermissionsByRole(roleName string) ([]*Permission, error)
+}
+
+type PermissionStorage interface {
+	GetAllPermissions() ([]*Permission, error)
+	CreatePermission(permission *Permission) error
+	UpdatePermission(permission *Permission) error
+	DeletePermission(id uint) error
+	GetPermissionByID(id uint) (*Permission, error)
+	GetPermissionByName(name string) (*Permission, error)
+	GetPermissions() ([]*Permission, error)
+}
+
+type AgentRoleStorage interface {
+	AssignRoleToAgent(agentID, roleID uint) error
 	GetAgentRoles(agentID uint) ([]*Role, error)
 	RevokeRoleFromAgent(agentID uint, roleName string) error
 }
 
-type PermissionStorage interface {
-	CreatePermission(*Permission) error
-	UpdatePermission(*Permission) error
-	DeletePermission(uint) error
-	GetPermissionByID(uint) (*Permission, error)
-	GetPermissionByName(string) (*Permission, error)
-	GetAllPermissions() ([]*Permission, error)
+type RolePermissionStorage interface {
+	AssociatePermissionWithRole(roleID uint, permissionName string, permissionID uint) error
+	GetRolePermissionPairs(roleID uint) ([]*RolePermission, error)
+	GetRolePermissions(roleID uint) ([]*Permission, error)
+	AssignPermissionsToRole(roleName string, permissionNames []string) error
+	RevokePermissionFromRole(roleName string, permissionName string) error
 }
+
+type UserAgentStorage interface {
+	CreateUserAgent(agentID uint, userID uint) error
+	GetAgentsByUser(userID uint) ([]*Agents, error)
+	GetUsersByAgent(agentID uint) ([]*Users, error)
+	RemoveUserAgentRelationship(agentID uint, userID uint) error
+}
+
+type RoleAgentStorage interface {
+	AssignRoleToAgent(agentID uint, roleID uint) error
+	GetAgentRoles(agentID uint) ([]*Role, error)
+	RevokeRoleFromAgent(agentID uint, roleName string) error
+}
+
+type RoleUserStorage interface {
+	AssignRoleToUser(userID uint, roleID uint) error
+	GetUserRoles(userID uint) ([]*Role, error)
+	RevokeRoleFromUser(userID uint, roleName string) error
+}
+
+type UserPermissionStorage interface {
+	AssignPermissionToUser(userID uint, permissionID uint) error
+	GetUserPermissions(userID uint) ([]*Permission, error)
+	RevokePermissionFromUser(userID uint, permissionName string) error
+}
+
+type TeamAgentStorage interface {
+	CreateTeamAgent(teamAgent *TeamAgent) error
+	AddAgentToTeam(agentID uint, teamID uint) error
+	GetAgentsByTeam(teamID uint) ([]*Agents, error)
+	GetTeamsByAgent(agentID uint) ([]*Teams, error)
+	RemoveAgentFromTeam(agentID uint, teamID uint) error
+}
+
+// Define additional repository interfaces for user-permission relationships, team-agent relationships, etc.
 
 // AgentDBModel handles database operations for Agent
 type AgentDBModel struct {
@@ -882,7 +987,7 @@ func (as *AgentDBModel) CreateUserRoleBase(agentID uint, roleID uint) error {
 }
 
 // CreateRolePermission creates a new role-permission association.
-func (as *AgentDBModel) CreateRoleBasePermission(roleID, permissionID uint) error {
+func (as *AgentDBModel) CreateRoleBasePermission(roleID uint, permissionID uint) error {
 	rolePermission := RolePermission{RoleID: roleID, PermissionID: permissionID}
 	return as.DB.Create(&rolePermission).Error
 }
@@ -1044,6 +1149,66 @@ func (as *AgentDBModel) AssociatePermissionWithRole(roleID uint, permissionName 
 	return nil
 }
 
+// AssociatePermissionWithRole associates a permission with a team.
+func (as *AgentDBModel) GrantPermissionToTeam(permission *Permission, teamID uint) error {
+	tp, err := as.GetTeamPermission(teamID)
+	if err != nil {
+		er := as.CreateTeamPermission(teamID, permission)
+		if er != nil {
+			return fmt.Errorf("unable to assign permission to team")
+		}
+	}
+	tp.Permissions = append(tp.Permissions, *permission)
+
+	return nil
+}
+
+// GetTeamPermissionPairs retrieves all role-permission pairs associated with a role.
+func (as *AgentDBModel) GetTeamPermission(teamID uint) (*TeamPermission, error) {
+	// Implement logic to retrieve role-permission pairs associated with the role.
+	// You might need to join rolePermissions and permissions tables.
+
+	var teamPermissions *TeamPermission
+	err := as.DB.Where("team_id = ?", teamID).Find(&teamPermissions).Error
+	if err != nil {
+		return nil, err
+	}
+
+	return teamPermissions, nil
+}
+
+// CreateRolePermission creates a new role-permission association.
+func (as *AgentDBModel) CreateTeamPermission(teamID uint, permission *Permission) error {
+	var p []Permission
+	p = append(p, *permission)
+
+	teamPermission := TeamPermission{TeamID: teamID, Permissions: p}
+	return as.DB.Create(&teamPermission).Error
+}
+
+// RevokePermissionFromRole revokes a permission from a role.
+func (as *AgentDBModel) RevokePermissionFromTeam(teamID uint, permissionID uint) error {
+	role, err := as.GetTeamByID(teamID)
+	if err != nil {
+		return err
+	}
+
+	permission, err := as.GetPermissionByID(permissionID)
+	if err != nil {
+		return err
+	}
+
+	// Implement logic to revoke the permission from the role.
+	// Example: Delete the corresponding role-permission relationship record.
+	err = as.DB.Where("team_id = ? AND permission = ?", role.ID, permission).
+		Delete(&TeamPermission{}).Error
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // GetRolePermissionPairs retrieves all role-permission pairs associated with a role.
 func (as *AgentDBModel) GetRolePermissionPairs2(roleID uint) ([]*RolePermission, error) {
 	// Implement logic to retrieve role-permission pairs associated with the role.
@@ -1165,4 +1330,139 @@ func (as *AgentDBModel) RevokeRoleBaseFromAgent2(agentID uint, roleName string) 
 	return nil
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////
+// /////////////////////////////////////////////////////////////////////////////////////////
+// UserAgentRepository implementations
+func (as *AgentDBModel) CreateUserAgent(agentID uint, userID uint) error {
+	// Implement logic to create a user-agent relationship in the database.
+	// Example: Create a record in the userAgents table.
+	userAgent := UserAgent{AgentID: agentID, UserID: userID}
+	return as.DB.Create(&userAgent).Error
+}
+
+func (as *AgentDBModel) GetAgentsByUser(userID uint) ([]*Agents, error) {
+	// Implement logic to retrieve agents associated with a user.
+	// Example: Join userAgents and agents tables to get the agents by user.
+	var agents []*Agents
+	err := as.DB.Joins("JOIN userAgents ON agents.id = userAgents.agent_id").
+		Where("userAgents.user_id = ?", userID).
+		Find(&agents).Error
+	return agents, err
+}
+
+func (as *AgentDBModel) GetUsersByAgent(agentID uint) ([]*Users, error) {
+	// Implement logic to retrieve users associated with an agent.
+	// Example: Join userAgents and users tables to get the users by agent.
+	var users []*Users
+	err := as.DB.Joins("JOIN userAgents ON users.id = userAgents.user_id").
+		Where("userAgents.agent_id = ?", agentID).
+		Find(&users).Error
+	return users, err
+}
+
+func (as *AgentDBModel) RemoveUserAgentRelationship(agentID uint, userID uint) error {
+	// Implement logic to remove a user-agent relationship from the database.
+	// Example: Delete the record from the userAgents table.
+	return as.DB.Where("agent_id = ? AND user_id = ?", agentID, userID).Delete(&UserAgent{}).Error
+}
+
+// UserPermissionRepository implementations
+func (as *AgentDBModel) AssignPermissionToAgent(agentID uint, permissionID uint) error {
+	// Implement logic to assign a permission to a user.
+	// Example: Create a record in the userPermissions table.
+	agentPermission := AgentPermission{AgentID: agentID, PermissionID: permissionID}
+	return as.DB.Create(&agentPermission).Error
+}
+
+// TeamAgent Storage Implementations
+func (as *AgentDBModel) CreateTeamAgent(agentID uint, teamID uint) error {
+
+	return as.AddAgentToTeam(agentID, teamID)
+}
+
+// TeamAgentRepository implementations
+func (as *AgentDBModel) AddAgentToTeam(agentID uint, teamID uint) error {
+	// Implement logic to add an agent to a team.
+	// Example: Create a record in the teamAgents table.
+	teamAgent := TeamAgent{AgentID: agentID, TeamID: teamID}
+	return as.DB.Create(&teamAgent).Error
+}
+
+func (as *AgentDBModel) GetAgentsByTeam(teamID uint) ([]*Agents, error) {
+	// Implement logic to retrieve agents associated with a team.
+	// Example: Join teamAgents and agents tables to get agents by team.
+	var agents []*Agents
+	err := as.DB.Joins("JOIN teamAgents ON agents.id = teamAgents.agent_id").
+		Where("teamAgents.team_id = ?", teamID).
+		Find(&agents).Error
+	return agents, err
+}
+
+func (as *AgentDBModel) GetTeamsByAgent(agentID uint) ([]*Teams, error) {
+	// Implement logic to retrieve teams associated with an agent.
+	// Example: Join teamAgents and teams tables to get teams by agent.
+	var teams []*Teams
+	err := as.DB.Joins("JOIN teamAgents ON teams.id = teamAgents.team_id").
+		Where("teamAgents.agent_id = ?", agentID).
+		Find(&teams).Error
+	return teams, err
+}
+
+func (as *AgentDBModel) RemoveAgentFromTeam(agentID uint, teamID uint) error {
+	// Implement logic to remove an agent from a team.
+	// Example: Delete the record from the teamAgents table.
+	return as.DB.Where("agent_id = ? AND team_id = ?", agentID, teamID).Delete(&TeamAgent{}).Error
+}
+
+func (as *AgentDBModel) GetTeamByName(name string) (*Teams, error) {
+	// Implement logic to retrieve a team by its name.
+	var team Teams
+	err := as.DB.Where("name = ?", name).First(&team).Error
+	return &team, err
+}
+
+// AgentTeamRepository implementations
+func (as *AgentDBModel) GetAgentTeams(agentID uint) ([]*Teams, error) {
+	// Implement logic to retrieve teams associated with an agent.
+	// Example: Join teamAgents and teams tables to get teams by agent.
+	var teams []*Teams
+	err := as.DB.Joins("JOIN teamAgents ON teams.id = teamAgents.team_id").
+		Where("teamAgents.agent_id = ?", agentID).
+		Find(&teams).Error
+	return teams, err
+}
+
+// Define more repository interfaces and their implementations as needed.
+
+// Example of a custom query method to retrieve agents with specific criteria.
+func (as *AgentDBModel) GetAgentsWithCriteria(criteria string) ([]*Agents, error) {
+	// Implement a custom query to retrieve agents based on specific criteria.
+	var agents []*Agents
+	err := as.DB.Where(criteria).Find(&agents).Error
+	return agents, err
+}
+
+// UserRepository implementations
+func (as *AgentDBModel) AddAgentToUser(userID uint, agentID uint) error {
+	// Implement logic to associate an agent with a user.
+	userAgent := UserAgent{UserID: userID, AgentID: agentID}
+	return as.DB.Create(&userAgent).Error
+}
+
+func (as *AgentDBModel) GrantPermissionToAgent(agentID uint, permissionID uint) error {
+	// Implement logic to grant a permission to an agent.
+	agentPermission := AgentPermission{AgentID: agentID, PermissionID: permissionID}
+	return as.DB.Create(&agentPermission).Error
+}
+
+// RevokePermissionFromRole revokes a permission from a role.
+func (as *AgentDBModel) DeleteTeamAgent(teamID uint, agentID uint) error {
+
+	// Implement logic to revoke the permission from the role.
+	// Example: Delete the corresponding role-permission relationship record.
+	err := as.DB.Where("team_id = ? AND agent_id = ?", teamID, agentID).Delete(&TeamAgent{}).Error
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
