@@ -353,4 +353,54 @@ func (ac *AssetController) UnassignAssetFromUser(ctx *gin.Context) {
 
     ctx.JSON(http.StatusOK, gin.H{"message": "Asset unassigned from user successfully"})
 }
+
+
+// AssignAsset handles POST /assets/:id/assign
+func (ac *AssetController) AssignAsset(ctx *gin.Context) {
+	// Assuming you have a session middleware that stores the agent ID in the session
+    session := sessions.Default(ctx)
+    userID, ok := session.Get("userID").(uint)
+    if !ok {
+        ctx.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+        return
+    }
+    uID, _ := strconv.Atoi(ctx.Param("id"))
+	userID := uint(uID)
+    //userID := // Get the user ID from the current session (you may use your session management library)
+
+    // Check if the user has permission to assign assets (optional, based on your requirements)
+
+    err := ac.AssetService.AssignAsset(uint(assetID), userID, userID) // Assuming the agent is the user assigning
+    if err != nil {
+        ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to assign asset"})
+        return
+    }
+
+    ctx.JSON(http.StatusOK, gin.H{"message": "Asset assigned successfully"})
+}
+
+// UnassignAsset handles POST /assets/:id/unassign
+func (ac *AssetController) UnassignAsset(ctx *gin.Context) {
+    assetID, _ := strconv.Atoi(ctx.Param("id"))
+	session := sessions.Default(ctx)
+    userID, ok := session.Get("userID").(uint)
+    if !ok {
+        ctx.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+        return
+    }
+    uID, _ := strconv.Atoi(ctx.Param("id"))
+	userID := uint(uID)
+    //userID := // Get the user ID from the current session (you may use your session management library)
+
+    // Check if the user has permission to unassign assets (optional, based on your requirements)
+
+    err := ac.AssetService.UnassignAsset(uint(assetID), userID)
+    if err != nil {
+        ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to unassign asset"})
+        return
+    }
+
+    ctx.JSON(http.StatusOK, gin.H{"message": "Asset unassigned successfully"})
+}
+
 */

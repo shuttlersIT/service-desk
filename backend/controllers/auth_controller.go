@@ -5,8 +5,9 @@ package controllers
 import (
 	"net/http"
 
+	"strconv"
+
 	"github.com/gin-gonic/gin"
-	"github.com/shuttlersit/service-desk/backend/models"
 	"github.com/shuttlersit/service-desk/backend/services"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
@@ -22,34 +23,40 @@ func NewAuthController(authService *services.DefaultAuthService) *AuthController
 	}
 }
 
-func (ac *AuthController) Registration(ctx *gin.Context) {
-	var user models.Users
-	if err := ctx.BindJSON(&user); err != nil {
+// ResetUserPassword resets the user's password.
+func (ac *AuthController) ResetUserPassword(ctx *gin.Context) {
+	userID, _ := strconv.Atoi(ctx.Param("id"))
+	var newPassword struct {
+		NewPassword string `json:"new_password"`
+	}
+	if err := ctx.BindJSON(&newPassword); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	newUser, token, err := ac.AuthService.Registration(&user)
+	err := ac.AuthService.ResetUserPassword(uint(userID), newPassword.NewPassword)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create user"})
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to reset password"})
 		return
 	}
-	ctx.JSON(http.StatusCreated, gin.H{"message": "User registered successfully", "token": token, "loggedInUser": newUser})
+	ctx.JSON(http.StatusOK, gin.H{"message": "Password reset successfully"})
 }
 
-func (ac *AuthController) Login(ctx *gin.Context) {
-	var loginInfo *models.LoginInfo
-	loginInfo.Email = ctx.PostForm("email")
-	loginInfo.Password = ctx.PostForm("secret")
-	if err := ctx.BindJSON(&loginInfo); err != nil {
+// ResetUserPassword2 resets the user's password using an alternative implementation.
+func (ac *AuthController) ResetUserPassword2(ctx *gin.Context) {
+	userID, _ := strconv.Atoi(ctx.Param("id"))
+	var newPassword struct {
+		NewPassword string `json:"new_password"`
+	}
+	if err := ctx.BindJSON(&newPassword); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	token, err := ac.AuthService.Login(loginInfo)
+	err := ac.AuthService.ResetUserPassword(uint(userID), newPassword.NewPassword)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create user"})
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to reset password"})
 		return
 	}
-	ctx.JSON(http.StatusOK, gin.H{"token": token})
+	ctx.JSON(http.StatusOK, gin.H{"message": "Password reset successfully (Alternative method)"})
 }
 
 func (ac *AuthController) Logout(ctx *gin.Context) {
@@ -58,6 +65,63 @@ func (ac *AuthController) Logout(ctx *gin.Context) {
 
 func (ac *AuthController) ResetPassword(ctx *gin.Context) {
 	// Implement logout logic here
+}
+
+// RequestPasswordResetToken sends a password reset token to the user's email.
+func (ac *AuthController) RequestPasswordResetToken(ctx *gin.Context) {
+	var userEmail struct {
+		Email string `json:"email"`
+	}
+	if err := ctx.BindJSON(&userEmail); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	// Validate the user's email and send a password reset token via email.
+	// Implement this logic using your preferred email service.
+	// You can generate a unique token and send it to the user's email.
+	// Don't forget to include a link that allows the user to reset their password.
+	// Once the email is sent, respond with a success message.
+	ctx.JSON(http.StatusOK, gin.H{"message": "Password reset token sent successfully"})
+}
+
+// ResetPasswordWithToken resets the user's password using a valid token.
+func (ac *AuthController) ResetPasswordWithToken(ctx *gin.Context) {
+	token := ctx.Param("token")
+	var newPassword struct {
+		NewPassword string `json:"new_password"`
+	}
+	if err := ctx.BindJSON(&newPassword); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	// Verify the validity of the password reset token.
+	// If the token is valid, update the user's password.
+	// Otherwise, respond with an error message.
+	err := ac.AuthService.ResetPasswordWithToken(token, newPassword.NewPassword)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	ctx.JSON(http.StatusOK, gin.H{"message": "Password reset successfully"})
+}
+
+// ChangePassword allows authenticated users to change their password.
+func (ac *AuthController) ChangePassword(ctx *gin.Context) {
+	userID := ctx.MustGet("userID").(uint) // Get the user's ID from the token or session.
+	var newPassword struct {
+		NewPassword string `json:"new_password"`
+	}
+	if err := ctx.BindJSON(&newPassword); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	// Update the user's password with the new password.
+	err := ac.AuthService.ResetUserPassword(userID, newPassword.NewPassword)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to change password"})
+		return
+	}
+	ctx.JSON(http.StatusOK, gin.H{"message": "Password changed successfully"})
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////

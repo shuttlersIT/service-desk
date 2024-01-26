@@ -10,17 +10,19 @@ import (
 
 type Users struct {
 	gorm.Model
-	ID          uint                  `gorm:"primaryKey" json:"user_id"`
-	FirstName   string                `json:"first_name" binding:"required"`
-	LastName    string                `json:"last_name" binding:"required"`
-	Email       string                `json:"staff_email" binding:"required,email"`
-	Credentials UsersLoginCredentials `json:"user_credentials" gorm:"foreignKey:UserID"`
-	Phone       string                `json:"phoneNumber" binding:"required,e164"`
-	Position    Position              `json:"position_id" gorm:"embedded"`
-	Department  Department            `json:"department_id" gorm:"embedded"`
-	CreatedAt   time.Time             `json:"created_at"`
-	UpdatedAt   time.Time             `json:"updated_at"`
-	Asset       []AssetAssignment     `json:"asset_assignment" gorm:"foreignKey:UserID"`
+	ID                     uint                  `gorm:"primaryKey" json:"user_id"`
+	FirstName              string                `json:"first_name" binding:"required"`
+	LastName               string                `json:"last_name" binding:"required"`
+	Email                  string                `json:"staff_email" binding:"required,email"`
+	Credentials            UsersLoginCredentials `json:"user_credentials" gorm:"foreignKey:UserID"`
+	Phone                  string                `json:"phoneNumber" binding:"required,e164"`
+	Position               Position              `json:"position_id" gorm:"embedded"`
+	Department             Department            `json:"department_id" gorm:"embedded"`
+	CreatedAt              time.Time             `json:"created_at"`
+	UpdatedAt              time.Time             `json:"updated_at"`
+	Asset                  []AssetAssignment     `json:"asset_assignment" gorm:"foreignKey:UserID"`
+	RoleBase               RoleBase              `json:"role_base" gorm:"embedded"`
+	ResetPasswordRequestID uint                  `json:"reset_password_reset" gorm:"embedded"`
 }
 
 // TableName sets the table name for the Users model.
@@ -356,3 +358,58 @@ func (as *UserDBModel) GetAssetByNumber(assetNumber int) (*Assets, error) {
 	}
 	return &asset, nil
 }
+
+// CreateUserProfile creates a profile for a user.
+func (as *UserDBModel) CreateUserProfile(user *Users) error {
+	return as.DB.Create(user).Error
+}
+
+// GetUserProfileByUserID retrieves a user's profile by their ID.
+func (as *UserDBModel) GetUserProfileByUserID(userID uint) (*Users, error) {
+	var user Users
+	err := as.DB.Where("user_id = ?", userID).First(&user).Error
+	return &user, err
+}
+
+// UpdateUserProfile updates the details of a user's profile.
+func (as *UserDBModel) UpdateUserProfile(user *Users) error {
+	return as.DB.Save(&user).Error
+}
+
+// DeleteUserProfile deletes a user's profile.
+func (as *UserDBModel) DeleteUserProfile(user *Users) error {
+	return as.DB.Delete(&user).Error
+}
+
+/*
+// Role based access
+
+// CreateRole creates a new role.
+func (as *UserDBModel) CreateRole(role *Role) error {
+    return as.DB.Create(role).Error
+}
+
+// UpdateRole updates an existing role.
+func (as *UserDBModel) UpdateRole(role *Role) error {
+    return as.DB.Save(role).Error
+}
+
+// DeleteRole deletes a role by ID.
+func (as *UserDBModel) DeleteRole(roleID uint) error {
+    return as.DB.Delete(&Role{}, roleID).Error
+}
+
+// GetRoleByID retrieves a role by its ID.
+func (as *UserDBModel) GetRoleByID(roleID uint) (*Role, error) {
+    var role Role
+    err := as.DB.Where("id = ?", roleID).First(&role).Error
+    return &role, err
+}
+
+// GetAllRoles retrieves all roles.
+func (as *UserDBModel) GetAllRoles() ([]*Role, error) {
+    var roles []*Role
+    err := as.DB.Find(&roles).Error
+    return roles, err
+}
+*/

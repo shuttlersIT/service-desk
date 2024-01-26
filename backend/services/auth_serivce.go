@@ -1,12 +1,14 @@
-// backend/services/advertisement_service.go
+// backend/services/auth_service.go
 
 package services
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/golang-jwt/jwt"
 	"github.com/shuttlersit/service-desk/backend/models"
+	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
 
@@ -106,4 +108,78 @@ func (us *DefaultUserService) ResetUserPassword2(userID uint, newPassword string
 	}
 
 	return nil
+}
+
+// ResetPasswordWithToken resets the user's password using a valid token.
+func (a *DefaultAuthService) ResetPasswordWithToken(token string, newPassword string) error {
+	// Token validation logic (customize this based on your token handling)
+	claims, err := validatePasswordResetToken(token)
+	if err != nil {
+		return err
+	}
+
+	// Retrieve the user by their email (you should implement this method)
+	user, err := a.UserDBModel.GetUserByEmail(claims["email"].(string))
+	if err != nil {
+		return err
+	}
+
+	// Check if the token has a valid reset password request ID claim
+	requestIDClaim, ok := claims["request_id"].(float64)
+	if !ok {
+		return fmt.Errorf("Token missing or invalid request_id claim")
+	}
+	requestID := uint(requestIDClaim)
+
+	// Verify that the user has a pending reset password request with the same request ID
+	if user.ResetPasswordRequestID != requestID {
+		return fmt.Errorf("Invalid or expired token")
+	}
+
+	// Update the user's password with the new password
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return err
+	}
+	user.Credentials.Password = string(hashedPassword)
+
+	// Clear the reset password request ID
+	user.ResetPasswordRequestID = 0
+
+	// Save the updated user
+	if err := a.UserDBModel.UpdateUser(user); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// Helper function to validate the password reset token.
+func validatePasswordResetToken(token string) (jwt.MapClaims, error) {
+	// Parse and validate the JWT token
+	claims := jwt.MapClaims{}
+	tkn, err := jwt.ParseWithClaims(token, claims, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("Invalid token signing method")
+		}
+		// Replace "your-secret-key" with your actual secret key used for token signing
+		return []byte("your-secret-key"), nil
+	})
+
+	if err != nil {
+		return nil, fmt.Errorf("Invalid token: %v", err)
+	}
+
+	if !tkn.Valid {
+		return nil, fmt.Errorf("Token is not valid")
+	}
+
+	// Ensure that the token contains the required claims (customize as needed)
+	if claims["email"] == nil || claims["request_id"] == nil {
+		return nil, fmt.Errorf("Token missing required claims")
+	}
+
+	// Add more claim validations as needed
+
+	return claims, nil
 }
