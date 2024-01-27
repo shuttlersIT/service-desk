@@ -115,6 +115,7 @@ type LoginInfo struct {
 type RegisterModel struct {
 	a *UserDBModel
 	b *AuthDBModel
+	c *AgentDBModel
 }
 
 // NewUserModel creates a new instance of UserModel
@@ -149,6 +150,30 @@ func (ab *RegisterModel) Registration(user *Users) (*Users, error) {
 	return newUser, nil
 }
 
+// Register New User
+func (ab *RegisterModel) AgentRegistration(agent *Agents) (*Agents, error) {
+	// Hash the user's password before storing it in the database
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(agent.Credentials.Password), bcrypt.DefaultCost)
+	if err != nil {
+		return nil, fmt.Errorf("failed to hash password")
+	}
+	agent.Credentials.Password = string(hashedPassword)
+	newAgent, erro := ab.c.CreateAgent(agent)
+	if erro != nil {
+		return nil, fmt.Errorf("failed to create users")
+	}
+	er := ab.b.CreateAgentCredentials(&newAgent.Credentials)
+	if er != nil {
+		return nil, fmt.Errorf("failed to create users credentials")
+	}
+	e := ab.c.UpdateAgent(newAgent)
+	if e != nil {
+		return nil, fmt.Errorf("unable to update new users credentials")
+	}
+
+	return newAgent, nil
+}
+
 // Login User
 func (a *AuthDBModel) Login(login *LoginInfo) (*Users, error) {
 	loginInfo := login
@@ -162,6 +187,19 @@ func (a *AuthDBModel) Login(login *LoginInfo) (*Users, error) {
 	return &user, nil
 }
 
+// Login User
+func (a *AuthDBModel) LoginAgent(login *LoginInfo) (*Agents, error) {
+	loginInfo := login
+	var agent Agents
+	if err := a.DB.Where("email = ?", loginInfo.Email).First(&agent).Error; err != nil {
+		return nil, err
+	}
+	if err := bcrypt.CompareHashAndPassword([]byte(agent.Credentials.Password), []byte(loginInfo.Password)); err != nil {
+		return nil, err
+	}
+	return &agent, nil
+}
+
 // ResetUserPassword retrieves all users from the database.
 func (as *AuthDBModel) ResetUserPassword(uint, string) ([]*UsersLoginCredentials, error) {
 	var usersCredentials []*UsersLoginCredentials
@@ -170,6 +208,13 @@ func (as *AuthDBModel) ResetUserPassword(uint, string) ([]*UsersLoginCredentials
 }
 
 /////////////////////////////////////////////// AGENTS //////////////////////////////////////////////////////////
+
+// ResetAgentPassword retrieves all agents from the database.
+func (as *AuthDBModel) ResetAgentPassword(uint, string) ([]*AgentLoginCredentials, error) {
+	var agentsCredentials []*AgentLoginCredentials
+	err := as.DB.Find(&agentsCredentials).Error
+	return agentsCredentials, err
+}
 
 // CreateUser creates a new user.
 func (as *AuthDBModel) CreateAgentCredentials(agentCredentials *AgentLoginCredentials) error {

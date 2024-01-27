@@ -46,14 +46,18 @@ type AgentServiceInterface interface {
 	GetAllPermissions() ([]*models.Permission, error)
 	GetPermissionByID(permissionID uint) (*models.Permission, error)
 	GetPermissionByName(permissionName string) (*models.Permission, error)
+	AssignPermissionToTeam(teamID uint, permissionName string) error
 
 	// Agent-Role methods
 	AssignRoleToAgent(agentID uint, roleName string) error
 	RevokeRoleFromAgent(agentID uint, roleName string) error
 	GetAgentRoles(agentID uint) ([]*models.Role, error)
+	RemoveAgentPermissionFromRole(roleName string, permissionName string) error
+	AddAgentPermissionToRole(roleName string, permissionName string) error
 
 	// Agent-Permission methods
 	AssignPermissionToAgent(agentID uint, permissionName string) error
+	GetRolePermissions(roleName string) ([]*models.Permission, error)
 
 	// User-Agent methods
 	AddAgentToUser(userID uint, agentID uint) error
@@ -62,11 +66,13 @@ type AgentServiceInterface interface {
 	// Team-Agent methods
 	AddAgentToTeam(teamID uint, agentID uint) error
 	GetAgentsByTeam(teamID uint) ([]*models.Agents, error)
+	RevokeAgentFromTeam(agentID uint, teamID uint) error
 
 	// Agent-Permission methods
 	GrantPermissionToAgent(agentID uint, permissionID uint) error
 	RevokePermissionFromAgent(agentID uint, permissionID uint) error
 	GetAgentPermissions(agentID uint) ([]*models.Permission, error)
+	RevokePermissionFromTeam(teamID uint, permissionName string) error
 }
 
 // DefaultAgentService is the default implementation of AgentService
@@ -93,12 +99,12 @@ func (ps *DefaultAgentService) GetAllAgents() ([]*models.Agents, error) {
 }
 
 // CreateAgent creates a new agent.
-func (ps *DefaultAgentService) CreateAgent(agent *models.Agents) error {
-	err := ps.AgentDBModel.CreateAgent(agent)
+func (ps *DefaultAgentService) CreateAgent(agent *models.Agents) (*models.Agents, error) {
+	newAgent, err := ps.AgentDBModel.CreateAgent(agent)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return nil
+	return newAgent, nil
 }
 
 // GetAgentByID retrieves an agent by its ID.

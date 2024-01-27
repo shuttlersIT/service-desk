@@ -298,8 +298,10 @@ func NewAgentDBModel(db *gorm.DB) *AgentDBModel {
 }
 
 // CreateAgent creates a new Agent.
-func (as *AgentDBModel) CreateAgent(agent *Agents) error {
-	return as.DB.Create(agent).Error
+func (as *AgentDBModel) CreateAgent(agent *Agents) (*Agents, error) {
+	result := as.DB.Create(agent)
+
+	return as.GetAgentByID(uint(result.RowsAffected))
 }
 
 // DeleteAgent deletes an Agent from the database.

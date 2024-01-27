@@ -8,6 +8,7 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"github.com/shuttlersit/service-desk/backend/models"
 	"github.com/shuttlersit/service-desk/backend/services"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
@@ -15,12 +16,135 @@ import (
 
 type AuthController struct {
 	AuthService *services.DefaultAuthService
+	AuthDBModel *models.AuthDBModel
 }
 
 func NewAuthController(authService *services.DefaultAuthService) *AuthController {
 	return &AuthController{
 		AuthService: authService,
 	}
+}
+
+// Register handles user registration
+func (ac *AuthController) Register(c *gin.Context) {
+	var user models.Users
+	if err := c.ShouldBindJSON(&user); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	newUser, token, err := ac.AuthService.Registration(&user)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"user": newUser, "token": token})
+}
+
+// Login handles user login
+func (ac *AuthController) Login(c *gin.Context) {
+	var loginInfo models.LoginInfo
+	if err := c.ShouldBindJSON(&loginInfo); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	token, err := ac.AuthService.Login(&loginInfo)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"token": token})
+}
+
+// Login handles user login
+func (ac *AuthController) LoginAgent(c *gin.Context) {
+	var loginInfo models.LoginInfo
+	if err := c.ShouldBindJSON(&loginInfo); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	token, err := ac.AuthService.LoginAgent(&loginInfo)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"token": token})
+}
+
+// Register handles user registration
+func (ac *AuthController) RegisterAgent(c *gin.Context) {
+	var agent models.Agents
+	if err := c.ShouldBindJSON(&agent); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	newAgent, token, err := ac.AuthService.AgentRegistration(&agent)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"agent": newAgent, "token": token})
+}
+
+// ResetPassword handles resetting the user's password
+func (ac *AuthController) ResetPassword(c *gin.Context) {
+	// Parse user ID from request parameters
+	userIDParam := c.Param("user_id")
+	userID, err := strconv.Atoi(userIDParam)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		return
+	}
+
+	var newPassword struct {
+		NewPassword string `json:"new_password"`
+	}
+	if err := c.ShouldBindJSON(&newPassword); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	err = ac.AuthService.ResetUserPassword(uint(userID), newPassword.NewPassword)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Password reset successfully"})
+}
+
+// ResetPassword handles resetting the user's password
+func (ac *AuthController) ResetAgentPassword(c *gin.Context) {
+	// Parse user ID from request parameters
+	agentIDParam := c.Param("agent_id")
+	agentID, err := strconv.Atoi(agentIDParam)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid agent ID"})
+		return
+	}
+
+	var newPassword struct {
+		NewPassword string `json:"new_password"`
+	}
+	if err := c.ShouldBindJSON(&newPassword); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	err = ac.AuthService.ResetAgentPassword(uint(agentID), newPassword.NewPassword)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Password reset successfully"})
 }
 
 // ResetUserPassword resets the user's password.
@@ -63,10 +187,6 @@ func (ac *AuthController) Logout(ctx *gin.Context) {
 	// Implement logout logic here
 }
 
-func (ac *AuthController) ResetPassword(ctx *gin.Context) {
-	// Implement logout logic here
-}
-
 // RequestPasswordResetToken sends a password reset token to the user's email.
 func (ac *AuthController) RequestPasswordResetToken(ctx *gin.Context) {
 	var userEmail struct {
@@ -82,6 +202,27 @@ func (ac *AuthController) RequestPasswordResetToken(ctx *gin.Context) {
 	// Don't forget to include a link that allows the user to reset their password.
 	// Once the email is sent, respond with a success message.
 	ctx.JSON(http.StatusOK, gin.H{"message": "Password reset token sent successfully"})
+}
+
+// ResetPasswordWithToken handles resetting the user's password using a token
+func (ac *AuthController) ResetPasswordWithToken2(c *gin.Context) {
+	token := c.Param("token")
+	var newPassword struct {
+		Email       string `json:"email"`
+		NewPassword string `json:"password"`
+	}
+	if err := c.ShouldBindJSON(&newPassword); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	err := ac.AuthService.ResetPasswordWithToken(token, newPassword.NewPassword)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Password reset successfully"})
 }
 
 // ResetPasswordWithToken resets the user's password using a valid token.
