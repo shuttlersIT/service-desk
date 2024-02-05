@@ -1,0 +1,719 @@
+-- Start of the Super Script
+CREATE DATABASE IF NOT EXISTS service_desk;
+USE service_desk;
+
+-- Enhanced Departments Table
+CREATE TABLE IF NOT EXISTS departments (
+    department_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    department_name VARCHAR(255) NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at DATETIME DEFAULT NULL,
+    CONSTRAINT UC_DepartmentName UNIQUE (department_name)
+) COMMENT='Stores department details. Includes soft delete feature.';
+
+-- Enhanced Positions Table
+CREATE TABLE IF NOT EXISTS positions (
+    position_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    position_name VARCHAR(255) NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at DATETIME DEFAULT NULL,
+    CONSTRAINT UC_PositionName UNIQUE (position_name)
+) COMMENT='Stores position details. Supports soft deletes for historical tracking.';
+
+-- Enhanced Vendors Table
+CREATE TABLE IF NOT EXISTS vendors (
+    vendor_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    vendor_name VARCHAR(255) NOT NULL,
+    description TEXT,
+    contact_info TEXT,
+    address TEXT,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at DATETIME DEFAULT NULL,
+    CONSTRAINT UC_VendorName UNIQUE (vendor_name)
+) COMMENT='Stores vendor information. Soft deletes enabled.';
+
+-- Categories Table
+CREATE TABLE IF NOT EXISTS categories (
+    category_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    category_name VARCHAR(255) NOT NULL,
+    icon VARCHAR(255),
+    description TEXT,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at DATETIME DEFAULT NULL,
+    CONSTRAINT UC_CategoryName UNIQUE (category_name)
+) COMMENT='Defines categories for tickets. Includes soft delete feature.';
+
+-- Priorities Table
+CREATE TABLE IF NOT EXISTS priorities (
+    priority_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    color VARCHAR(7) DEFAULT '#FFFFFF',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at DATETIME DEFAULT NULL
+) COMMENT='Stores ticket priorities with a color code for UI display.';
+
+-- Statuses Table
+CREATE TABLE IF NOT EXISTS statuses (
+    status_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    status_name VARCHAR(255) NOT NULL,
+    is_closed BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at DATETIME DEFAULT NULL
+) COMMENT='Defines ticket statuses, including an indicator if the status implies closure.';
+
+-- Users
+CREATE TABLE IF NOT EXISTS users (
+    user_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    first_name VARCHAR(255) NOT NULL,
+    last_name VARCHAR(255) NOT NULL,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    phone VARCHAR(20),
+    position_id INT UNSIGNED,
+    department_id INT UNSIGNED,
+    is_active BOOLEAN DEFAULT TRUE,
+    last_login_at TIMESTAMP NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP NULL DEFAULT NULL,
+    FOREIGN KEY (department_id) REFERENCES departments(department_id) ON DELETE SET NULL,
+    FOREIGN KEY (position_id) REFERENCES positions(position_id) ON DELETE SET NULL
+) COMMENT='User information, linked to positions and departments.';
+
+-- Agents Table
+CREATE TABLE IF NOT EXISTS agents (
+    agent_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    first_name VARCHAR(255) NOT NULL,
+    last_name VARCHAR(255) NOT NULL,
+    email VARCHAR(255) NOT NULL UNIQUE,
+    password CHAR(60) NOT NULL, -- Assuming bcrypt hashed passwords
+    phone VARCHAR(20),
+    role_id INT UNSIGNED,
+    team_id INT UNSIGNED,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at DATETIME DEFAULT NULL,
+    FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE SET NULL,
+    FOREIGN KEY (team_id) REFERENCES teams(id) ON DELETE SET NULL
+) COMMENT='Agent accounts responsible for handling tickets. Includes hashed passwords for security.';
+
+-- Assets
+CREATE TABLE IF NOT EXISTS assets (
+    asset_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    asset_tag VARCHAR(100) UNIQUE NOT NULL,
+    asset_name VARCHAR(255) NOT NULL,
+    asset_type_id INT UNSIGNED NOT NULL,
+    description TEXT,
+    vendor_id INT UNSIGNED,
+    purchase_date DATE,
+    warranty_expiration DATE,
+    status ENUM('active', 'maintenance', 'decommissioned', 'lost') NOT NULL,
+    location VARCHAR(255),
+    user_id INT UNSIGNED,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP NULL DEFAULT NULL,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE SET NULL,
+    FOREIGN KEY (asset_type_id) REFERENCES asset_types(id) ON DELETE RESTRICT
+) COMMENT='Tracks physical assets, with status and ownership.';
+
+-- Tickets Table
+CREATE TABLE IF NOT EXISTS tickets (
+    ticket_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    subject VARCHAR(255) NOT NULL,
+    description TEXT,
+    category_id INT UNSIGNED,
+    priority_id INT UNSIGNED,
+    status_id INT UNSIGNED,
+    user_id INT UNSIGNED,
+    agent_id INT UNSIGNED,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    closed_at DATETIME DEFAULT NULL,
+    FOREIGN KEY (category_id) REFERENCES categories(category_id) ON DELETE SET NULL,
+    FOREIGN KEY (priority_id) REFERENCES priorities(priority_id) ON DELETE SET NULL,
+    FOREIGN KEY (status_id) REFERENCES statuses(status_id) ON DELETE SET NULL,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    FOREIGN KEY (agent_id) REFERENCES agents(agent_id) ON DELETE SET NULL
+) COMMENT='Ticketing system core table, linking users, agents, and ticket metadata.';
+
+-- User Login Credentials
+CREATE TABLE IF NOT EXISTS user_login_credentials (
+    credential_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    user_id INT UNSIGNED NOT NULL,
+    hashed_password CHAR(60) NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+) COMMENT='Stores bcrypt hashed passwords for users.';
+
+-- Agent Login Credentials
+CREATE TABLE IF NOT EXISTS agent_login_credentials (
+    credential_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    agent_id INT UNSIGNED NOT NULL,
+    hashed_password CHAR(60) NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (agent_id) REFERENCES agents(agent_id) ON DELETE CASCADE
+) COMMENT='Stores bcrypt hashed passwords for agents.';
+
+-- Permissions, Roles, and UserRoles for access control
+CREATE TABLE IF NOT EXISTS permissions (
+    permission_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) UNIQUE NOT NULL,
+    description TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP NULL DEFAULT NULL
+) COMMENT='Defines permissions available in the system.';
+
+CREATE TABLE IF NOT EXISTS roles (
+    role_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) UNIQUE NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP NULL DEFAULT NULL
+) COMMENT='Defines roles that can be assigned to users.';
+
+CREATE TABLE IF NOT EXISTS user_roles (
+    user_id INT UNSIGNED NOT NULL,
+    role_id INT UNSIGNED NOT NULL,
+    PRIMARY KEY (user_id, role_id),
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    FOREIGN KEY (role_id) REFERENCES roles(role_id) ON DELETE CASCADE
+) COMMENT='Maps users to roles, supporting many-to-many relationships.';
+
+-- Implementing Advanced Structures for SLAs, Knowledge Base, Incident Management, etc.
+
+-- Security and Audit Tables
+-- User Sessions Table
+CREATE TABLE IF NOT EXISTS user_sessions (
+    session_id CHAR(36) PRIMARY KEY, -- UUID for session ID
+    user_id INT UNSIGNED NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    last_access DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+) COMMENT='Tracks user sessions for security and auditing.';
+
+-- Audit Logs Table
+CREATE TABLE IF NOT EXISTS audit_logs (
+    audit_log_id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    action_type VARCHAR(255) NOT NULL,
+    user_id INT UNSIGNED,
+    description TEXT,
+    affected_table VARCHAR(255),
+    affected_row_id BIGINT UNSIGNED,
+    timestamp DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE SET NULL
+) COMMENT='Logs all actions performed in the system for security audits.';
+
+-- SLAs
+CREATE TABLE IF NOT EXISTS service_level_agreements (
+    sla_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    response_time INT NOT NULL COMMENT 'Response time in hours',
+    resolution_time INT NOT NULL COMMENT 'Resolution time in hours',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP NULL DEFAULT NULL
+) COMMENT='Service Level Agreements defining response and resolution times.';
+
+-- Knowledge Base
+CREATE TABLE IF NOT EXISTS knowledge_base_articles (
+    article_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    title VARCHAR(255) NOT NULL,
+    content LONGTEXT NOT NULL,
+    author_id INT UNSIGNED NOT NULL,
+    category_id INT UNSIGNED,
+    published BOOLEAN DEFAULT FALSE,
+    published_at TIMESTAMP NULL DEFAULT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP NULL DEFAULT NULL,
+    FOREIGN KEY (author_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    FOREIGN KEY (category_id) REFERENCES categories(category_id) ON DELETE SET NULL
+) COMMENT='Articles for the knowledge base, authored by users.';
+
+-- Audit Logs for tracking changes and user activities
+CREATE TABLE IF NOT EXISTS audit_logs (
+    audit_log_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    user_id INT UNSIGNED,
+    action_type VARCHAR(255) NOT NULL,
+    description TEXT NOT NULL,
+    affected_table VARCHAR(255),
+    affected_row_id INT UNSIGNED,
+    timestamp TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE SET NULL
+) COMMENT='Logs of user actions for security and compliance auditing.';
+
+-- Incident Management
+CREATE TABLE IF NOT EXISTS incidents (
+    incident_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    reported_by INT UNSIGNED NOT NULL,
+    assigned_to INT UNSIGNED,
+    priority ENUM('Low', 'Medium', 'High', 'Critical') NOT NULL,
+    status ENUM('Open', 'Investigating', 'Resolved', 'Closed') NOT NULL,
+    category_id INT UNSIGNED,
+    impact ENUM('Low', 'Medium', 'High') NOT NULL,
+    urgency ENUM('Low', 'Medium', 'High') NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    closed_at TIMESTAMP NULL DEFAULT NULL,
+    deleted_at TIMESTAMP NULL DEFAULT NULL,
+    FOREIGN KEY (reported_by) REFERENCES users(user_id),
+    FOREIGN KEY (assigned_to) REFERENCES users(user_id),
+    FOREIGN KEY (category_id) REFERENCES categories(category_id)
+) COMMENT='Tracks incidents reported by users or detected by the system.';
+
+-- Asset Management
+CREATE TABLE IF NOT EXISTS asset_types (
+    asset_type_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP NULL DEFAULT NULL
+) COMMENT='Defines types of assets managed by the system.';
+
+-- Vendor Management
+CREATE TABLE IF NOT EXISTS vendors (
+    vendor_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    contact_details TEXT,
+    address TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP NULL DEFAULT NULL
+) COMMENT='Stores information about vendors or suppliers.';
+
+-- Purchase Order Management
+CREATE TABLE IF NOT EXISTS purchase_orders (
+    order_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    asset_id INT UNSIGNED,
+    vendor_id INT UNSIGNED,
+    order_date DATE NOT NULL,
+    delivery_date DATE,
+    amount DECIMAL(10,2),
+    status ENUM('Ordered', 'Delivered', 'Cancelled') NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP NULL DEFAULT NULL,
+    FOREIGN KEY (asset_id) REFERENCES assets(asset_id) ON DELETE SET NULL,
+    FOREIGN KEY (vendor_id) REFERENCES vendors(vendor_id) ON DELETE SET NULL
+) COMMENT='Tracks purchase orders for assets from vendors.';
+
+-- User Feedback
+CREATE TABLE IF NOT EXISTS user_feedback (
+    feedback_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    ticket_id INT UNSIGNED,
+    user_id INT UNSIGNED NOT NULL,
+    rating ENUM('Poor', 'Fair', 'Good', 'Excellent') NOT NULL,
+    comment TEXT,
+    submitted_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (ticket_id) REFERENCES tickets(ticket_id) ON DELETE SET NULL,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+) COMMENT='Collects feedback from users regarding their support experience.';
+
+-- System Notifications
+CREATE TABLE IF NOT EXISTS system_notifications (
+    notification_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    title VARCHAR(255) NOT NULL,
+    message TEXT NOT NULL,
+    target_user_id INT UNSIGNED,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    read_at TIMESTAMP NULL DEFAULT NULL,
+    deleted_at TIMESTAMP NULL DEFAULT NULL,
+    FOREIGN KEY (target_user_id) REFERENCES users(user_id) ON DELETE SET NULL
+) COMMENT='System-wide notifications for users.';
+
+-- User Sessions for tracking active logins
+CREATE TABLE IF NOT EXISTS user_sessions (
+    session_id CHAR(36) PRIMARY KEY,
+    user_id INT UNSIGNED NOT NULL,
+    session_start TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    last_access TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+) COMMENT='Tracks user login sessions for security and auditing.';
+
+-- Enhanced User Management
+-- Adding a table for storing detailed user profiles
+CREATE TABLE IF NOT EXISTS user_profiles (
+    profile_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    user_id INT UNSIGNED UNIQUE NOT NULL,
+    bio TEXT,
+    profile_picture VARCHAR(255),
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP NULL DEFAULT NULL,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+) COMMENT='Extended user profile information for detailed user management.';
+
+-- Multi-Factor Authentication (MFA) Settings
+CREATE TABLE IF NOT EXISTS user_mfa_settings (
+    mfa_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    user_id INT UNSIGNED NOT NULL,
+    mfa_type ENUM('SMS', 'Email', 'App') NOT NULL,
+    mfa_secret VARCHAR(255), -- Stored securely
+    is_active BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+) COMMENT='Stores multi-factor authentication settings for users.';
+
+-- Asset Maintenance Records
+CREATE TABLE IF NOT EXISTS asset_maintenance (
+    maintenance_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    asset_id INT UNSIGNED NOT NULL,
+    start_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    end_date TIMESTAMP,
+    description TEXT,
+    cost DECIMAL(10,2),
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (asset_id) REFERENCES assets(asset_id) ON DELETE CASCADE
+) COMMENT='Tracks maintenance history for assets.';
+
+-- IT Support Articles
+-- A table for managing IT support articles, guides, and tutorials.
+CREATE TABLE IF NOT EXISTS support_articles (
+    article_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    title VARCHAR(255) NOT NULL,
+    content LONGTEXT NOT NULL,
+    author_id INT UNSIGNED NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    published_at TIMESTAMP NULL DEFAULT NULL,
+    status ENUM('Draft', 'Published', 'Archived') NOT NULL DEFAULT 'Draft',
+    FOREIGN KEY (author_id) REFERENCES users(user_id) ON DELETE SET NULL
+) COMMENT='Manages support articles for internal and external users.';
+
+-- System Configuration Settings
+-- A key-value store for various system configuration settings.
+CREATE TABLE IF NOT EXISTS system_configurations (
+    config_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    config_key VARCHAR(255) NOT NULL UNIQUE,
+    config_value TEXT NOT NULL,
+    description TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+) COMMENT='Stores system-wide configuration settings as key-value pairs.';
+
+-- Automated Workflow Triggers
+-- Manages triggers for automated workflows within the system.
+CREATE TABLE IF NOT EXISTS workflow_triggers (
+    trigger_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    trigger_name VARCHAR(255) NOT NULL,
+    event_name VARCHAR(255) NOT NULL,
+    action_name VARCHAR(255) NOT NULL,
+    action_parameters TEXT, -- JSON format
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+) COMMENT='Defines triggers for automated workflows based on system events.';
+
+-- Enhanced status table with ENUM for status values
+CREATE TABLE IF NOT EXISTS ticket_status (
+    status_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    status_name ENUM('Open', 'In Progress', 'Closed', 'Pending') NOT NULL COMMENT 'Status of the ticket',
+    is_closed BOOLEAN DEFAULT FALSE COMMENT 'Flag indicating if the status is considered closed',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP NULL DEFAULT NULL
+) COMMENT='Ticket statuses with predefined values.';
+
+-- Permissions, Roles, and other foundational tables follow a similar pattern of optimization, clarity, and comprehensive indexing.
+
+-- Automation and enhancement tables such as `automation_scripts`, `team_collaborations`, and `ui_themes`:
+-- Detailed structure for automation_scripts with triggers and execution results
+CREATE TABLE IF NOT EXISTS automation_scripts (
+    script_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    script_name VARCHAR(255) NOT NULL COMMENT 'Name of the automation script',
+    script_code TEXT NOT NULL COMMENT 'The automation script itself',
+    trigger_event VARCHAR(255) COMMENT 'Event that triggers the script',
+    active BOOLEAN DEFAULT TRUE COMMENT 'Flag indicating if the script is active',
+    last_executed TIMESTAMP COMMENT 'Timestamp of the last execution',
+    execution_result TEXT COMMENT 'Result of the last execution',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP NULL DEFAULT NULL
+) COMMENT='Automation scripts for repetitive tasks. Includes execution tracking.';
+
+-- Extending user interaction through `interaction_channels`:
+CREATE TABLE IF NOT EXISTS interaction_channels (
+    channel_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    channel_type ENUM('Email', 'Chat', 'Phone', 'Social Media', 'Portal') NOT NULL COMMENT 'Type of interaction channel',
+    details TEXT COMMENT 'Configuration details for the channel',
+    active BOOLEAN DEFAULT TRUE COMMENT 'Flag indicating if the channel is active',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP NULL DEFAULT NULL
+) COMMENT='Customer interaction channels configuration.';
+
+-- Advanced Configuration Management with `cmdb_items` and `cmdb_relationships` for a dynamic CMDB:
+CREATE TABLE IF NOT EXISTS cmdb_items (
+    ci_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL COMMENT 'Name of the Configuration Item (CI)',
+    type VARCHAR(255) COMMENT 'Type of CI',
+    details JSON COMMENT 'Detailed JSON structure of CI attributes',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP NULL DEFAULT NULL
+) COMMENT='Configuration Items for CMDB. Supports JSON for flexibility.';
+
+CREATE TABLE IF NOT EXISTS cmdb_relationships (
+    relationship_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    source_ci_id INT UNSIGNED NOT NULL COMMENT 'Source CI in the relationship',
+    target_ci_id INT UNSIGNED NOT NULL COMMENT 'Target CI in the relationship',
+    relationship_type VARCHAR(255) NOT NULL COMMENT 'Type of relationship between CIs',
+    details TEXT COMMENT 'Additional details about the relationship',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP NULL DEFAULT NULL,
+    FOREIGN KEY (source_ci_id) REFERENCES cmdb_items(ci_id) ON DELETE CASCADE,
+    FOREIGN KEY (target_ci_id) REFERENCES cmdb_items(ci_id) ON DELETE CASCADE
+) COMMENT='Relationships between CIs in the CMDB.';
+
+-- Additional indexing for optimized performance across the database.
+-- For instance, applying specific indexes based on anticipated query patterns for each table, including foreign keys and frequently queried columns.
+
+-- End of the Super Script
+-- User Interaction History
+CREATE TABLE IF NOT EXISTS user_interaction_history (
+    interaction_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    user_id INT UNSIGNED NOT NULL,
+    interaction_type ENUM('Login', 'Logout', 'Create Ticket', 'Update Ticket', 'View Article') NOT NULL,
+    interaction_details TEXT,
+    interaction_timestamp TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+) COMMENT='Logs user interactions for analytics and audit purposes.';
+
+-- Dynamic Forms and Fields for Ticket Management
+CREATE TABLE IF NOT EXISTS dynamic_forms (
+    form_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    form_name VARCHAR(255) NOT NULL,
+    form_schema JSON NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+) COMMENT='Defines dynamic forms used within the application.';
+
+CREATE TABLE IF NOT EXISTS ticket_dynamic_data (
+    data_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    ticket_id INT UNSIGNED NOT NULL,
+    form_id INT UNSIGNED NOT NULL,
+    data_values JSON NOT NULL,
+    FOREIGN KEY (ticket_id) REFERENCES tickets(ticket_id) ON DELETE CASCADE,
+    FOREIGN KEY (form_id) REFERENCES dynamic_forms(form_id) ON DELETE CASCADE
+) COMMENT='Stores dynamic form data associated with tickets.';
+
+-- Reporting and Analytics
+CREATE TABLE IF NOT EXISTS report_definitions (
+    report_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    report_name VARCHAR(255) NOT NULL,
+    report_query TEXT NOT NULL COMMENT 'SQL query or a structured definition for generating the report',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+) COMMENT='Defines custom reports available in the system.';
+
+CREATE TABLE IF NOT EXISTS analytics_events (
+    event_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    event_name VARCHAR(255) NOT NULL,
+    event_data JSON,
+    occurred_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+) COMMENT='Logs events for analytics purposes, storing JSON data about the event.';
+
+-- Enhanced Security and Compliance
+CREATE TABLE IF NOT EXISTS access_logs (
+    log_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    user_id INT UNSIGNED,
+    action VARCHAR(255) NOT NULL,
+    details TEXT,
+    ip_address VARCHAR(45),
+    occurred_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE SET NULL
+) COMMENT='Security logs for tracking access and actions within the system.';
+
+-- Comprehensive Task Management
+CREATE TABLE IF NOT EXISTS tasks (
+    task_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    assigned_to INT UNSIGNED,
+    due_date TIMESTAMP NULL DEFAULT NULL,
+    status ENUM('Pending', 'In Progress', 'Completed', 'Overdue') NOT NULL,
+    priority ENUM('Low', 'Medium', 'High') NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    completed_at TIMESTAMP NULL DEFAULT NULL,
+    FOREIGN KEY (assigned_to) REFERENCES users(user_id) ON DELETE SET NULL
+) COMMENT='Manages tasks assigned to users, including due dates and priorities.';
+
+-- Enhanced Asset Management
+CREATE TABLE IF NOT EXISTS asset_depreciation (
+    depreciation_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    asset_id INT UNSIGNED NOT NULL,
+    depreciation_date DATE NOT NULL,
+    depreciation_value DECIMAL(10, 2) NOT NULL,
+    cumulative_depreciation DECIMAL(10, 2) NOT NULL,
+    FOREIGN KEY (asset_id) REFERENCES assets(asset_id) ON DELETE CASCADE
+) COMMENT='Tracks depreciation of assets over time.';
+
+-- Customer Relationship Management
+CREATE TABLE IF NOT EXISTS customers (
+    customer_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    address TEXT,
+    contact_info TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+) COMMENT='Stores customer information for relationship management.';
+
+CREATE TABLE IF NOT EXISTS customer_contracts (
+    contract_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    customer_id INT UNSIGNED NOT NULL,
+    contract_start_date DATE NOT NULL,
+    contract_end_date DATE NOT NULL,
+    contract_details TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (customer_id) REFERENCES customers(customer_id) ON DELETE CASCADE
+) COMMENT='Manages contracts with customers, including terms and validity.';
+
+-- System Auditing
+CREATE TABLE IF NOT EXISTS audit_logs (
+    audit_log_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    user_id INT UNSIGNED,
+    action_type VARCHAR(255) NOT NULL,
+    action_description TEXT,
+    action_timestamp TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    affected_table VARCHAR(255),
+    affected_record_id INT UNSIGNED,
+    change_details JSON,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE SET NULL
+) COMMENT='Logs all significant actions performed in the system for auditing purposes.';
+
+-- SLA Management
+CREATE TABLE IF NOT EXISTS service_level_agreements (
+    sla_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    sla_name VARCHAR(255) NOT NULL,
+    sla_description TEXT,
+    response_time INT UNSIGNED COMMENT 'Response time in hours',
+    resolution_time INT UNSIGNED COMMENT 'Resolution time in hours',
+    applicable_to ENUM('All Customers', 'VIP Customers', 'Enterprise Customers') NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+) COMMENT='Defines SLA policies applicable to different customer segments.';
+
+-- Knowledge Base Management
+CREATE TABLE IF NOT EXISTS knowledge_base_categories (
+    category_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    category_name VARCHAR(255) NOT NULL,
+    category_description TEXT,
+    parent_category_id INT UNSIGNED,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (parent_category_id) REFERENCES knowledge_base_categories(category_id) ON DELETE SET NULL
+) COMMENT='Organizes knowledge base articles into hierarchical categories.';
+
+-- User Sessions Table
+CREATE TABLE IF NOT EXISTS user_sessions (
+    session_id VARCHAR(255) PRIMARY KEY,
+    user_id INT UNSIGNED NOT NULL,
+    session_start DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    last_access DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+) COMMENT='Tracks user login sessions for security and auditing purposes.';
+
+-- Audit Logs Table
+CREATE TABLE IF NOT EXISTS audit_logs (
+    log_id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    user_id INT UNSIGNED,
+    action VARCHAR(255) NOT NULL,
+    description TEXT,
+    affected_table VARCHAR(255),
+    affected_row_id BIGINT UNSIGNED,
+    action_timestamp DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE SET NULL
+) COMMENT='Records actions taken within the system for auditing and security.';
+
+-- Customer Satisfaction Surveys
+CREATE TABLE IF NOT EXISTS customer_satisfaction_surveys (
+    survey_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    ticket_id INT UNSIGNED NOT NULL,
+    user_id INT UNSIGNED NOT NULL,
+    rating TINYINT UNSIGNED NOT NULL,
+    feedback TEXT,
+    survey_date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (ticket_id) REFERENCES tickets(ticket_id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+) COMMENT='Captures customer feedback on ticket resolutions for service quality improvement.';
+
+-- SLA Breaches
+CREATE TABLE IF NOT EXISTS sla_breaches (
+    breach_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    ticket_id INT UNSIGNED NOT NULL,
+    sla_id INT UNSIGNED NOT NULL,
+    breach_time DATETIME NOT NULL,
+    reason TEXT,
+    FOREIGN KEY (ticket_id) REFERENCES tickets(ticket_id) ON DELETE CASCADE,
+    FOREIGN KEY (sla_id) REFERENCES sla(sla_id) ON DELETE RESTRICT
+) COMMENT='Records instances of SLA breaches for accountability and improvement.';
+
+-- User MFA Settings
+CREATE TABLE IF NOT EXISTS user_mfa_settings (
+    mfa_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    user_id INT UNSIGNED NOT NULL,
+    mfa_type ENUM('SMS', 'APP', 'EMAIL') NOT NULL,
+    mfa_key VARCHAR(255), -- Stores MFA secret keys or phone numbers
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+) COMMENT='Manages multi-factor authentication settings for users for enhanced security.';
+
+-- Indexes for Customer Satisfaction Surveys
+CREATE INDEX idx_customer_satisfaction_surveys_ticket_id ON customer_satisfaction_surveys(ticket_id);
+CREATE INDEX idx_customer_satisfaction_surveys_user_id ON customer_satisfaction_surveys(user_id);
+
+-- Indexes for SLA Breaches
+CREATE INDEX idx_sla_breaches_ticket_id ON sla_breaches(ticket_id);
+CREATE INDEX idx_sla_breaches_sla_id ON sla_breaches(sla_id);
+
+-- Indexes for User MFA Settings
+CREATE INDEX idx_user_mfa_settings_user_id ON user_mfa_settings(user_id);
+CREATE INDEX idx_user_mfa_settings_mfa_type ON user_mfa_settings(mfa_type);
+
+-- Indexing Strategy for Optimized Performance
+-- Apply indexing on foreign keys for faster JOIN operations
+CREATE INDEX idx_ticket_category ON tickets(category_id);
+CREATE INDEX idx_ticket_priority ON tickets(priority_id);
+CREATE INDEX idx_ticket_status ON tickets(status_id);
+CREATE INDEX idx_ticket_user ON tickets(user_id);
+CREATE INDEX idx_ticket_agent ON tickets(agent_id);
+
+-- Specific columns that are often searched or sorted
+CREATE INDEX idx_users_email ON users(email);
+CREATE INDEX idx_agents_email ON agents(email);
+
+-- Indexes for User Login Credentials
+CREATE INDEX idx_user_login_credentials_user_id ON user_login_credentials(user_id);
+
+-- Indexes for Agent Login Credentials
+CREATE INDEX idx_agent_login_credentials_agent_id ON agent_login_credentials(agent_id);
+
+-- Indexes for User Sessions
+CREATE INDEX idx_user_sessions_user_id ON user_sessions(user_id);
+CREATE INDEX idx_user_sessions_last_access ON user_sessions(last_access);
+
+-- Indexes for Audit Logs
+CREATE INDEX idx_audit_logs_user_id ON audit_logs(user_id);
+CREATE INDEX idx_audit_logs_action_timestamp ON audit_logs(action_timestamp);
+CREATE INDEX idx_audit_logs_affected_table ON audit_logs(affected_table);

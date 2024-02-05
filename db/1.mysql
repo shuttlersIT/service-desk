@@ -1,0 +1,1187 @@
+CREATE DATABASE IF NOT EXISTS service_desk;
+USE service_desk;
+
+-- Departments Table
+CREATE TABLE IF NOT EXISTS departments (
+    department_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    department_name VARCHAR(255) UNIQUE NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP NULL DEFAULT NULL,
+    COMMENT 'Holds information about the various departments within the organization. Supports soft deletes.'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Positions Table
+CREATE TABLE IF NOT EXISTS positions (
+    position_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    position_name VARCHAR(255) UNIQUE NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP NULL DEFAULT NULL,
+    COMMENT 'Defines positions or roles within the organization. Includes soft delete support.'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Vendors Table
+CREATE TABLE IF NOT EXISTS vendors (
+    vendor_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    vendor_name VARCHAR(255) UNIQUE NOT NULL,
+    description TEXT,
+    contact_info VARCHAR(500),
+    address VARCHAR(500),
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP NULL DEFAULT NULL,
+    COMMENT 'Details vendors or suppliers for assets, facilitating contact and address management.'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Categories Table
+CREATE TABLE IF NOT EXISTS categories (
+    category_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    category_name VARCHAR(255) NOT NULL,
+    icon VARCHAR(100),
+    description TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP NULL DEFAULT NULL,
+    COMMENT 'Categorizes tickets into groups for better organization and handling.'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Priority Table with ENUM
+CREATE TABLE IF NOT EXISTS priority (
+    priority_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(50) NOT NULL,
+    description TEXT,
+    colour VARCHAR(7) DEFAULT '#FFFFFF', -- Includes hash symbol
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP NULL DEFAULT NULL,
+    COMMENT 'Defines priority levels for tickets with a description and color code.'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Status Table with ENUM
+CREATE TABLE IF NOT EXISTS status (
+    status_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    status_name ENUM('open', 'closed', 'in_progress', 'on_hold') NOT NULL,
+    is_closed BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP NULL DEFAULT NULL,
+    COMMENT 'Tracks the status of tickets with predefined states. Includes a flag to indicate closure.'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Permissions Table
+CREATE TABLE IF NOT EXISTS permissions (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) UNIQUE NOT NULL,
+    description TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP NULL DEFAULT NULL,
+    COMMENT 'Defines system permissions available for role-based access control.'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Roles Table
+CREATE TABLE IF NOT EXISTS roles (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    role_name VARCHAR(255) UNIQUE NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP NULL DEFAULT NULL,
+    COMMENT 'Stores roles which can be assigned permissions for access control.'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Users Table
+CREATE TABLE IF NOT EXISTS users (
+    user_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    first_name VARCHAR(100) NOT NULL,
+    last_name VARCHAR(100) NOT NULL,
+    email VARCHAR(255) NOT NULL UNIQUE,
+    phone VARCHAR(15), -- Optimized for international numbers
+    position_id INT UNSIGNED,
+    department_id INT UNSIGNED,
+    is_active BOOLEAN DEFAULT TRUE,
+    last_login_at TIMESTAMP NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP NULL DEFAULT NULL,
+    FOREIGN KEY (position_id) REFERENCES positions(position_id) ON DELETE SET NULL,
+    FOREIGN KEY (department_id) REFERENCES departments(department_id) ON DELETE SET NULL,
+    COMMENT 'Stores user profiles, linking to positions and departments.'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Agents Table
+CREATE TABLE IF NOT EXISTS agents (
+    agent_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    first_name VARCHAR(100) NOT NULL,
+    last_name VARCHAR(100) NOT NULL,
+    agent_email VARCHAR(255) UNIQUE NOT NULL,
+    phone VARCHAR(15),
+    role_id INT UNSIGNED,
+    team_id INT UNSIGNED,
+    unit_id INT UNSIGNED,
+    supervisor_id INT UNSIGNED NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP NULL DEFAULT NULL,
+    FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE SET NULL,
+    FOREIGN KEY (team_id) REFERENCES teams(id) ON DELETE SET NULL,
+    FOREIGN KEY (unit_id) REFERENCES units(id) ON DELETE SET NULL,
+    FOREIGN KEY (supervisor_id) REFERENCES agents(agent_id) ON DELETE SET NULL,
+    COMMENT 'Details of agents including their team, role, and unit affiliations.'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Tickets Table
+CREATE TABLE IF NOT EXISTS tickets (
+    ticket_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    subject VARCHAR(255) NOT NULL,
+    description TEXT,
+    category_id INT UNSIGNED NOT NULL,
+    sub_category_id INT UNSIGNED,
+    priority_id INT UNSIGNED NOT NULL,
+    sla_id INT UNSIGNED,
+    user_id INT UNSIGNED NOT NULL,
+    agent_id INT UNSIGNED,
+    assigned_at DATETIME,
+    closed_at DATETIME NULL,
+    due_at DATETIME,
+    site VARCHAR(255),
+    status_id INT UNSIGNED NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP NULL DEFAULT NULL,
+    FOREIGN KEY (category_id) REFERENCES categories(category_id) ON DELETE CASCADE,
+    FOREIGN KEY (sub_category_id) REFERENCES subcategories(subcategory_id) ON DELETE SET NULL,
+    FOREIGN KEY (priority_id) REFERENCES priority(priority_id) ON DELETE CASCADE,
+    FOREIGN KEY (sla_id) REFERENCES sla(sla_id) ON DELETE SET NULL,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    FOREIGN KEY (agent_id) REFERENCES agents(agent_id) ON DELETE SET NULL,
+    FOREIGN KEY (status_id) REFERENCES status(status_id) ON DELETE CASCADE,
+    COMMENT 'Main table for ticketing system capturing all details of service requests.'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Automated Ticket Actions Table
+CREATE TABLE IF NOT EXISTS automated_ticket_actions (
+    action_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    trigger_event ENUM('ticket_creation', 'status_change') NOT NULL,
+    action_type ENUM('assign_to_user', 'send_email', 'update_status') NOT NULL,
+    parameters TEXT COMMENT 'JSON structure containing parameters for the action.',
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP NULL DEFAULT NULL,
+    COMMENT 'Defines actions automated based on specific triggers within the ticketing system.'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Subcategories Table
+CREATE TABLE IF NOT EXISTS subcategories (
+    subcategory_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    subcategory_name VARCHAR(255) NOT NULL,
+    category_id INT UNSIGNED NOT NULL,
+    description TEXT,
+    icon VARCHAR(100),
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP NULL DEFAULT NULL,
+    FOREIGN KEY (category_id) REFERENCES categories(category_id) ON DELETE CASCADE,
+    COMMENT 'Subcategorizes tickets within main categories for finer granularity.'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- SLA Table
+CREATE TABLE IF NOT EXISTS sla (
+    sla_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    sla_name VARCHAR(255) NOT NULL,
+    priority_id INT UNSIGNED NOT NULL,
+    response_time INT NOT NULL COMMENT 'Maximum time in hours to first response.',
+    resolution_time INT NOT NULL COMMENT 'Target time in hours for issue resolution.',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP NULL DEFAULT NULL,
+    FOREIGN KEY (priority_id) REFERENCES priority(priority_id) ON DELETE CASCADE,
+    COMMENT 'Service Level Agreements defining response and resolution times based on priority.'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Asset Assignments Table
+CREATE TABLE IF NOT EXISTS asset_assignments (
+    assignment_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    asset_id INT UNSIGNED NOT NULL,
+    user_id INT UNSIGNED NOT NULL,
+    assigned_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    return_date TIMESTAMP NULL DEFAULT NULL,
+    returned_at TIMESTAMP NULL DEFAULT NULL,
+    status ENUM('assigned', 'returned') NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP NULL DEFAULT NULL,
+    FOREIGN KEY (asset_id) REFERENCES assets(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    COMMENT 'Tracks the assignment of assets to users, including the status and return information.'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Service Requests Table
+CREATE TABLE IF NOT EXISTS service_requests (
+    request_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    user_id INT UNSIGNED NOT NULL,
+    status ENUM('open', 'closed', 'pending', 'resolved') NOT NULL,
+    category_id INT UNSIGNED NOT NULL,
+    priority ENUM('low', 'medium', 'high', 'urgent') NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP NULL DEFAULT NULL,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    FOREIGN KEY (category_id) REFERENCES categories(category_id) ON DELETE CASCADE,
+    COMMENT 'Service requests logged by users, categorized by type and priority for resolution.'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Incident Reports Table
+CREATE TABLE IF NOT EXISTS incidents (
+    incident_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    reported_by INT UNSIGNED NOT NULL,
+    assigned_to INT UNSIGNED,
+    status ENUM('open', 'investigating', 'resolved') NOT NULL,
+    priority_id INT UNSIGNED NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP NULL DEFAULT NULL,
+    FOREIGN KEY (reported_by) REFERENCES users(user_id) ON DELETE SET NULL,
+    FOREIGN KEY (assigned_to) REFERENCES agents(agent_id) ON DELETE SET NULL,
+    FOREIGN KEY (priority_id) REFERENCES priority(priority_id) ON DELETE CASCADE,
+    COMMENT 'Incidents reported within the system, to be managed and resolved by agents.'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Task Management for Agents
+CREATE TABLE IF NOT EXISTS tasks (
+    task_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    assigned_to INT UNSIGNED NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    due_date DATE NOT NULL,
+    status ENUM('pending', 'in_progress', 'completed', 'on_hold') NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP NULL DEFAULT NULL,
+    FOREIGN KEY (assigned_to) REFERENCES agents(agent_id) ON DELETE CASCADE,
+    COMMENT 'Tasks assigned to agents, tracking their progress and completion status.'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- User Profiles Table
+CREATE TABLE IF NOT EXISTS user_profiles (
+    profile_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    user_id INT UNSIGNED UNIQUE NOT NULL,
+    address TEXT,
+    profile_picture VARCHAR(255), -- URL or path to the image
+    bio TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP NULL DEFAULT NULL,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    COMMENT 'Extended profile information for users, including bio and profile picture.'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- User Roles and Permissions
+CREATE TABLE IF NOT EXISTS user_roles (
+    user_role_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    user_id INT UNSIGNED NOT NULL,
+    role_id INT UNSIGNED NOT NULL,
+    assigned_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE CASCADE,
+    UNIQUE KEY idx_user_role (user_id, role_id),
+    COMMENT 'Maps users to roles, supporting role-based access control (RBAC).'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS user_permissions (
+    user_permission_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    user_id INT UNSIGNED NOT NULL,
+    permission_id INT UNSIGNED NOT NULL,
+    assigned_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    FOREIGN KEY (permission_id) REFERENCES permissions(id) ON DELETE CASCADE,
+    UNIQUE KEY idx_user_permission (user_id, permission_id),
+    COMMENT 'Directly assigns permissions to users, supplementing RBAC with fine-grained controls.'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Audit Logs Table
+CREATE TABLE IF NOT EXISTS audit_logs (
+    audit_log_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    user_id INT UNSIGNED NULL,
+    action_type VARCHAR(50) NOT NULL,
+    description TEXT,
+    affected_table VARCHAR(255) NULL,
+    affected_row_id INT UNSIGNED NULL,
+    change_details TEXT COMMENT 'JSON format detailing the changes made.',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE SET NULL,
+    COMMENT 'Logs of significant actions for auditing and security purposes.'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Customer Satisfaction Surveys
+CREATE TABLE IF NOT EXISTS customer_satisfaction_surveys (
+    survey_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    ticket_id INT UNSIGNED NOT NULL,
+    rating INT NOT NULL CHECK (rating BETWEEN 1 AND 5),
+    feedback TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (ticket_id) REFERENCES tickets(ticket_id) ON DELETE CASCADE,
+    COMMENT 'Collects customer feedback and satisfaction ratings on resolved tickets.'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- SLA Breaches Table
+CREATE TABLE IF NOT EXISTS sla_breaches (
+    breach_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    ticket_id INT UNSIGNED NOT NULL,
+    sla_id INT UNSIGNED NOT NULL,
+    breached_at TIMESTAMP NOT NULL,
+    reason TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (ticket_id) REFERENCES tickets(ticket_id) ON DELETE CASCADE,
+    FOREIGN KEY (sla_id) REFERENCES sla(sla_id) ON DELETE CASCADE,
+    COMMENT 'Records instances where SLA commitments were not met, for accountability and improvement.'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- System Settings Table
+CREATE TABLE IF NOT EXISTS system_settings (
+    setting_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    setting_key VARCHAR(255) UNIQUE NOT NULL,
+    setting_value TEXT NOT NULL,
+    description TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP NULL DEFAULT NULL,
+    COMMENT 'Stores configurable system settings for dynamic application behavior adjustments.'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- System Notifications Table
+CREATE TABLE IF NOT EXISTS system_notifications (
+    notification_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    title VARCHAR(255) NOT NULL,
+    message TEXT NOT NULL,
+    start_date TIMESTAMP NULL,
+    end_date TIMESTAMP NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    COMMENT 'Sends time-bound notifications to users within the system for alerts or updates.'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- User Sessions Table for tracking user logins and activity
+CREATE TABLE IF NOT EXISTS user_sessions (
+    session_id VARCHAR(255) PRIMARY KEY,
+    user_id INT UNSIGNED NOT NULL,
+    session_start TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    last_access TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    COMMENT 'Tracks user session data, including start times and last access for security auditing.'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Google Credentials Table for OAuth or similar authentication methods
+CREATE TABLE IF NOT EXISTS google_credentials (
+    credential_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    user_id INT UNSIGNED NOT NULL,
+    google_id VARCHAR(255) NOT NULL,
+    email VARCHAR(255) NOT NULL,
+    token TEXT NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP NULL DEFAULT NULL,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    COMMENT 'Securely stores OAuth credentials for users choosing to authenticate via Google.'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- User Activity Logs Table
+CREATE TABLE IF NOT EXISTS user_activity_logs (
+    log_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    user_id INT UNSIGNED NOT NULL,
+    activity VARCHAR(255) NOT NULL,
+    ip_address VARCHAR(45),
+    action VARCHAR(255) NOT NULL,
+    description TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    COMMENT 'Logs user activities for audit purposes, including the action performed and IP address.'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Notification Settings Table
+CREATE TABLE IF NOT EXISTS notification_settings (
+    setting_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    user_id INT UNSIGNED NOT NULL,
+    email_notifications_enabled BOOLEAN DEFAULT TRUE,
+    sms_notifications_enabled BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP NULL DEFAULT NULL,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    COMMENT 'User-specific notification preferences, controlling channels like email and SMS.'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Ticket Escalations Table
+CREATE TABLE IF NOT EXISTS ticket_escalations (
+    escalation_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    ticket_id INT UNSIGNED NOT NULL,
+    escalated_by INT UNSIGNED NOT NULL,
+    escalated_to INT UNSIGNED,
+    reason TEXT NOT NULL,
+    escalation_status ENUM('pending', 'addressed', 'resolved') NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (ticket_id) REFERENCES tickets(ticket_id) ON DELETE CASCADE,
+    FOREIGN KEY (escalated_by) REFERENCES users(user_id),
+    FOREIGN KEY (escalated_to) REFERENCES agents(agent_id),
+    COMMENT 'Tracks the escalation path of tickets for urgent or special attention.'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- User Preferences Table
+CREATE TABLE IF NOT EXISTS user_preferences (
+    preference_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    user_id INT UNSIGNED NOT NULL,
+    preference_key VARCHAR(255) NOT NULL,
+    preference_value TEXT NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    UNIQUE INDEX idx_preference (user_id, preference_key),
+    COMMENT 'Stores individual user preferences for application customization and usability.'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Multi-Factor Authentication (MFA) Settings Table
+CREATE TABLE IF NOT EXISTS mfa_settings (
+    mfa_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    user_id INT UNSIGNED NOT NULL,
+    mfa_type ENUM('sms', 'email', 'app') NOT NULL,
+    mfa_key TEXT, -- Could be a secret for an app or a phone number/email
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    COMMENT 'Holds multi-factor authentication settings for enhanced user account security.'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Knowledge Base Articles Table
+CREATE TABLE IF NOT EXISTS knowledge_base_articles (
+    article_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    title VARCHAR(255) NOT NULL,
+    content LONGTEXT NOT NULL,
+    author_id INT UNSIGNED NOT NULL,
+    last_updated_by INT UNSIGNED NOT NULL,
+    category_id INT UNSIGNED,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (author_id) REFERENCES users(user_id),
+    FOREIGN KEY (last_updated_by) REFERENCES users(user_id),
+    FOREIGN KEY (category_id) REFERENCES categories(category_id) ON DELETE SET NULL,
+    COMMENT 'Content for the knowledge base, providing users with self-service support articles.'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Custom Fields for Tickets Table
+CREATE TABLE IF NOT EXISTS ticket_custom_fields (
+    field_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    ticket_id INT UNSIGNED NOT NULL,
+    field_key VARCHAR(255) NOT NULL,
+    field_value TEXT NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (ticket_id) REFERENCES tickets(ticket_id) ON DELETE CASCADE,
+    COMMENT 'Allows for additional, customizable information fields to be added to tickets.'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- User Activity Tracking Table (Additional Detail)
+CREATE TABLE IF NOT EXISTS user_activity_tracking (
+    activity_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    user_id INT UNSIGNED NOT NULL,
+    activity_type ENUM('login', 'logout', 'ticket_create', 'ticket_update') NOT NULL,
+    details TEXT COMMENT 'JSON containing activity details.',
+    occurred_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    COMMENT 'Detailed log of user activities for security monitoring and operational analytics.'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Ticket Escalation Paths Table
+CREATE TABLE IF NOT EXISTS ticket_escalation_paths (
+    path_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    ticket_id INT UNSIGNED NOT NULL,
+    escalation_reason VARCHAR(255) NOT NULL,
+    escalated_from INT UNSIGNED,
+    escalated_to INT UNSIGNED,
+    escalation_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    resolution_status ENUM('pending', 'resolved', 'rejected') NOT NULL,
+    resolution_details TEXT,
+    FOREIGN KEY (ticket_id) REFERENCES tickets(ticket_id) ON DELETE CASCADE,
+    FOREIGN KEY (escalated_from) REFERENCES agents(agent_id) ON DELETE SET NULL,
+    FOREIGN KEY (escalated_to) REFERENCES agents(agent_id) ON DELETE SET NULL,
+    COMMENT 'Details the escalation path of a ticket, including reasons and resolution.'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Asset Maintenance Records Table
+CREATE TABLE IF NOT EXISTS asset_maintenance_records (
+    record_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    asset_id INT UNSIGNED NOT NULL,
+    maintenance_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    maintenance_details TEXT NOT NULL,
+    performed_by VARCHAR(255),
+    next_maintenance_date TIMESTAMP NULL,
+    FOREIGN KEY (asset_id) REFERENCES assets(id) ON DELETE CASCADE,
+    COMMENT 'Logs maintenance activities for assets to track their upkeep and schedule future maintenance.'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- User Feedback Surveys Table
+CREATE TABLE IF NOT EXISTS user_feedback_surveys (
+    survey_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    user_id INT UNSIGNED NOT NULL,
+    ticket_id INT UNSIGNED,
+    rating ENUM('1', '2', '3', '4', '5') NOT NULL,
+    feedback TEXT,
+    submitted_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    FOREIGN KEY (ticket_id) REFERENCES tickets(ticket_id) ON DELETE SET NULL,
+    COMMENT 'Collects user feedback on resolved tickets or general service experience for quality improvement.'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Asset Warranty Information Table
+CREATE TABLE IF NOT EXISTS asset_warranty_info (
+    warranty_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    asset_id INT UNSIGNED NOT NULL,
+    warranty_start_date DATE NOT NULL,
+    warranty_end_date DATE NOT NULL,
+    warranty_provider VARCHAR(255) NOT NULL,
+    warranty_details TEXT,
+    FOREIGN KEY (asset_id) REFERENCES assets(id) ON DELETE CASCADE,
+    COMMENT 'Stores warranty details for assets, including the provider and valid dates.'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- User Interaction Logs Table
+CREATE TABLE IF NOT EXISTS user_interaction_logs (
+    interaction_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    user_id INT UNSIGNED NOT NULL,
+    interaction_type ENUM('chat', 'email', 'phone', 'portal') NOT NULL,
+    interaction_details TEXT,
+    interaction_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    COMMENT 'Records user interactions across different channels for analytics and service improvement.'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Scheduled Maintenance Notifications Table
+CREATE TABLE IF NOT EXISTS scheduled_maintenance_notifications (
+    notification_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    asset_id INT UNSIGNED,
+    scheduled_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    notification_message TEXT NOT NULL,
+    status ENUM('scheduled', 'completed', 'cancelled') NOT NULL,
+    FOREIGN KEY (asset_id) REFERENCES assets(id) ON DELETE SET NULL,
+    COMMENT 'Manages notifications for upcoming maintenance activities to ensure asset reliability.'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Ticket Escalation Paths Table
+CREATE TABLE IF NOT EXISTS ticket_escalation_paths (
+    path_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    ticket_id INT UNSIGNED NOT NULL,
+    escalation_reason VARCHAR(255) NOT NULL,
+    escalated_from INT UNSIGNED,
+    escalated_to INT UNSIGNED,
+    escalation_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    resolution_status ENUM('pending', 'resolved', 'rejected') NOT NULL,
+    resolution_details TEXT,
+    FOREIGN KEY (ticket_id) REFERENCES tickets(ticket_id) ON DELETE CASCADE,
+    FOREIGN KEY (escalated_from) REFERENCES agents(agent_id) ON DELETE SET NULL,
+    FOREIGN KEY (escalated_to) REFERENCES agents(agent_id) ON DELETE SET NULL,
+    COMMENT 'Details the escalation path of a ticket, including reasons and resolution.'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Asset Maintenance Records Table
+CREATE TABLE IF NOT EXISTS asset_maintenance_records (
+    record_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    asset_id INT UNSIGNED NOT NULL,
+    maintenance_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    maintenance_details TEXT NOT NULL,
+    performed_by VARCHAR(255),
+    next_maintenance_date TIMESTAMP NULL,
+    FOREIGN KEY (asset_id) REFERENCES assets(id) ON DELETE CASCADE,
+    COMMENT 'Logs maintenance activities for assets to track their upkeep and schedule future maintenance.'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- User Feedback Surveys Table
+CREATE TABLE IF NOT EXISTS user_feedback_surveys (
+    survey_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    user_id INT UNSIGNED NOT NULL,
+    ticket_id INT UNSIGNED,
+    rating ENUM('1', '2', '3', '4', '5') NOT NULL,
+    feedback TEXT,
+    submitted_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    FOREIGN KEY (ticket_id) REFERENCES tickets(ticket_id) ON DELETE SET NULL,
+    COMMENT 'Collects user feedback on resolved tickets or general service experience for quality improvement.'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Asset Warranty Information Table
+CREATE TABLE IF NOT EXISTS asset_warranty_info (
+    warranty_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    asset_id INT UNSIGNED NOT NULL,
+    warranty_start_date DATE NOT NULL,
+    warranty_end_date DATE NOT NULL,
+    warranty_provider VARCHAR(255) NOT NULL,
+    warranty_details TEXT,
+    FOREIGN KEY (asset_id) REFERENCES assets(id) ON DELETE CASCADE,
+    COMMENT 'Stores warranty details for assets, including the provider and valid dates.'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- User Interaction Logs Table
+CREATE TABLE IF NOT EXISTS user_interaction_logs (
+    interaction_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    user_id INT UNSIGNED NOT NULL,
+    interaction_type ENUM('chat', 'email', 'phone', 'portal') NOT NULL,
+    interaction_details TEXT,
+    interaction_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    COMMENT 'Records user interactions across different channels for analytics and service improvement.'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Scheduled Maintenance Notifications Table
+CREATE TABLE IF NOT EXISTS scheduled_maintenance_notifications (
+    notification_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    asset_id INT UNSIGNED,
+    scheduled_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    notification_message TEXT NOT NULL,
+    status ENUM('scheduled', 'completed', 'cancelled') NOT NULL,
+    FOREIGN KEY (asset_id) REFERENCES assets(id) ON DELETE SET NULL,
+    COMMENT 'Manages notifications for upcoming maintenance activities to ensure asset reliability.'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Service Catalog Table
+CREATE TABLE IF NOT EXISTS service_catalogs (
+    catalog_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    COMMENT 'Represents the collection of services offered, acting as a service portfolio for users.'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- API Keys for External Integration
+CREATE TABLE IF NOT EXISTS api_keys (
+    api_key_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    user_id INT UNSIGNED NOT NULL,
+    key_hash VARCHAR(255) NOT NULL,
+    description TEXT,
+    permissions TEXT COMMENT 'JSON encoded permissions for what this key can access or modify.',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    expires_at TIMESTAMP NULL DEFAULT NULL,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    COMMENT 'Stores API keys for external applications to integrate with the service desk system securely.'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Detailed Asset Tracking Table
+CREATE TABLE IF NOT EXISTS asset_tracking (
+    tracking_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    asset_id INT UNSIGNED NOT NULL,
+    location VARCHAR(255) NOT NULL,
+    condition ENUM('new', 'good', 'fair', 'poor', 'out_of_service') NOT NULL,
+    last_checked TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    notes TEXT,
+    FOREIGN KEY (asset_id) REFERENCES assets(id) ON DELETE CASCADE,
+    COMMENT 'Tracks the physical location and condition of assets over time for maintenance and auditing.'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- User Role Hierarchy Table
+CREATE TABLE IF NOT EXISTS user_role_hierarchy (
+    hierarchy_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    parent_role_id INT UNSIGNED NOT NULL,
+    child_role_id INT UNSIGNED NOT NULL,
+    FOREIGN KEY (parent_role_id) REFERENCES roles(id) ON DELETE CASCADE,
+    FOREIGN KEY (child_role_id) REFERENCES roles(id) ON DELETE CASCADE,
+    UNIQUE INDEX idx_role_hierarchy (parent_role_id, child_role_id),
+    COMMENT 'Defines a hierarchy of user roles to establish a chain of command or inheritance of permissions.'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Incident Management Enhancements Table
+CREATE TABLE IF NOT EXISTS incident_enhancements (
+    enhancement_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    incident_id INT UNSIGNED NOT NULL,
+    enhancement_type ENUM('workflow_update', 'notification', 'escalation') NOT NULL,
+    details TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (incident_id) REFERENCES incidents(incident_id) ON DELETE CASCADE,
+    COMMENT 'Logs enhancements or updates to incident management processes for continuous improvement.'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Service Level Agreement (SLA) Violations Table
+CREATE TABLE IF NOT EXISTS sla_violations (
+    violation_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    sla_id INT UNSIGNED NOT NULL,
+    incident_id INT UNSIGNED,
+    violation_details TEXT,
+    violation_reported TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (sla_id) REFERENCES sla(sla_id) ON DELETE CASCADE,
+    FOREIGN KEY (incident_id) REFERENCES incidents(incident_id) ON DELETE SET NULL,
+    COMMENT 'Records instances of SLA violations to facilitate analysis and drive service improvements.'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- User Feedback Enhancement Table
+CREATE TABLE IF NOT EXISTS user_feedback_enhancements (
+    feedback_enhancement_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    feedback_id INT UNSIGNED NOT NULL,
+    enhancement_details TEXT,
+    status ENUM('submitted', 'reviewed', 'implemented', 'rejected') NOT NULL,
+    reviewed_by INT UNSIGNED,
+    review_date TIMESTAMP NULL DEFAULT NULL,
+    FOREIGN KEY (feedback_id) REFERENCES user_feedback_surveys(survey_id) ON DELETE CASCADE,
+    FOREIGN KEY (reviewed_by) REFERENCES users(user_id) ON DELETE SET NULL,
+    COMMENT 'Tracks the lifecycle of user feedback from submission to potential implementation.'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Project Management Table
+CREATE TABLE IF NOT EXISTS projects (
+    project_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    start_date DATE,
+    end_date DATE,
+    status ENUM('planning', 'active', 'completed', 'on_hold', 'cancelled') NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    COMMENT 'Manages projects within the service desk, including timelines and statuses.'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Advanced Reporting Table
+CREATE TABLE IF NOT EXISTS advanced_reports (
+    report_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    report_query TEXT NOT NULL COMMENT 'Stores the SQL query for generating the report.',
+    created_by INT UNSIGNED NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (created_by) REFERENCES users(user_id) ON DELETE CASCADE,
+    COMMENT 'Facilitates the creation and storage of custom reports for analytics and decision support.'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Ticket Customization Options Table
+CREATE TABLE IF NOT EXISTS ticket_customization_options (
+    option_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    ticket_id INT UNSIGNED NOT NULL,
+    customization_key VARCHAR(255) NOT NULL,
+    customization_value TEXT NOT NULL,
+    FOREIGN KEY (ticket_id) REFERENCES tickets(ticket_id) ON DELETE CASCADE,
+    COMMENT 'Allows for additional, customizable options to be defined for each ticket.'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Security and Audit Trail Table
+CREATE TABLE IF NOT EXISTS audit_trails (
+    audit_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    action_taken VARCHAR(255) NOT NULL,
+    performed_by INT UNSIGNED,
+    details TEXT COMMENT 'Detailed JSON structure of the action performed.',
+    performed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (performed_by) REFERENCES users(user_id) ON DELETE SET NULL,
+    COMMENT 'Logs detailed security and operational actions for compliance and auditing purposes.'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- User Customization Settings Table
+CREATE TABLE IF NOT EXISTS user_customization_settings (
+    setting_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    user_id INT UNSIGNED NOT NULL,
+    setting_key VARCHAR(255) NOT NULL,
+    setting_value TEXT NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    COMMENT 'Stores individual user settings for application interface and functionality customization.'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- External Integrations Table
+CREATE TABLE IF NOT EXISTS external_integrations (
+    integration_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    type ENUM('API', 'Webhook', 'Plugin') NOT NULL,
+    details TEXT COMMENT 'Configuration and usage details of the integration.',
+    active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    COMMENT 'Details third-party integrations and plugins enabled for the service desk system.'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- SLA Policies Table
+CREATE TABLE IF NOT EXISTS sla_policies (
+    policy_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    conditions TEXT COMMENT 'Defines the conditions under which this SLA policy applies.',
+    objectives TEXT COMMENT 'JSON encoded SLA objectives like response time, resolution time.',
+    active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    COMMENT 'Defines specific SLA policies for different conditions and objectives.'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Configuration Items (CI) Table
+CREATE TABLE IF NOT EXISTS configuration_items (
+    ci_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    ci_type ENUM('Hardware', 'Software', 'Document', 'Service') NOT NULL,
+    description TEXT,
+    status ENUM('Active', 'Inactive', 'Decommissioned') NOT NULL,
+    details TEXT COMMENT 'JSON encoded details like specifications or service levels.',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    COMMENT 'Represents individual items within a Configuration Management Database (CMDB).'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Change Management Table
+CREATE TABLE IF NOT EXISTS change_requests (
+    change_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    requestor_id INT UNSIGNED,
+    assigned_to INT UNSIGNED,
+    priority ENUM('Low', 'Medium', 'High') NOT NULL,
+    status ENUM('New', 'Assessment', 'Approved', 'Implemented', 'Rejected') NOT NULL,
+    implementation_date DATE,
+    rollback_plan TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (requestor_id) REFERENCES users(user_id) ON DELETE SET NULL,
+    FOREIGN KEY (assigned_to) REFERENCES users(user_id) ON DELETE SET NULL,
+    COMMENT 'Tracks requests for changes within the system to manage risk and ensure proper implementation.'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- User Engagement Table
+CREATE TABLE IF NOT EXISTS user_engagements (
+    engagement_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    user_id INT UNSIGNED NOT NULL,
+    engagement_type ENUM('Survey', 'Feedback', 'Forum', 'Chat') NOT NULL,
+    content TEXT,
+    engagement_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    COMMENT 'Records user interactions for enhancing engagement and collecting valuable insights.'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Service Desk Operations Table
+CREATE TABLE IF NOT EXISTS service_desk_operations (
+    operation_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    operation_name VARCHAR(255) NOT NULL,
+    operation_type ENUM('Incident Management', 'Request Fulfillment', 'Problem Management') NOT NULL,
+    details TEXT,
+    standard_operating_procedure TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    COMMENT 'Details operations handled by the service desk, including SOPs for consistency and efficiency.'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- API Access Logs Table
+CREATE TABLE IF NOT EXISTS api_access_logs (
+    log_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    api_key_id INT UNSIGNED,
+    access_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    endpoint_accessed VARCHAR(255) NOT NULL,
+    access_details TEXT COMMENT 'Details of the API call, including parameters and response status.',
+    FOREIGN KEY (api_key_id) REFERENCES api_keys(api_key_id) ON DELETE SET NULL,
+    COMMENT 'Logs API access events to monitor and analyze third-party integration usage and performance.'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Problem Management Table
+CREATE TABLE IF NOT EXISTS problems (
+    problem_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    status ENUM('Identified', 'Under Analysis', 'Resolved', 'Closed') NOT NULL,
+    impact ENUM('Low', 'Medium', 'High') NOT NULL,
+    root_cause TEXT,
+    solution TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    COMMENT 'Manages the lifecycle of problems to prevent incidents before they occur or to minimize their impact.'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Knowledge Base Feedback Table
+CREATE TABLE IF NOT EXISTS knowledge_base_feedback (
+    feedback_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    article_id INT UNSIGNED NOT NULL,
+    user_id INT UNSIGNED,
+    rating ENUM('1', '2', '3', '4', '5'),
+    comments TEXT,
+    submitted_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (article_id) REFERENCES knowledge_base_articles(article_id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE SET NULL,
+    COMMENT 'Collects user feedback on knowledge base articles to improve content quality and relevance.'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- User Personalization Table
+CREATE TABLE IF NOT EXISTS user_personalization (
+    personalization_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    user_id INT UNSIGNED NOT NULL,
+    personalization_data TEXT COMMENT 'JSON encoded data storing user preferences and UI customizations.',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    COMMENT 'Stores detailed personalization settings for enhancing user experience across the platform.'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Asset Lifecycle Management Table
+CREATE TABLE IF NOT EXISTS asset_lifecycle_events (
+    event_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    asset_id INT UNSIGNED NOT NULL,
+    event_type ENUM('Acquisition', 'Deployment', 'Maintenance', 'Decommission') NOT NULL,
+    event_date DATE NOT NULL,
+    description TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (asset_id) REFERENCES assets(id) ON DELETE CASCADE,
+    COMMENT 'Tracks significant events in the lifecycle of an asset to provide a comprehensive history.'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Predictive Maintenance Table
+CREATE TABLE IF NOT EXISTS predictive_maintenance (
+    prediction_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    asset_id INT UNSIGNED NOT NULL,
+    prediction_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    maintenance_window DATE,
+    confidence_level DECIMAL(5,4),
+    recommended_actions TEXT,
+    FOREIGN KEY (asset_id) REFERENCES assets(id) ON DELETE CASCADE,
+    COMMENT 'Leverages AI-driven insights to predict when an asset may require maintenance before failure.'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Advanced Analytics Reports Table
+CREATE TABLE IF NOT EXISTS analytics_reports (
+    report_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    title VARCHAR(255) NOT NULL,
+    report_data TEXT COMMENT 'JSON encoded data containing advanced analytics and insights.',
+    generated_by INT UNSIGNED,
+    generated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (generated_by) REFERENCES users(user_id) ON DELETE SET NULL,
+    COMMENT 'Generates and stores advanced analytics reports for strategic decision-making.'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- AI Insights and Recommendations Table
+CREATE TABLE IF NOT EXISTS ai_insights (
+    insight_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    related_entity_id INT UNSIGNED NOT NULL,
+    entity_type ENUM('Ticket', 'Asset', 'User') NOT NULL,
+    insight_text TEXT,
+    recommendation TEXT,
+    insight_generated TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    COMMENT 'Provides AI-generated insights and recommendations for tickets, assets, and users.'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Service Desk Bot Interactions Table
+CREATE TABLE IF NOT EXISTS bot_interactions (
+    interaction_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    user_id INT UNSIGNED,
+    bot_name VARCHAR(255) NOT NULL,
+    interaction_type ENUM('Query', 'Task', 'Feedback') NOT NULL,
+    interaction_details TEXT,
+    interaction_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE SET NULL,
+    COMMENT 'Logs interactions between users and service desk bots for quality and performance analysis.'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Service Desk Integrations Table
+CREATE TABLE IF NOT EXISTS service_desk_integrations (
+    integration_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    integration_type ENUM('Internal', 'External') NOT NULL,
+    details TEXT COMMENT 'Details about the integration, including configuration and usage.',
+    status ENUM('Active', 'Inactive') NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    COMMENT 'Details integrations with internal tools and external services to enhance service desk capabilities.'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Incident Timeline Table
+CREATE TABLE IF NOT EXISTS incident_timelines (
+    timeline_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    incident_id INT UNSIGNED NOT NULL,
+    event_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    event_description TEXT NOT NULL,
+    FOREIGN KEY (incident_id) REFERENCES incidents(incident_id) ON DELETE CASCADE,
+    COMMENT 'Logs chronological events associated with incidents to provide a detailed incident timeline.'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Detailed User Feedback Table
+CREATE TABLE IF NOT EXISTS detailed_user_feedback (
+    feedback_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    user_id INT UNSIGNED NOT NULL,
+    service_aspect ENUM('Support', 'UI', 'ResponseTime', 'Quality') NOT NULL,
+    rating INT NOT NULL CHECK (rating BETWEEN 1 AND 5),
+    comments TEXT,
+    feedback_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    COMMENT 'Captures detailed user feedback on various aspects of the service desk for quality improvement.'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Service Outage Notifications Table
+CREATE TABLE IF NOT EXISTS service_outages (
+    outage_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    service_id INT UNSIGNED NOT NULL,
+    outage_start TIMESTAMP NOT NULL,
+    outage_end TIMESTAMP,
+    outage_description TEXT,
+    impact_level ENUM('Low', 'Medium', 'High'),
+    notification_sent BOOLEAN DEFAULT FALSE,
+    COMMENT 'Logs service outages, including impact and notification status to affected users.'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Preventive Actions Table
+CREATE TABLE IF NOT EXISTS preventive_actions (
+    action_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    related_to ENUM('Incident', 'Problem', 'Asset') NOT NULL,
+    related_id INT UNSIGNED NOT NULL,
+    action_description TEXT,
+    action_taken BOOLEAN DEFAULT FALSE,
+    action_date DATE,
+    result TEXT COMMENT 'Outcome of the preventive action taken.',
+    COMMENT 'Details preventive actions taken to avoid potential incidents or problems, enhancing proactive service management.'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-------------------------------------------------------------------------------------
+
+-- Language and Locale Settings Table
+CREATE TABLE IF NOT EXISTS language_locale_settings (
+    setting_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    language_code VARCHAR(10) NOT NULL,
+    country_code VARCHAR(10) NOT NULL,
+    date_format VARCHAR(50) NOT NULL,
+    time_format VARCHAR(50) NOT NULL,
+    number_format VARCHAR(50) NOT NULL,
+    currency_format VARCHAR(50) NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    COMMENT 'Stores language and locale settings to support globalization and localization features.'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- User Access Control Table
+CREATE TABLE IF NOT EXISTS user_access_controls (
+    access_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    user_id INT UNSIGNED NOT NULL,
+    access_level ENUM('Read', 'Write', 'Admin') NOT NULL,
+    resource_type ENUM('Ticket', 'KnowledgeBase', 'Report', 'Dashboard') NOT NULL,
+    resource_id INT UNSIGNED,
+    granted_by INT UNSIGNED,
+    granted_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    FOREIGN KEY (granted_by) REFERENCES users(user_id) ON DELETE SET NULL,
+    COMMENT 'Defines access control policies for users, specifying levels of access to various resources.'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Workflow Automation Rules Table
+CREATE TABLE IF NOT EXISTS workflow_automation_rules (
+    rule_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    rule_name VARCHAR(255) NOT NULL,
+    trigger_event VARCHAR(255) NOT NULL,
+    action_to_perform TEXT NOT NULL,
+    conditions TEXT COMMENT 'JSON encoded conditions to evaluate if the rule should be triggered.',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    active BOOLEAN DEFAULT TRUE,
+    COMMENT 'Defines automation rules for streamlining workflows based on specific trigger events.'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- External Service Integrations Table
+CREATE TABLE IF NOT EXISTS external_service_integrations (
+    integration_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    service_name VARCHAR(255) NOT NULL,
+    integration_type ENUM('API', 'Webhook', 'Custom') NOT NULL,
+    configuration_details TEXT COMMENT 'JSON encoded configuration details for the integration.',
+    status ENUM('Active', 'Inactive') NOT NULL,
+    last_sync TIMESTAMP,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    COMMENT 'Manages external service integrations, including configuration and synchronization status.'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- User Interface Themes Table
+CREATE TABLE IF NOT EXISTS ui_themes (
+    theme_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    theme_name VARCHAR(255) NOT NULL,
+    theme_description TEXT,
+    theme_data TEXT COMMENT 'JSON encoded data defining the UI theme settings and colors.',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    active BOOLEAN DEFAULT TRUE,
+    COMMENT 'Stores UI theme settings to allow users to customize their dashboard and overall interface.'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Resource Allocation Table
+CREATE TABLE IF NOT EXISTS resource_allocations (
+    allocation_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    resource_type ENUM('Agent', 'Asset', 'Software') NOT NULL,
+    resource_id INT UNSIGNED NOT NULL,
+    allocated_to INT UNSIGNED,
+    allocation_start_date DATE,
+    allocation_end_date DATE,
+    allocation_status ENUM('Active', 'Inactive', 'Expired') NOT NULL,
+    details TEXT COMMENT 'Additional details about the allocation, such as purpose or conditions.',
+    FOREIGN KEY (allocated_to) REFERENCES users(user_id) ON DELETE SET NULL,
+    COMMENT 'Manages the allocation of various resources, ensuring optimal utilization and tracking.'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Custom Dashboards Table
+CREATE TABLE IF NOT EXISTS custom_dashboards (
+    dashboard_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    user_id INT UNSIGNED NOT NULL,
+    dashboard_name VARCHAR(255) NOT NULL,
+    dashboard_data TEXT COMMENT 'JSON encoded data specifying the dashboard configuration and widgets.',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    COMMENT 'Enables users to create custom dashboards for personalized analytics and reporting.'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Data Insights Table
+CREATE TABLE IF NOT EXISTS data_insights (
+    insight_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    insight_type ENUM('Operational', 'Strategic', 'Predictive') NOT NULL,
+    insight_data TEXT COMMENT 'JSON encoded data providing detailed insights derived from data analysis.',
+    generated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    COMMENT 'Stores insights generated from data analysis, offering operational, strategic, and predictive perspectives.'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Team Collaboration Table
+CREATE TABLE IF NOT EXISTS team_collaborations (
+    collaboration_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    team_id INT UNSIGNED NOT NULL,
+    collaboration_tool VARCHAR(255) NOT NULL,
+    tool_details TEXT COMMENT 'Details about how the tool is used within the team, including configurations.',
+    active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (team_id) REFERENCES teams(id) ON DELETE CASCADE,
+    COMMENT 'Details collaboration tools and platforms used by service desk teams to enhance teamwork and efficiency.'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Automation Scripts Table
+CREATE TABLE IF NOT EXISTS automation_scripts (
+    script_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    script_name VARCHAR(255) NOT NULL,
+    script_code TEXT NOT NULL COMMENT 'The actual code of the script intended for automation purposes.',
+    trigger_event VARCHAR(255),
+    active BOOLEAN DEFAULT TRUE,
+    last_executed TIMESTAMP,
+    execution_result TEXT COMMENT 'Latest execution result of the script, including any output or errors.',
+    COMMENT 'Stores scripts designed to automate repetitive tasks, triggered by specific system events.'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Automation Scripts Table
+CREATE TABLE IF NOT EXISTS automation_scripts (
+    script_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    script_name VARCHAR(255) NOT NULL,
+    script_code TEXT NOT NULL COMMENT 'The actual code of the script intended for automation purposes.',
+    trigger_event VARCHAR(255),
+    active BOOLEAN DEFAULT TRUE,
+    last_executed TIMESTAMP,
+    execution_result TEXT COMMENT 'Latest execution result of the script, including any output or errors.',
+    COMMENT 'Stores scripts designed to automate repetitive tasks, triggered by specific system events.'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- CMDB Relationships Table
+CREATE TABLE IF NOT EXISTS cmdb_relationships (
+    relationship_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    source_ci_id INT UNSIGNED NOT NULL,
+    target_ci_id INT UNSIGNED NOT NULL,
+    relationship_type VARCHAR(255) NOT NULL COMMENT 'Describes how the CIs are related, e.g., "depends on", "connected to".',
+    details TEXT COMMENT 'Additional details about the relationship, including impact analysis.',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (source_ci_id) REFERENCES configuration_items(ci_id) ON DELETE CASCADE,
+    FOREIGN KEY (target_ci_id) REFERENCES configuration_items(ci_id) ON DELETE CASCADE,
+    COMMENT 'Defines relationships between Configuration Items (CIs) in the CMDB to map dependencies and connections.'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

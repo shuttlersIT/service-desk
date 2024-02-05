@@ -27,6 +27,7 @@ type AgentLoginCredentials struct {
 	AgentID   uint      `json:"agent_id"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
+	DeletedAt time.Time `json:"deleted_at"`
 }
 
 // TableName sets the table name for the Agent model.

@@ -1,0 +1,775 @@
+CREATE DATABASE IF NOT EXISTS service_desk;
+USE service_desk;
+
+-- Departments table
+CREATE TABLE IF NOT EXISTS departments (
+    department_id INT AUTO_INCREMENT PRIMARY KEY,
+    department_name VARCHAR(255) UNIQUE NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    DeletedAt TIMESTAMP
+);
+
+-- Positions table
+CREATE TABLE IF NOT EXISTS positions (
+    position_id INT AUTO_INCREMENT PRIMARY KEY,
+    position_name VARCHAR(255) UNIQUE NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    DeletedAt TIMESTAMP
+);
+
+-- Vendor table
+CREATE TABLE IF NOT EXISTS vendors (
+    vendor_id INT AUTO_INCREMENT PRIMARY KEY,
+    vendor_name VARCHAR(255) UNIQUE NOT NULL,
+    description TEXT,
+    contact_info TEXT,
+    address TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    DeletedAt TIMESTAMP
+);
+
+-- Categories table (before tickets to ensure FK exists)
+CREATE TABLE IF NOT EXISTS categories (
+    category_id INT AUTO_INCREMENT PRIMARY KEY,
+    category_name VARCHAR(255) NOT NULL,
+    icon VARCHAR(255),
+    description TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    DeletedAt TIMESTAMP
+);
+
+-- Priority table (for SLA and Tickets)
+CREATE TABLE IF NOT EXISTS priority (
+    priority_id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    colour VARCHAR(6) DEFAULT '#FFFFFF',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    DeletedAt TIMESTAMP
+);
+
+-- Status table (for Tickets)
+CREATE TABLE IF NOT EXISTS status (
+    status_id INT AUTO_INCREMENT PRIMARY KEY,
+    status_name VARCHAR(255) NOT NULL,
+    is_closed BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    DeletedAt TIMESTAMP
+);
+
+-- Permissions table
+CREATE TABLE IF NOT EXISTS permissions (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) UNIQUE NOT NULL,
+    description TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    DeletedAt TIMESTAMP
+);
+
+-- Roles table
+CREATE TABLE IF NOT EXISTS roles (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    role_name VARCHAR(255) UNIQUE NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    DeletedAt TIMESTAMP
+);
+
+-- unis table
+CREATE TABLE IF NOT EXISTS units (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    unit_name VARCHAR(255) UNIQUE NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    DeletedAt TIMESTAMP
+);
+
+-- Teams table
+CREATE TABLE IF NOT EXISTS teams (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    team_name VARCHAR(255) UNIQUE NOT NULL,
+    emoji VARCHAR(255),
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    DeletedAt TIMESTAMP
+);
+
+-- Asset Types table
+CREATE TABLE IF NOT EXISTS asset_types (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    asset_type VARCHAR(255) NOT NULL UNIQUE,
+    description TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    DeletedAt TIMESTAMP
+);
+
+-- Table for storing system settings or configurations
+CREATE TABLE IF NOT EXISTS system_settings (
+    setting_id INT AUTO_INCREMENT PRIMARY KEY,
+    setting_key VARCHAR(255) UNIQUE NOT NULL,
+    setting_value TEXT NOT NULL,
+    description TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    DeletedAt TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS system_notifications (
+    notification_id INT AUTO_INCREMENT PRIMARY KEY,
+    title VARCHAR(255) NOT NULL,
+    message TEXT NOT NULL,
+    start_date TIMESTAMP,
+    end_date TIMESTAMP,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+
+-- Service Level Agreement (SLA) Metrics
+CREATE TABLE IF NOT EXISTS sla_metrics (
+    metric_id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    threshold INT NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    DeletedAt TIMESTAMP
+);
+
+-- Operational Metrics
+CREATE TABLE IF NOT EXISTS operational_metrics (
+    metric_id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    value DECIMAL(10, 2),
+    measurement_date DATE NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    DeletedAt TIMESTAMP
+);
+
+ CREATE TABLE IF NOT EXISTS automated_ticket_actions (
+    action_id INT AUTO_INCREMENT PRIMARY KEY,
+    trigger_event VARCHAR(255) NOT NULL, -- e.g., 'ticket_creation', 'status_change'
+    action_type VARCHAR(255) NOT NULL, -- e.g., 'assign_to_user', 'send_email'
+    parameters TEXT, -- JSON or similar structured data
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- Subcategories table (after Categories)
+CREATE TABLE IF NOT EXISTS subcategories (
+    subcategory_id INT AUTO_INCREMENT PRIMARY KEY,
+    subcategory_name VARCHAR(255) NOT NULL,
+    category_id INT NOT NULL,
+    description TEXT,
+    icon VARCHAR(255),
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    DeletedAt TIMESTAMP,
+    FOREIGN KEY (category_id) REFERENCES categories(category_id) ON DELETE CASCADE
+);
+
+-- SLA table
+CREATE TABLE IF NOT EXISTS sla (
+    sla_id INT AUTO_INCREMENT PRIMARY KEY,
+    sla_name VARCHAR(255) NOT NULL,
+    priority_id INT NOT NULL,
+    response_time INT NOT NULL,
+    resolution_time INT NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    DeletedAt TIMESTAMP,
+    FOREIGN KEY (priority_id) REFERENCES priority(priority_id) ON DELETE CASCADE
+);
+
+-- Users table should be created first as many tables reference it
+CREATE TABLE IF NOT EXISTS users (
+    user_id INT AUTO_INCREMENT PRIMARY KEY,
+    first_name VARCHAR(255) NOT NULL,
+    last_name VARCHAR(255) NOT NULL,
+    email VARCHAR(255) NOT NULL UNIQUE,
+    phone VARCHAR(255),
+    position_id INT,
+    department_id INT,
+    is_active BOOLEAN DEFAULT TRUE,
+    last_login_at TIMESTAMP,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    DeletedAt TIMESTAMP,
+    FOREIGN KEY (position_id) REFERENCES positions(position_id) ON DELETE SET NULL,
+    FOREIGN KEY (department_id) REFERENCES departments(department_id) ON DELETE SET NULL
+);
+
+-- Agents table
+CREATE TABLE IF NOT EXISTS agents (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    first_name VARCHAR(255) NOT NULL,
+    last_name VARCHAR(255) NOT NULL,
+    agent_email VARCHAR(255) UNIQUE NOT NULL,
+    phone VARCHAR(255) UNIQUE,
+    role_id INT,
+    team_id INT,
+    unit_id INT,
+    supervisor_id INT,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    DeletedAt TIMESTAMP,
+    FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE SET NULL,
+    FOREIGN KEY (team_id) REFERENCES teams(id) ON DELETE SET NULL,
+    FOREIGN KEY (unit_id) REFERENCES units(id) ON DELETE SET NULL,
+    FOREIGN KEY (supervisor_id) REFERENCES agents(id) ON DELETE SET NULL
+);
+
+-- Assets table (adjusted to include vendor references)
+CREATE TABLE IF NOT EXISTS assets (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    asset_tag INT,
+    asset_name VARCHAR(255) NOT NULL,
+    asset_type VARCHAR(255) NOT NULL,
+    asset_type_id INT NOT NULL,
+    description TEXT,
+    vendor_id INT,
+    purchase_date DATE,
+    serial_number VARCHAR(255) UNIQUE,
+    status VARCHAR(50) NOT NULL DEFAULT 'active',
+    warranty_expiration DATE,
+    location VARCHAR(255),
+    user_id INT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    DeletedAt TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE SET NULL,
+    FOREIGN KEY (vendor_id) REFERENCES vendors(vendor_id) ON DELETE SET NULL,
+    FOREIGN KEY (asset_type_id) REFERENCES asset_types(id) ON DELETE RESTRICT
+);
+
+-- Asset Assignments table
+CREATE TABLE IF NOT EXISTS asset_assignments (
+    assignment_id INT AUTO_INCREMENT PRIMARY KEY,
+    asset_id INT NOT NULL,
+    user_id INT NOT NULL,
+    assigned_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    return_date DATE,
+    returned_at TIMESTAMP,
+    status VARCHAR(50) NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    DeletedAt TIMESTAMP,
+    FOREIGN KEY (asset_id) REFERENCES assets(asset_id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+);
+
+-- Service Requests table
+CREATE TABLE IF NOT EXISTS service_requests (
+    request_id INT AUTO_INCREMENT PRIMARY KEY,
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    user_id INT NOT NULL,
+    status VARCHAR(50) NOT NULL,
+    category_id INT NOT NULL,
+    priority VARCHAR(50),
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    DeletedAt TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    FOREIGN KEY (category_id) REFERENCES categories(category_id) ON DELETE CASCADE
+);
+
+-- Incident Reports table
+CREATE TABLE IF NOT EXISTS incidents (
+    incident_id INT AUTO_INCREMENT PRIMARY KEY,
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    reported_by INT NOT NULL,
+    assigned_to INT,
+    status VARCHAR(50) NOT NULL,
+    priority_id INT NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    DeletedAt TIMESTAMP NULL,
+    FOREIGN KEY (reported_by) REFERENCES users(user_id) ON DELETE SET NULL,
+    FOREIGN KEY (assigned_to) REFERENCES agents(agent_id) ON DELETE SET NULL,
+    FOREIGN KEY (priority_id) REFERENCES priority(priority_id) ON DELETE CASCADE
+);
+
+-- Tickets table (requires Users, Categories, Subcategories, Priority, SLA, Status)
+CREATE TABLE IF NOT EXISTS tickets (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    subject VARCHAR(255) NOT NULL,
+    description TEXT NOT NULL,
+    category_id INT NOT NULL,
+    sub_category_id INT,
+    priority_id INT NOT NULL,
+    sla_id INT NOT NULL,
+    user_id INT NOT NULL,
+    agent_id INT,
+    assigned_at DATETIME,
+    closed_at DATETIME,
+    due_at DATETIME,
+    site VARCHAR(255),
+    status_id INT NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    DeletedAt TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    FOREIGN KEY (agent_id) REFERENCES agents(agent_id) ON UPDATE CASCADE ON DELETE SET NULL,
+    FOREIGN KEY (category_id) REFERENCES categories(category_id) ON DELETE CASCADE,
+    FOREIGN KEY (sub_category_id) REFERENCES subcategories(subcategory_id) ON DELETE SET NULL,
+    FOREIGN KEY (priority_id) REFERENCES priority(priority_id) ON DELETE CASCADE,
+    FOREIGN KEY (sla_id) REFERENCES sla(sla_id) ON DELETE SET NULL,
+    FOREIGN KEY (status_id) REFERENCES status(status_id) ON DELETE CASCADE
+);
+
+-- Role-Permissions table (Many-to-Many)
+CREATE TABLE IF NOT EXISTS role_permissions (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    role_id INT NOT NULL,
+    permission_id INT NOT NULL,
+    FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE CASCADE,
+    FOREIGN KEY (permission_id) REFERENCES permissions(id) ON DELETE CASCADE
+);
+
+-- Agent-Roles table (Many-to-Many)
+CREATE TABLE IF NOT EXISTS agent_roles (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    agent_id INT NOT NULL,
+    role_id INT NOT NULL,
+    FOREIGN KEY (agent_id) REFERENCES agents(id) ON DELETE CASCADE,
+    FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE CASCADE
+);
+
+-- User-Agent Mapping (Many-to-Many)
+CREATE TABLE IF NOT EXISTS users_agents (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    agent_id INT NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    FOREIGN KEY (agent_id) REFERENCES agents(id) ON DELETE CASCADE
+);
+
+-- Escalations table for handling ticket escalations
+CREATE TABLE IF NOT EXISTS escalations (
+    escalation_id INT AUTO_INCREMENT PRIMARY KEY,
+    ticket_id INT NOT NULL,
+    escalated_by INT NOT NULL,
+    reason VARCHAR(255) NOT NULL,
+    escalation_status VARCHAR(50) NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    DeletedAt TIMESTAMP,
+    FOREIGN KEY (ticket_id) REFERENCES tickets(id) ON DELETE CASCADE,
+    FOREIGN KEY (escalated_by) REFERENCES users(user_id) ON DELETE SET NULL
+);
+
+-- Feedback Management
+CREATE TABLE IF NOT EXISTS feedback (
+    feedback_id INT AUTO_INCREMENT PRIMARY KEY,
+    ticket_id INT NOT NULL,
+    user_id INT NOT NULL,
+    rating INT NOT NULL,
+    comment TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    DeletedAt TIMESTAMP,
+    FOREIGN KEY (ticket_id) REFERENCES tickets(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+);
+
+-- Task Management for Agents
+CREATE TABLE IF NOT EXISTS tasks (
+    task_id INT AUTO_INCREMENT PRIMARY KEY,
+    assigned_to INT NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    due_date DATE,
+    status VARCHAR(50) NOT NULL DEFAULT 'pending',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    DeletedAt TIMESTAMP,
+    FOREIGN KEY (assigned_to) REFERENCES agents(id) ON DELETE CASCADE
+);
+
+-- Detailed user profiles table
+CREATE TABLE IF NOT EXISTS user_profiles (
+    profile_id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT UNIQUE NOT NULL,
+    address TEXT,
+    profile_picture VARCHAR(255),
+    bio TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    DeletedAt TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+);
+
+-- User roles and permissions (assuming roles and permissions tables already exist)
+CREATE TABLE IF NOT EXISTS user_roles (
+    user_role_id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    role_id INT NOT NULL,
+    assigned_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS user_permissions (
+    user_permission_id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    permission_id INT NOT NULL,
+    assigned_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    FOREIGN KEY (permission_id) REFERENCES permissions(id) ON DELETE CASCADE
+);
+
+-- User Activity Logs Table
+CREATE TABLE IF NOT EXISTS user_activity_logs (
+    log_id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    activity VARCHAR(255) NOT NULL,
+    ip_address VARCHAR(45),
+    action VARCHAR(255) NOT NULL,
+    description TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+);
+
+-- Purchase Orders
+CREATE TABLE IF NOT EXISTS purchase_orders (
+    order_id INT AUTO_INCREMENT PRIMARY KEY,
+    asset_id INT NOT NULL,
+    vendor_id INT NOT NULL,
+    order_date DATE NOT NULL,
+    amount DECIMAL(10, 2),
+    status VARCHAR(50) NOT NULL DEFAULT 'pending',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    DeletedAt TIMESTAMP,
+    FOREIGN KEY (asset_id) REFERENCES assets(asset_id) ON DELETE CASCADE,
+    FOREIGN KEY (vendor_id) REFERENCES vendors(vendor_id) ON DELETE RESTRICT
+);
+
+-- User Notifications Table
+CREATE TABLE IF NOT EXISTS notifications (
+    notification_id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    message TEXT NOT NULL,
+    read_at TIMESTAMP,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    DeletedAt TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+);
+
+-- Notification Settings
+CREATE TABLE IF NOT EXISTS notification_settings (
+    setting_id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    email_notifications_enabled BOOLEAN DEFAULT TRUE,
+    sms_notifications_enabled BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    DeletedAt TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+);
+
+-- Knowledge Base Articles
+CREATE TABLE IF NOT EXISTS knowledge_base_articles (
+    article_id INT AUTO_INCREMENT PRIMARY KEY,
+    title VARCHAR(255) NOT NULL,
+    content TEXT NOT NULL,
+    author_id INT NOT NULL,
+    last_updated_by INT NOT NULL,
+    category_id INT,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    DeletedAt TIMESTAMP,
+    FOREIGN KEY (author_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    FOREIGN KEY (category_id) REFERENCES categories(category_id) ON DELETE SET NULL,
+    FOREIGN KEY (last_updated_by) REFERENCES users(user_id)
+);
+
+-- Custom Fields for Tickets
+CREATE TABLE IF NOT EXISTS ticket_custom_fields (
+    field_id INT AUTO_INCREMENT PRIMARY KEY,
+    ticket_id INT NOT NULL,
+    field_key VARCHAR(255) NOT NULL,
+    field_value TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    DeletedAt TIMESTAMP,
+    FOREIGN KEY (ticket_id) REFERENCES tickets(id) ON DELETE CASCADE
+);
+
+-- Enhancements in User Management: Incorporating user preferences and multi-factor authentication settings
+CREATE TABLE IF NOT EXISTS user_preferences (
+    preference_id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    preference_key VARCHAR(255) NOT NULL,
+    preference_value TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS user_mfa_settings (
+    mfa_id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    mfa_type VARCHAR(50) NOT NULL, -- e.g., 'sms', 'app'
+    mfa_key TEXT, -- Secret key or number for MFA
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+);
+
+-- Enhancements in Ticket Management: Adding ticket escalation paths and automated actions
+CREATE TABLE IF NOT EXISTS ticket_escalation_paths (
+    escalation_id INT AUTO_INCREMENT PRIMARY KEY,
+    ticket_id INT NOT NULL,
+    escalation_level INT NOT NULL,
+    escalated_to INT, -- User or Role ID
+    reason TEXT,
+    action_taken TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (ticket_id) REFERENCES tickets(id) ON DELETE CASCADE
+);
+
+-- Security and Compliance: Audit logs for tracking changes across the system
+CREATE TABLE IF NOT EXISTS audit_logs (
+    audit_log_id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT, -- NULL if the action was system initiated
+    action_type VARCHAR(255) NOT NULL,
+    description TEXT,
+    affected_table VARCHAR(255),
+    affected_row_id INT,
+    change_details TEXT, -- JSON or similar structured data detailing the change
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE SET NULL
+);
+
+CREATE TABLE IF NOT EXISTS customer_satisfaction_surveys (
+    survey_id INT AUTO_INCREMENT PRIMARY KEY,
+    ticket_id INT NOT NULL,
+    rating INT NOT NULL, -- Example: 1 to 5
+    feedback TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (ticket_id) REFERENCES tickets(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS sla_breaches (
+    breach_id INT AUTO_INCREMENT PRIMARY KEY,
+    ticket_id INT NOT NULL,
+    sla_id INT NOT NULL,
+    breached_at TIMESTAMP NOT NULL,
+    reason TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (ticket_id) REFERENCES tickets(id) ON DELETE CASCADE,
+    FOREIGN KEY (sla_id) REFERENCES sla(sla_id) ON DELETE CASCADE
+);
+
+-- User Sessions table for tracking login sessions
+CREATE TABLE IF NOT EXISTS user_sessions (
+    session_id VARCHAR(255) PRIMARY KEY,
+    user_id INT NOT NULL,
+    session_start TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    last_access TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+);
+
+-- Agent Login Credentials Table with Security Enhancements
+CREATE TABLE IF NOT EXISTS agentLoginDetails (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    username VARCHAR(255) NOT NULL,
+    password CHAR(60) NOT NULL, -- Optimized for bcrypt
+    agent_id BIGINT UNSIGNED NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP NULL DEFAULT NULL, -- Support for soft deletes
+    CONSTRAINT fk_agentLoginDetails_agent_id FOREIGN KEY (agent_id) REFERENCES agents(id) ON DELETE CASCADE,
+    INDEX idx_agentLoginDetails_agent_id (agent_id),
+    UNIQUE INDEX idx_agentLoginDetails_username (username)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Stores agent login details with emphasis on security.';
+
+-- Users Login Credentials Table with Similar Enhancements
+CREATE TABLE IF NOT EXISTS usersLoginCredentials (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    username VARCHAR(255) NOT NULL,
+    password CHAR(60) NOT NULL, -- Assuming bcrypt
+    user_id BIGINT UNSIGNED NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    INDEX idx_usersLoginCredentials_user_id (user_id),
+    UNIQUE INDEX idx_usersLoginCredentials_username (username)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Stores user login details securely.';
+
+
+-- Indexes for optimized query performance
+CREATE INDEX idx_users_email ON users(email);
+CREATE INDEX idx_users_phone ON users(phone);
+CREATE INDEX idx_users_position_id ON users(position_id);
+CREATE INDEX idx_users_department_id ON users(department_id);
+CREATE INDEX idx_users_is_active ON users(is_active);
+CREATE INDEX idx_users_last_login_at ON users(last_login_at);
+---------------------------------------------------------------------------------------------------------
+CREATE INDEX idx_assets_name ON assets(name);
+CREATE INDEX idx_assets_status ON assets(status);
+CREATE INDEX idx_assets_asset_type ON assets(asset_type);
+CREATE INDEX idx_assets_vendor_id ON assets(vendor_id);
+CREATE INDEX idx_assets_serial_number ON assets(serial_number);
+CREATE INDEX idx_assets_user_id ON assets(user_id);
+CREATE INDEX idx_assets_purchase_date ON assets(purchase_date);
+CREATE INDEX idx_asset_types_type_name ON asset_types(type_name);
+---------------------------------------------------------------------------------------------------------
+CREATE INDEX idx_vendors_name ON vendor(vendor_name);
+CREATE UNIQUE INDEX idx_user_agent ON users_agents(user_id, agent_id)
+CREATE UNIQUE INDEX idx_agent_role ON agent_roles(agent_id, role_id)
+CREATE UNIQUE INDEX idx_role_permission ON role_permissions(role_id, permission_id)
+---------------------------------------------------------------------------------------------------------
+CREATE INDEX idx_asset_assignments_asset_id ON asset_assignments(asset_id);
+CREATE INDEX idx_asset_assignments_user_id ON asset_assignments(user_id);
+CREATE INDEX idx_asset_assignments_status ON asset_assignments(status);
+---------------------------------------------------------------------------------------------------------
+CREATE INDEX idx_categories_name ON categories(name);
+CREATE INDEX idx_subcategories_name ON categories(name);
+CREATE INDEX idx_subcategories_category_id ON categories(category_id);
+CREATE INDEX idx_roles_name ON roles(name);
+CREATE INDEX idx_permissions_name ON permissions(name);
+CREATE UNIQUE INDEX idx_role_permission ON role_permissions(role_id, permission_id);
+CREATE UNIQUE INDEX idx_role_permission ON role_permissions(role_id, permission_id);
+CREATE UNIQUE INDEX idx_user_role ON role_permissions(user_id, role_id);
+CREATE UNIQUE INDEX idx_user_permission ON role_permissions(user_id, permission_id);
+---------------------------------------------------------------------------------------------------------
+CREATE INDEX idx_agents_first_name ON agents(first_name);
+CREATE INDEX idx_agents_last_name ON agents(last_name);
+CREATE INDEX idx_agents_email ON agents(agent_email);
+CREATE INDEX idx_agents_phone ON agents(phone);
+CREATE INDEX idx_teams_team_name ON agents(team_name);
+CREATE INDEX idx_units_unit_name ON agents(unit_name);
+---------------------------------------------------------------------------------------------------------
+CREATE INDEX idx_tickets_subject ON tickets(subject);
+CREATE INDEX idx_tickets_category_id ON tickets(category_id);
+CREATE INDEX idx_tickets_subcategory_id ON tickets(subcategory_id);
+CREATE INDEX idx_tickets_priority_id ON tickets(priority_id);
+CREATE INDEX idx_tickets_sla_id ON tickets(sla_id);
+CREATE INDEX idx_tickets_user_id ON tickets(user_id);
+CREATE INDEX idx_tickets_agent_id ON tickets(agent_id);
+CREATE INDEX idx_tickets_status_id ON tickets(status_id);
+---------------------------------------------------------------------------------------------------------
+CREATE INDEX idx_service_requests_user_id_status ON service_requests(user_id, status);
+CREATE INDEX idx_service_requests_title ON service_requests(title);
+CREATE INDEX idx_service_requests_user_id ON service_requests(user_id);
+CREATE INDEX idx_service_requests_status ON service_requests(status);
+CREATE INDEX idx_service_requests_category_id ON service_requests(category_id);
+CREATE INDEX idx_service_requests_priority ON service_requests(priority);
+---------------------------------------------------------------------------------------------------------
+CREATE INDEX idx_incident_title ON incidents(title);
+CREATE INDEX idx_incident_reported_by ON incidents(reported_by);
+CREATE INDEX idx_incident_assigned_to ON incidents(assigned_to);
+CREATE INDEX idx_incident_status ON incidents(status);
+CREATE INDEX idx_incident_priority_id ON incidents(priority_id);
+---------------------------------------------------------------------------------------------------------
+CREATE INDEX idx_departments_name ON departments(department_name);
+CREATE INDEX idx_positions_name ON positions(position_name);
+---------------------------------------------------------------------------------------------------------
+CREATE INDEX idx_escalations_ticket_id ON escalations(ticket_id);
+CREATE INDEX idx_feedback_ticket_id ON feedback(ticket_id);
+CREATE INDEX idx_feedback_user_id ON feedback(user_id);
+CREATE INDEX idx_feedback_ticket_id_user_id ON feedback(ticket_id, user_id);
+CREATE INDEX idx_user_profiles_user_id ON user_profiles(user_id);
+---------------------------------------------------------------------------------------------------------
+CREATE INDEX idx_user_roles_user_id_role_id ON user_roles(user_id, role_id);
+CREATE INDEX idx_user_permissions_user_id_permission_id ON user_permissions(user_id, permission_id);
+---------------------------------------------------------------------------------------------------------
+CREATE INDEX idx_user_activity_logs_user_id ON user_activity_logs(user_id);
+CREATE INDEX idx_user_activity_logs_created_at ON user_activity_logs(created_at);
+CREATE INDEX idx_user_activity_logs_activity_type ON user_activity_logs(activity_type);
+---------------------------------------------------------------------------------------------------------
+CREATE INDEX idx_purchase_orders_status ON purchase_orders(status);
+CREATE INDEX idx_purchase_orders_order_date ON purchase_orders(order_date);
+---------------------------------------------------------------------------------------------------------
+CREATE INDEX idx_notification_settings_user_id ON notification_settings(user_id);
+CREATE INDEX idx_notifications_user_id ON notifications(user_id);
+CREATE INDEX idx_notifications_read_at ON notifications(read_at);
+---------------------------------------------------------------------------------------------------------
+CREATE INDEX idx_tasks_assigned_to ON tasks(assigned_to);
+CREATE INDEX idx_tasks_due_date ON tasks(due_date);
+CREATE INDEX idx_tasks_status ON tasks(status);
+---------------------------------------------------------------------------------------------------------
+CREATE INDEX idx_sla_metrics_name ON sla_metrics(name);
+---------------------------------------------------------------------------------------------------------
+CREATE INDEX idx_knowledge_base_articles_title ON knowledge_base_articles(title);
+CREATE INDEX idx_knowledge_base_articles_author_id ON knowledge_base_articles(author_id);
+CREATE INDEX idx_knowledge_base_articles_category_id ON knowledge_base_articles(category_id);
+---------------------------------------------------------------------------------------------------------
+CREATE INDEX idx_system_settings_setting_key ON system_settings(setting_key);
+---------------------------------------------------------------------------------------------------------
+CREATE INDEX idx_ticket_custom_fields_ticket_id ON ticket_custom_fields(ticket_id);
+CREATE INDEX idx_ticket_custom_fields_field_key ON ticket_custom_fields(field_key);
+---------------------------------------------------------------------------------------------------------
+CREATE INDEX idx_operational_metrics_name ON operational_metrics(name);
+CREATE INDEX idx_operational_metrics_measurement_date ON operational_metrics(measurement_date);
+---------------------------------------------------------------------------------------------------------
+CREATE INDEX idx_user_preferences_user_id ON user_preferences(user_id);
+---------------------------------------------------------------------------------------------------------
+CREATE INDEX idx_user_mfa_settings_user_id ON user_mfa_settings(user_id);
+---------------------------------------------------------------------------------------------------------
+CREATE INDEX idx_ticket_escalation_paths_ticket_id ON ticket_escalation_paths(ticket_id);
+---------------------------------------------------------------------------------------------------------
+CREATE INDEX idx_audit_logs_user_id ON audit_logs(user_id);
+CREATE INDEX idx_audit_logs_created_at ON audit_logs(created_at);
+CREATE INDEX idx_audit_logs_affected_table ON audit_logs(affected_table);
+---------------------------------------------------------------------------------------------------------
+CREATE INDEX idx_customer_satisfaction_surveys_ticket_id ON customer_satisfaction_surveys(ticket_id);
+---------------------------------------------------------------------------------------------------------
+CREATE INDEX idx_sla_breaches_ticket_id ON sla_breaches(ticket_id);
+---------------------------------------------------------------------------------------------------------
+---------------------------------------------------------------------------------------------------------
+CREATE INDEX idx_user_sessions_user_id ON user_sessions(user_id);
+CREATE INDEX idx_user_sessions_last_access ON user_sessions(last_access);
+---------------------------------------------------------------------------------------------------------
+---------------------------------------------------------------------------------------------------------
+
+
+---------------------------------------------------------------------------------------------------------
+-- Session table for managing user sessions
+CREATE TABLE IF NOT EXISTS sessions (
+    session_id VARCHAR(255) PRIMARY KEY,
+    user_id INT NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    last_access TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+);
+
+-- Google credentials table for OAuth or similar purposes
+CREATE TABLE IF NOT EXISTS google_credentials (
+    credential_id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    google_id VARCHAR(255) NOT NULL,
+    email VARCHAR(255) NOT NULL,
+    token TEXT NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    DeletedAt TIMESTAMP NULL,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+);
+
+-- additional index
+CREATE INDEX idx_sessions_user_id ON sessions(user_id);
+CREATE INDEX idx_sessions_last_access ON sessions(last_access);
+CREATE INDEX idx_google_credentials_google_id ON google_credentials(google_id);
+CREATE INDEX idx_google_credentials_email ON google_credentials(email);
+
+
+---------------------------------------------------------------------------------------------------------

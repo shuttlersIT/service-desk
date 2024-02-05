@@ -29,6 +29,7 @@ type Assets struct {
 	CreatedBy     uint            `json:"created_by"`
 	CreatedAt     time.Time       `json:"created_at"`
 	UpdatedAt     time.Time       `json:"updated_at"`
+	DeletedAt     time.Time       `json:"deleted_at"`
 }
 
 // TableName sets the table name for the Asset model.

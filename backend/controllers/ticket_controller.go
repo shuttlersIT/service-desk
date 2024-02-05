@@ -16,8 +16,10 @@ type TicketController struct {
 	TicketService *services.DefaultTicketingService
 }
 
-func NewTicketController() *TicketController {
-	return &TicketController{}
+func NewTicketController(ticketService *services.DefaultTicketingService) *TicketController {
+	return &TicketController{
+		TicketService: ticketService,
+	}
 }
 
 // Implement controller methods like GetTickets, CreateTicket, GetTicket, UpdateTicket, DeleteTicket, GetAllTickets

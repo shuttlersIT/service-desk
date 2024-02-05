@@ -22,6 +22,7 @@ type Incident struct {
 	CreatedAt      time.Time `json:"created_at"`
 	UpdatedAt      time.Time `json:"updated_at"`
 	Severity       string    `json:"severity"`
+	DeletedAt      time.Time `json:"deleted_at"`
 }
 
 // IncidentHistoryEntry represents a historical entry related to an incident.
@@ -32,6 +33,7 @@ type IncidentHistoryEntry struct {
 	Status      string    `json:"status"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
+	DeletedAt   time.Time `json:"deleted_at"`
 }
 
 // IncidentComment represents a comment made on an incident.
@@ -41,6 +43,7 @@ type IncidentComment struct {
 	Comment    string    `json:"comment"`
 	CreatedAt  time.Time `json:"created_at"`
 	UpdatedAt  time.Time `json:"updated_at"`
+	DeletedAt  time.Time `json:"deleted_at"`
 }
 
 // IncidentStorage defines the methods for managing incidents.

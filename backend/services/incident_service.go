@@ -43,9 +43,8 @@ type DefaultIncidentService struct {
 	IncidentDBModel *models.IncidentDBModel
 }
 
-func NewDefaultIncidentService(db *gorm.DB, incidentDBModel *models.IncidentDBModel) *DefaultIncidentService {
+func NewDefaultIncidentService(incidentDBModel *models.IncidentDBModel) *DefaultIncidentService {
 	return &DefaultIncidentService{
-		DB:              db,
 		IncidentDBModel: incidentDBModel,
 	}
 }

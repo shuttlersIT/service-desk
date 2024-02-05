@@ -23,6 +23,7 @@ type Users struct {
 	Asset                  []AssetAssignment     `json:"asset_assignment" gorm:"foreignKey:UserID"`
 	RoleBase               RoleBase              `json:"role_base" gorm:"embedded"`
 	ResetPasswordRequestID uint                  `json:"reset_password_reset" gorm:"embedded"`
+	DeletedAt              time.Time             `json:"deleted_at"`
 }
 
 // TableName sets the table name for the Users model.
@@ -37,6 +38,7 @@ type Position struct {
 	CadreName    string    `json:"cadre_name"`
 	CreatedAt    time.Time `json:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at"`
+	DeletedAt    time.Time `json:"deleted_at"`
 }
 
 // TableName sets the table name for the Position model.
@@ -51,6 +53,7 @@ type Department struct {
 	Emoji          string    `json:"emoji"`
 	CreatedAt      time.Time `json:"created_at"`
 	UpdatedAt      time.Time `json:"updated_at"`
+	DeletedAt      time.Time `json:"deleted_at"`
 }
 
 // TableName sets the table name for the Department model.

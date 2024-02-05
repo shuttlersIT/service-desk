@@ -356,3 +356,23 @@ func GoogleCallback(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Sign-In with Google Successful", "user": googleUser})
 }
 */
+
+// ResetPasswordWithToken handles resetting the user's password using a token
+func (ac *AuthController) ResetPasswordWithToken3(c *gin.Context) {
+	token := c.Param("token")
+	var newPassword struct {
+		NewPassword string `json:"new_password"`
+	}
+	if err := c.ShouldBindJSON(&newPassword); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	err := ac.AuthService.ResetPasswordWithToken(token, newPassword.NewPassword)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Password reset successfully"})
+}

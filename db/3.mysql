@@ -1,0 +1,943 @@
+CREATE DATABASE IF NOT EXISTS service_desk;
+USE service_desk;
+
+-- Tickets table
+CREATE TABLE IF NOT EXISTS tickets (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  subject VARCHAR(255) NOT NULL,
+  description TEXT NOT NULL,
+  category_id INT NOT NULL,
+  sub_category_id INT,
+  priority_id INT NOT NULL,
+  sla_id INT NOT NULL,
+  user_id INT NOT NULL,
+  agent_id INT,
+  assigned_at DATETIME,
+  closed_at DATETIME,
+  due_at DATETIME,
+  site VARCHAR(255),
+  status_id INT NOT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  DeletedAt  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON DELETE CURRENT_TIMESTAMP,
+  CONSTRAINT unique_ticket_id UNIQUE (ticket_id),
+  FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+  FOREIGN KEY (agent_id) REFERENCES agents(agent_id) ON UPDATE CASCADE ON DELETE SET NULL,
+  FOREIGN KEY (category_id) REFERENCES category(category_id),
+  FOREIGN KEY (sub_category_id) REFERENCES subCategory(sub_category_id),
+  FOREIGN KEY (priority_id) REFERENCES priority(priority_id),
+  FOREIGN KEY (sla_id) REFERENCES sla(sla_id),
+  FOREIGN KEY (status_id) REFERENCES status(status_id)
+);
+
+-- Indexes:
+CREATE INDEX idx_tickets_subject ON tickets (subject);
+CREATE INDEX idx_tickets_status_id ON tickets (status_id);
+CREATE INDEX idx_tickets_agent_id ON tickets (agent_id);
+CREATE INDEX idx_tickets_user_id ON tickets (user_id);
+CREATE INDEX idx_tickets_priority_id ON tickets (priority_id);
+CREATE INDEX idx_tickets_due_at ON tickets (due_at);
+-- Add additional indexes based on your specific query patterns
+
+CREATE TABLE IF NOT EXISTS comment (
+  comment_id INT AUTO_INCREMENT PRIMARY KEY,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  DeletedAt  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON DELETE CURRENT_TIMESTAMP,
+  author_id INT NOT NULL,
+  description TEXT NOT NULL,
+  internal BOOLEAN DEFAULT FALSE,
+  ticket_id INT NOT NULL,
+  FOREIGN KEY (author_id) REFERENCES users(user_id) ON UPDATE CASCADE,
+  FOREIGN KEY (ticket_id) REFERENCES tickets(ticket_id) ON DELETE CASCADE
+);
+
+-- Indexes:
+CREATE INDEX idx_comments_ticket_id ON comments (ticket_id);
+CREATE INDEX idx_comments_author_id ON comments (author_id);
+
+CREATE TABLE IF NOT EXISTS ticket_history_entry (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  ticket_id INT NOT NULL,
+  action VARCHAR(255) NOT NULL,
+  previous_state TEXT, -- Consider storing previous states for detailed history
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  DeletedAt  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON DELETE CURRENT_TIMESTAMP,
+  FOREIGN KEY (ticket_id) REFERENCES tickets(ticket_id) ON DELETE CASCADE
+);
+
+-- Indexes:
+CREATE INDEX idx_ticket_history_ticket_id ON ticket_history_entry (ticket_id);
+CREATE INDEX idx_ticket_history_created_at ON ticket_history_entry (created_at);
+
+CREATE TABLE IF NOT EXISTS related_tickets (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  ticket_id INT NOT NULL,
+  related_ticket_id INT NOT NULL,
+  relationship_type VARCHAR(255), -- e.g., duplicate, reference
+  order_index INT DEFAULT 0,
+  FOREIGN KEY (ticket_id) REFERENCES tickets(ticket_id) ON DELETE CASCADE,
+  FOREIGN KEY (related_ticket_id) REFERENCES tickets(ticket_id) ON DELETE CASCADE,
+  UNIQUE (ticket_id, related_ticket_id, relationship_type) -- Ensures unique relationship with type
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  DeletedAt  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON DELETE CURRENT_TIMESTAMP
+);
+
+-- Indexes:
+CREATE INDEX idx_related_tickets_ticket_id ON related_tickets (ticket_id);
+CREATE INDEX idx_related_tickets_related_ticket_id ON related_tickets (related_ticket_id);
+CREATE INDEX idx_related_tickets_relationship_type ON related_tickets (relationship_type);
+
+CREATE TABLE IF NOT EXISTS tags (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  tag_name VARCHAR(255) NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  DeletedAt  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON DELETE CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS ticket_tags (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  ticket_id INT NOT NULL,
+  tag_id INT NOT NULL,
+  UNIQUE (ticket_id, tag_id),
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  DeletedAt  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON DELETE CURRENT_TIMESTAMP,
+  FOREIGN KEY (ticket_id) REFERENCES tickets(ticket_id) ON DELETE CASCADE,
+  FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE
+);
+
+-- Indexes:
+CREATE INDEX idx_tags_ticket_id ON ticket_tags (ticket_id);
+CREATE INDEX idx_tags_tag_id ON ticket_tags (tag_id);
+CREATE INDEX idx_tags_name ON tags (tag_name);
+
+-----------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS sla (
+  sla_id INT AUTO_INCREMENT PRIMARY KEY,
+  sla_name VARCHAR(255) NOT NULL,
+  priority_id INT NOT NULL,
+  satisfaction_id INT NOT NULL,
+  policy_id INT,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON DELETE CURRENT_TIMESTAMP,
+  DeletedAt  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON DELETE CURRENT_TIMESTAMP,
+  CONSTRAINT fk_sla_priority
+    FOREIGN KEY (priority_id) REFERENCES priority(priority_id) ON DELETE CASCADE,
+  CONSTRAINT fk_sla_satisfaction
+    FOREIGN KEY (satisfaction_id) REFERENCES satisfaction(satisfaction_id) ON DELETE CASCADE,
+  CONSTRAINT fk_sla_policy
+    FOREIGN KEY (policy_id) REFERENCES policies(policy_id) ON DELETE SET NULL
+);
+
+-- Indexes:
+CREATE INDEX idx_sla_priority_id ON sla (priority_id);
+CREATE INDEX idx_sla_satisfaction_id ON sla (satisfaction_id);
+CREATE INDEX idx_sla_name ON sla (sla_name);
+
+CREATE TABLE IF NOT EXISTS priority (
+  priority_id INT AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(255) NOT NULL,
+  first_response INT NOT NULL,
+  colour VARCHAR(6) DEFAULT '#FFFFFF', -- Adjusted data type and default value for color
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON DELETE CURRENT_TIMESTAMP,
+  DeletedAt  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON DELETE CURRENT_TIMESTAMP
+);
+
+-- Indexes:
+CREATE INDEX idx_priority_name ON priority (name);
+
+
+CREATE TABLE IF NOT EXISTS priority (
+  priority_id INT AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(255) NOT NULL,
+  first_response INT NOT NULL,
+  description TEXT,
+  colour VARCHAR(6) DEFAULT '#FFFFFF', -- Adjusted data type and default value for color
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON DELETE CURRENT_TIMESTAMP,
+  DeletedAt  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON DELETE CURRENT_TIMESTAMP
+);
+
+-- Indexes:
+CREATE INDEX idx_priority_name ON priority (name);
+
+
+CREATE TABLE IF NOT EXISTS categories (
+    category_id SERIAL PRIMARY KEY,
+    category_name VARCHAR(255) NOT NULL,
+    icon VARCHAR(255), -- Adjust data type if needed
+    description TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON DELETE CURRENT_TIMESTAMP,
+  DeletedAt  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON DELETE CURRENT_TIMESTAMP
+);
+
+-- Indexes:
+CREATE INDEX idx_categories_name ON categories (category_name);
+CREATE INDEX idx_categories_icon ON categories (icon); -- For icon-based filtering (optional)
+
+-- Indexes:
+CREATE INDEX idx_category_name ON category (category_name);
+
+
+CREATE TABLE IF NOT EXISTS subCategory (
+  sub_category_id INT AUTO_INCREMENT PRIMARY KEY,
+  sub_category_name VARCHAR(255) NOT NULL,
+  category_id INT NOT NULL,
+  icon VARCHAR(255), -- Consider adding icon support (URL or data)
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON DELETE CURRENT_TIMESTAMP,
+  DeletedAt  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON DELETE CURRENT_TIMESTAMP,
+  FOREIGN KEY (category_id) REFERENCES category(category_id) ON DELETE CASCADE
+);
+
+-- Indexes:
+CREATE INDEX idx_subCategory_name ON subCategory (sub_category_name);
+CREATE INDEX idx_subCategory_category_id ON subCategory (category_id);
+
+
+CREATE TABLE IF NOT EXISTS status (
+  status_id INT AUTO_INCREMENT PRIMARY KEY,
+  status_name VARCHAR(255) NOT NULL,
+  is_closed BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON DELETE CURRENT_TIMESTAMP,
+  DeletedAt  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON DELETE CURRENT_TIMESTAMP
+);
+
+-- Indexes:
+CREATE INDEX idx_status_name ON status (status_name);
+CREATE INDEX idx_status_is_closed ON status (is_closed);
+
+
+CREATE TABLE IF NOT EXISTS policies (
+  policy_id INT AUTO_INCREMENT PRIMARY KEY,
+  policy_name VARCHAR(255) NOT NULL,
+  embedded_link TEXT,
+  policy_url TEXT,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON DELETE CURRENT_TIMESTAMP,
+  DeletedAt  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON DELETE CURRENT_TIMESTAMP
+);
+
+-- Indexes:
+CREATE INDEX idx_policies_name ON policies (policy_name);
+
+
+CREATE TABLE IF NOT EXISTS ticket_media_attachment (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  url VARCHAR(255) NOT NULL,
+  type VARCHAR(255) NOT NULL, -- e.g., image, document, audio
+  caption VARCHAR(255),
+  alt_text VARCHAR(255),
+  is_primary BOOLEAN DEFAULT FALSE,
+  order_index INT DEFAULT 0,
+  ticket_id INT NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON DELETE CURRENT_TIMESTAMP,
+  DeletedAt  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON DELETE CURRENT_TIMESTAMP,
+  FOREIGN KEY (ticket_id) REFERENCES tickets(ticket_id) ON DELETE CASCADE
+);
+
+-- Indexes:
+CREATE INDEX idx_ticket_media_attachment_ticket_id ON ticket_media_attachment (ticket_id);
+CREATE INDEX idx_ticket_media_attachment_is_primary ON ticket_media_attachment (is_primary);
+
+
+
+------------------------------------------------------------
+
+-- Create tables
+CREATE TABLE agents (
+  id SERIAL PRIMARY KEY,
+  first_name VARCHAR(255) NOT NULL,
+  last_name VARCHAR(255) NOT NULL,
+  agent_email VARCHAR(255) UNIQUE NOT NULL,
+  phone VARCHAR(255) UNIQUE NOT NULL,
+  role_id INT,
+  team_id INT,
+  unit_id INT,
+  supervisor_id INT,
+  role_base_id INT,
+  reset_password_request_id INT,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON DELETE CURRENT_TIMESTAMP,
+  DeletedAt  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON DELETE CURRENT_TIMESTAMP,
+  CONSTRAINT unique_agent_email UNIQUE (agent_email),
+  CONSTRAINT unique_agent_phone UNIQUE (phone),
+  CONSTRAINT fk_agent_role
+    FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT fk_agent_team
+    FOREIGN KEY (team_id) REFERENCES teams(id) ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT fk_agent_unit
+    FOREIGN KEY (unit_id) REFERENCES units(id) ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT fk_agent_supervisor
+    FOREIGN KEY (supervisor_id) REFERENCES agents(id) ON DELETE SET NULL ON UPDATE CASCADE
+);
+
+CREATE TABLE agents (
+  id SERIAL PRIMARY KEY,
+  first_name VARCHAR(255) NOT NULL,
+  last_name VARCHAR(255) NOT NULL,
+  agent_email VARCHAR(255) UNIQUE NOT NULL,
+  phone VARCHAR(255) UNIQUE NOT NULL,
+  role_id INT,
+  team_id INT,
+  unit_id INT,
+  supervisor_id INT,
+  role_base_id INT,
+  reset_password_request_id INT,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  DeletedAt  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON DELETE CURRENT_TIMESTAMP,
+  CONSTRAINT unique_agent_email UNIQUE (agent_email),
+  CONSTRAINT unique_agent_phone UNIQUE (phone)
+);
+
+
+CREATE TABLE permissions (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(255) UNIQUE NOT NULL,
+  description VARCHAR(255),
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON DELETE CURRENT_TIMESTAMP,
+  DeletedAt  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON DELETE CURRENT_TIMESTAMP
+);
+
+CREATE TABLE roles (
+  id SERIAL PRIMARY KEY,
+  role_name VARCHAR(255) UNIQUE NOT NULL
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON DELETE CURRENT_TIMESTAMP,
+  DeletedAt  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON DELETE CURRENT_TIMESTAMP
+);
+
+CREATE TABLE role_bases (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(255) NOT NULL,
+  description VARCHAR(255),
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON DELETE CURRENT_TIMESTAMP,
+  DeletedAt  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON DELETE CURRENT_TIMESTAMP
+);
+
+CREATE TABLE teams (
+  id SERIAL PRIMARY KEY,
+  team_name VARCHAR(255) UNIQUE NOT NULL,
+  emoji VARCHAR(255),
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  DeletedAt  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON DELETE CURRENT_TIMESTAMP,
+  DeletedAt  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON DELETE CURRENT_TIMESTAMP
+);
+
+CREATE TABLE team_permissions (
+  id SERIAL PRIMARY KEY,
+  team_id INT NOT NULL,
+  permission_id INT NOT NULL,
+  CONSTRAINT fk_team_permission_team
+    FOREIGN KEY (team_id) REFERENCES teams(id) ON DELETE CASCADE,
+  CONSTRAINT fk_team_permission_permission
+    FOREIGN KEY (permission_id) REFERENCES permissions(id) ON DELETE CASCADE
+);
+
+CREATE TABLE role_permissions (
+  id SERIAL PRIMARY KEY,
+  role_id INT NOT NULL,
+  permission_id INT NOT NULL,
+  CONSTRAINT fk_role_permission_role
+    FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE CASCADE,
+  CONSTRAINT fk_role_permission_permission
+    FOREIGN KEY (permission_id) REFERENCES permissions(id) ON DELETE CASCADE
+);
+
+CREATE TABLE agent_roles (
+  id SERIAL PRIMARY KEY,
+  agent_id INT NOT NULL,
+  role_id INT NOT NULL,
+  CONSTRAINT fk_agent_role_agent
+    FOREIGN KEY (agent_id) REFERENCES agents(id) ON DELETE CASCADE,
+  CONSTRAINT fk_agent_role_role_2
+    FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE CASCADE
+);
+
+CREATE TABLE users_agents (
+  id SERIAL PRIMARY KEY,
+  user_id INT NOT NULL,
+  agent_id INT NOT NULL,
+  CONSTRAINT fk_users_agent_user
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  CONSTRAINT fk_users_agent_agent
+    FOREIGN KEY (agent_id) REFERENCES agents(id) ON DELETE CASCADE
+);
+
+CREATE TABLE teams_agents (
+  id SERIAL PRIMARY KEY,
+  team_id INT NOT NULL,
+  agent_id INT NOT NULL,
+  CONSTRAINT fk_teams_agent_team
+  FOREIGN KEY (team_id) REFERENCES teams(id) ON DELETE CASCADE,
+  CONSTRAINT fk_teams_agent_agent_2
+    FOREIGN KEY (agent_id) REFERENCES agents(id) ON DELETE CASCADE
+    CONSTRAINT fk_teams_agent_team
+    FOREIGN KEY (team_id) REFERENCES teams(id) ON DELETE CASCADE,
+CONSTRAINT fk_teams_agent_agent_2
+    FOREIGN KEY (agent_id) REFERENCES agents(id) ON DELETE CASCADE
+);
+
+
+CREATE TABLE agent_permissions (
+  id SERIAL PRIMARY KEY,
+  agent_id INT NOT NULL,
+  permission_id INT NOT NULL,
+  CONSTRAINT fk_agent_permissions_agent
+    FOREIGN KEY (agent_id) REFERENCES agents(id) ON DELETE CASCADE,
+  CONSTRAINT fk_agent_permissions_permission
+    FOREIGN KEY (permission_id) REFERENCES permissions(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS service_requests (
+    id SERIAL PRIMARY KEY,
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    user_id INT NOT NULL,
+    status VARCHAR(50) NOT NULL,
+    category_id INT NOT NULL,
+    subcategory_id INT,
+    priority_id INT, -- Consider adding if needed
+    location_name VARCHAR(255) NOT NULL,
+    assigned_to_user_id INT, -- Assign technicians if applicable
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  DeletedAt  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON DELETE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_service_requests_user_id FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE SET NULL,
+    CONSTRAINT fk_service_requests_category_id FOREIGN KEY (category_id) REFERENCES categories(category_id) ON DELETE RESTRICT,
+    CONSTRAINT fk_service_requests_subcategory_id FOREIGN KEY (subcategory_id) REFERENCES subcategories(subcategory_id) ON DELETE SET NULL,
+    CONSTRAINT fk_service_requests_assigned_to_user_id FOREIGN KEY (assigned_to_user_id) REFERENCES users(user_id) ON DELETE SET NULL
+);
+
+CREATE TABLE IF NOT EXISTS subcategories (
+    subcategory_id SERIAL PRIMARY KEY,
+    subcategory_name VARCHAR(255) NOT NULL,
+    category_id INT NOT NULL,
+    description TEXT,
+    icon VARCHAR(255), -- Adjust data type if needed
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  DeletedAt  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON DELETE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_subcategories_category_id FOREIGN KEY (category_id) REFERENCES categories(category_id) ON DELETE CASCADE
+);
+
+-- Indexes:
+CREATE INDEX idx_subcategories_name ON subcategories (subcategory_name);
+CREATE INDEX idx_subcategories_category_id ON subcategories (category_id);
+CREATE INDEX idx_subcategories_icon ON subcategories (icon); -- For icon-based filtering (optional)
+
+
+-- Indexes:
+CREATE INDEX idx_service_requests_user_id ON service_requests (user_id);
+CREATE INDEX idx_service_requests_status ON service_requests (status);
+CREATE INDEX idx_service_requests_category_id ON service_requests (category_id);
+CREATE INDEX idx_service_requests_subcategory_id ON service_requests (subcategory_id);
+CREATE INDEX idx_service_requests_assigned_to_user_id ON service_requests (assigned_to_user_id);
+CREATE INDEX idx_service_requests_location_name ON service_requests (location_name);
+
+
+-- Create indexes for performance
+CREATE INDEX idx_agents_first_name ON agents (first_name);
+CREATE INDEX idx_agents_last_name ON agents (last_name);
+CREATE INDEX idx_agents_email ON agents (agent_email);
+CREATE INDEX idx_agents_phone ON agents (phone);
+CREATE INDEX idx_agents_role_id ON agents (role_id);
+CREATE INDEX idx_agents_team_id ON agents (team_id);
+CREATE INDEX idx_agents_unit_id ON agents (unit_id);
+CREATE INDEX idx_agents_supervisor_id ON agents (supervisor_id);
+CREATE INDEX idx_agents_role_base_id ON agents (role_base_id);
+CREATE INDEX idx_agents_reset_password_request_id ON agents (reset_password_request_id);
+CREATE INDEX idx_agents_first_name ON agents (first_name);
+CREATE INDEX idx_agents_last_name ON agents (last_name);
+CREATE INDEX idx_teams_team_name ON teams (team_name);
+CREATE INDEX idx_roles_role_name ON roles (role_name);
+
+CREATE INDEX idx_agents_team_role ON agents (team_id, role_id);
+CREATE INDEX idx_agents_unit_supervisor ON agents (unit_id, supervisor_id);
+CREATE INDEX idx_teams_agents_team_agent ON teams_agents (team_id, agent_id);
+CREATE INDEX idx_users_agents_user_agent ON users_agents (user_id, agent_id);
+
+---------------------------------------------------------------------------
+
+
+CREATE TABLE IF NOT EXISTS users (
+    user_id SERIAL PRIMARY KEY,
+    first_name VARCHAR(255) NOT NULL,
+    last_name VARCHAR(255) NOT NULL,
+    email VARCHAR(255) NOT NULL UNIQUE,
+    phone VARCHAR(255) NOT NULL,
+    position_id INT,
+    department_id INT,
+    role_base_id INT,
+    reset_password_request_id INT,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  DeletedAt  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON DELETE CURRENT_TIMESTAMP
+    is_active BOOLEAN DEFAULT TRUE, -- Option to mark users as inactive
+    last_login_at TIMESTAMP,
+    CONSTRAINT fk_users_position_id FOREIGN KEY (position_id) REFERENCES position (position_id) ON DELETE SET NULL,
+    CONSTRAINT fk_users_department_id FOREIGN KEY (department_id) REFERENCES department (department_id) ON DELETE SET NULL,
+    CONSTRAINT fk_users_role_base_id FOREIGN KEY (role_base_id) REFERENCES role_base (role_base_id) ON DELETE SET NULL
+);
+
+-- Indexes:
+CREATE INDEX idx_users_first_name ON users (first_name);
+CREATE INDEX idx_users_last_name ON users (last_name);
+CREATE INDEX idx_users_email ON users (email);
+CREATE INDEX idx_users_phone ON users (phone);
+CREATE INDEX idx_users_position_id ON users (position_id);
+CREATE INDEX idx_users_department_id ON users (department_id);
+CREATE INDEX idx_users_role_base_id ON users (role_base_id);
+CREATE INDEX idx_users_is_active ON users (is_active); -- For efficient inactive user filtering
+CREATE INDEX idx_users_last_login_at ON users (last_login_at); -- For efficient user activity fil
+
+
+CREATE TABLE IF NOT EXISTS position (
+    position_id SERIAL PRIMARY KEY,
+    position_name VARCHAR(255) NOT NULL,
+    cadre_name VARCHAR(255),
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  DeletedAt  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON DELETE CURRENT_TIMESTAMP
+);
+
+-- Indexes:
+CREATE INDEX idx_position_name ON position (position_name);
+
+CREATE TABLE IF NOT EXISTS department (
+    department_id SERIAL PRIMARY KEY,
+    department_name VARCHAR(255) NOT NULL,
+    emoji VARCHAR(255),
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  DeletedAt  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON DELETE CURRENT_TIMESTAMP
+);
+
+-- Indexes:
+CREATE INDEX idx_department_name ON department (department_name);
+
+
+CREATE TABLE IF NOT EXISTS asset_assignment (
+    asset_assignment_id SERIAL PRIMARY KEY,
+    user_id INT NOT NULL,
+    asset_id INT NOT NULL,
+    assigned_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    returned_at TIMESTAMP,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  DeletedAt  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON DELETE CURRENT_TIMESTAMP
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    FOREIGN KEY (asset_id) REFERENCES assets(asset_id) ON DELETE CASCADE -- Adjust if necessary
+);
+
+-- Indexes:
+CREATE INDEX idx_asset_assignment_user_id ON asset_assignment (user_id);
+CREATE INDEX idx_asset_assignment_asset_id ON asset_assignment (asset_id);
+CREATE INDEX idx_asset_assignment_returned_at ON asset_assignment (returned_at); -- For efficient querying of returned assets
+
+
+CREATE INDEX idx_users_email ON users (email);
+CREATE INDEX idx_users_phone ON users (phone);
+CREATE INDEX idx_users_position_id ON users (position_id);
+CREATE INDEX idx_users_department_id ON users (department_id);
+CREATE INDEX idx_users_role_base_id ON users (role_base_id);
+CREATE INDEX idx_users_reset_password_request_id ON users (reset_password_request_id);
+
+ALTER TABLE users
+    ADD CONSTRAINT fk_users_position_id FOREIGN KEY (position_id) REFERENCES position (position_id);
+
+ALTER TABLE users
+    ADD CONSTRAINT fk_users_department_id FOREIGN KEY (department_id) REFERENCES department (department_id);
+
+-- Assuming RoleBase is a separate table, add constraint:
+ALTER TABLE users
+    ADD CONSTRAINT fk_users_role_base_id FOREIGN KEY (role_base_id) REFERENCES role_base (role_base_id);
+
+------------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS service_requests (
+    id SERIAL PRIMARY KEY,
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    user_id INT NOT NULL,
+    status VARCHAR(50) NOT NULL,
+    category_id INT NOT NULL,
+    subcategory_id INT,
+    priority_id INT, -- Consider adding if needed
+    location_name VARCHAR(255) NOT NULL,
+    assigned_to_user_id INT, -- Assign technicians if applicable
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  DeletedAt  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON DELETE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_service_requests_user_id FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE SET NULL,
+    CONSTRAINT fk_service_requests_category_id FOREIGN KEY (category_id) REFERENCES categories(category_id) ON DELETE RESTRICT,
+    CONSTRAINT fk_service_requests_subcategory_id FOREIGN KEY (subcategory_id) REFERENCES subcategories(subcategory_id) ON DELETE SET NULL,
+    CONSTRAINT fk_service_requests_assigned_to_user_id FOREIGN KEY (assigned_to_user_id) REFERENCES users(user_id) ON DELETE SET NULL
+);
+
+-- Indexes:
+CREATE INDEX idx_service_requests_user_id ON service_requests (user_id);
+CREATE INDEX idx_service_requests_status ON service_requests (status);
+CREATE INDEX idx_service_requests_category_id ON service_requests (category_id);
+CREATE INDEX idx_service_requests_subcategory_id ON service_requests (subcategory_id);
+CREATE INDEX idx_service_requests_assigned_to_user_id ON service_requests (assigned_to_user_id);
+CREATE INDEX idx_service_requests_location_name ON service_requests (location_name);
+
+CREATE TABLE IF NOT EXISTS service_request_history_entries (
+    id SERIAL PRIMARY KEY,
+    service_request_id INT NOT NULL,
+    status VARCHAR(50) NOT NULL,
+    user_id INT, -- Track who made the status change
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  DeletedAt  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON DELETE CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_service_request_history_entries_service_request_id FOREIGN KEY (service_request_id) REFERENCES service_requests(id) ON DELETE CASCADE,
+    CONSTRAINT fk_service_request_history_entries_user_id FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE SET NULL
+);
+
+-- Indexes:
+CREATE INDEX idx_service_request_history_entries_service_request_id ON service_request_history_entries (service_request_id);
+CREATE INDEX idx_service_request_history_entries_status ON service_request_history_entries (status);
+CREATE INDEX idx_service_request_history_entries_user_id ON service_request_history_entries (user_id);
+
+
+---------------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS incidents (
+    id SERIAL PRIMARY KEY,
+    user_id INT NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    category_id INT NOT NULL,
+    priority_id INT NOT NULL,
+    tags TEXT[],
+    attachment_url VARCHAR(255),
+    has_attachments BOOLEAN NOT NULL DEFAULT FALSE,
+    severity_id INT NOT NULL,
+    assigned_to_user_id INT, -- Assign technicians if applicable
+    closed_at TIMESTAMP,
+    closed_by_user_id INT, -- Track who closed the incident
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  DeletedAt  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON DELETE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_incidents_user_id FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE SET NULL,
+    CONSTRAINT fk_incidents_category_id FOREIGN KEY (category_id) REFERENCES categories(category_id) ON DELETE RESTRICT,
+    CONSTRAINT fk_incidents_priority_id FOREIGN KEY (priority_id) REFERENCES priorities(priority_id) ON DELETE RESTRICT,
+    CONSTRAINT fk_incidents_severity_id FOREIGN KEY (severity_id) REFERENCES severities(severity_id) ON DELETE RESTRICT,
+    CONSTRAINT fk_incidents_assigned_to_user_id FOREIGN KEY (assigned_to_user_id) REFERENCES users(user_id) ON DELETE SET NULL,
+    CONSTRAINT fk_incidents_closed_by_user_id FOREIGN KEY (closed_by_user_id) REFERENCES users(user_id) ON DELETE SET NULL
+);
+
+-- Indexes:
+CREATE INDEX idx_incidents_user_id ON incidents (user_id);
+CREATE INDEX idx_incidents_category_id ON incidents (category_id);
+CREATE INDEX idx_incidents_priority_id ON incidents (priority_id);
+CREATE INDEX idx_incidents_severity_id ON incidents (severity_id);
+CREATE INDEX idx_incidents_assigned_to_user_id ON incidents (assigned_to_user_id);
+CREATE INDEX idx_incidents_closed_at ON incidents (closed_at);
+...
+CREATE INDEX idx_incidents_tags ON incidents USING gin(to_tsvector('english', tags)); -- Full-text search on tags
+CREATE INDEX idx_incidents_closed_by_user_id ON incidents (closed_by_user_id);
+
+
+
+CREATE TABLE IF NOT EXISTS severities (
+    severity_id SERIAL PRIMARY KEY,
+    severity_name VARCHAR(255) NOT NULL,
+    description TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  DeletedAt  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON DELETE CURRENT_TIMESTAMP
+);
+
+-- Indexes:
+CREATE INDEX idx_severities_name ON severities (severity_name);
+
+CREATE TABLE IF NOT EXISTS incident_history_entries (
+    id SERIAL PRIMARY KEY,
+    incident_id INT NOT NULL,
+    description TEXT,
+    status VARCHAR(50) NOT NULL,
+    user_id INT, -- Track who made the status change
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  DeletedAt  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON DELETE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_incident_history_entries_incident_id FOREIGN KEY (incident_id) REFERENCES incidents(id) ON DELETE CASCADE,
+    CONSTRAINT fk_incident_history_entries_user_id FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE SET NULL
+);
+
+-- Indexes:
+CREATE INDEX idx_incident_history_entries_incident_id ON incident_history_entries (incident_id);
+CREATE INDEX idx_incident_history_entries_status ON incident_history_entries (status);
+CREATE INDEX idx_incident_history_entries_user_id ON incident_history_entries (user_id);
+
+
+CREATE TABLE IF NOT EXISTS incident_comments (
+    id SERIAL PRIMARY KEY,
+    incident_id INT NOT NULL,
+    comment TEXT NOT NULL,
+    user_id INT NOT NULL, -- Track who posted the comment
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  DeletedAt  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON DELETE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_incident_comments_incident_id FOREIGN KEY (incident_id) REFERENCES incidents(id) ON DELETE CASCADE,
+    CONSTRAINT fk_incident_comments_user_id FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE SET NULL
+);
+
+-- Indexes:
+CREATE INDEX idx_incident_comments_incident_id ON incident_comments (incident_id);
+CREATE INDEX idx_incident_comments_user_id ON incident_comments (user_id);
+
+----------------------------------------------------------------------------------
+
+
+
+CREATE TABLE IF NOT EXISTS asset_types (
+    id SERIAL PRIMARY KEY,
+    asset_type VARCHAR(255) NOT NULL UNIQUE,
+    description TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  DeletedAt  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON DELETE CURRENT_TIMESTAMP
+);
+
+-- Indexes:
+CREATE INDEX idx_asset_types_name ON asset_types (asset_type);
+
+CREATE TABLE IF NOT EXISTS asset_types (
+    id SERIAL PRIMARY KEY,
+    asset_type VARCHAR(255) NOT NULL UNIQUE,
+    description TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  DeletedAt  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON DELETE CURRENT_TIMESTAMP
+);
+
+-- Indexes:
+CREATE INDEX idx_asset_types_name ON asset_types (asset_type);
+
+
+CREATE TABLE IF NOT EXISTS asset_types (
+    id SERIAL PRIMARY KEY,
+    asset_type VARCHAR(255) NOT NULL UNIQUE,
+    description TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    DeletedAt  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON DELETE CURRENT_TIMESTAMP
+);
+
+-- Indexes:
+CREATE INDEX idx_asset_types_name ON asset_types (asset_type);
+
+
+CREATE TABLE IF NOT EXISTS vendors (
+    id SERIAL PRIMARY KEY,
+    vendor_name VARCHAR(255) NOT NULL UNIQUE,
+    description TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    DeletedAt  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON DELETE CURRENT_TIMESTAMP
+);
+
+-- Indexes:
+CREATE INDEX idx_vendors_name ON vendors (vendor_name);
+
+
+
+CREATE TABLE IF NOT EXISTS asset_tags (
+    id SERIAL PRIMARY KEY,
+    asset_id INT NOT NULL,
+    tag VARCHAR(255) NOT NULL,
+    tags TEXT[], -- For multiple tags
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    DeletedAt  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON DELETE CURRENT_TIMESTAMP
+    CONSTRAINT fk_asset_tags_asset_id FOREIGN KEY (asset_id) REFERENCES assets(id) ON DELETE CASCADE
+);
+
+-- Indexes:
+CREATE INDEX idx_asset_tags_asset_id ON asset_tags (asset_id);
+CREATE INDEX idx_asset_tags_tag ON asset_tags (tag);
+CREATE INDEX idx_asset_tags_tags ON asset_tags USING gin(to_tsvector('english', tags)); -- Full-text search on tags
+
+
+
+CREATE TABLE IF NOT EXISTS assets (
+    id SERIAL PRIMARY KEY,
+    asset_type_id INT NOT NULL,
+    asset_name VARCHAR(255) NOT NULL,
+    description TEXT,
+    manufacturer VARCHAR(255),
+    model VARCHAR(255),
+    serial_number VARCHAR(255) UNIQUE,
+    purchase_date TIMESTAMP,
+    purchase_price DECIMAL(10,2),
+    vendor_id INT, -- Foreign key to Vendors table
+    site_id INT NOT NULL, -- Foreign key to Sites table
+    location_id INT NOT NULL, -- Foreign key to Locations table
+    status VARCHAR(50) NOT NULL,
+    created_by INT NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    DeletedAt  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON DELETE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_assets_asset_type_id FOREIGN KEY (asset_type_id) REFERENCES asset_types(id) ON DELETE RESTRICT,
+    CONSTRAINT fk_assets_vendor_id FOREIGN KEY (vendor_id) REFERENCES vendors(id) ON DELETE SET NULL,
+    CONSTRAINT fk_assets_site_id FOREIGN KEY (site_id) REFERENCES sites(id) ON DELETE RESTRICT,
+    CONSTRAINT fk_assets_location_id FOREIGN KEY (location_id) REFERENCES locations(id) ON DELETE RESTRICT,
+    CONSTRAINT fk_assets_created_by FOREIGN KEY (created_by) REFERENCES users(user_id) ON DELETE RESTRICT
+);
+
+-- Indexes:
+CREATE INDEX idx_assets_asset_type_id ON assets (asset_type_id);
+CREATE INDEX idx_assets_name ON assets (asset_name);
+CREATE INDEX idx_assets_serial_number ON assets (serial_number);
+CREATE INDEX idx_assets_status ON assets (status);
+CREATE INDEX idx_assets_site_id ON assets (site_id);
+CREATE INDEX idx_assets_location_id ON assets (location_id);
+CREATE INDEX idx_assets_created_by ON assets (created_by);
+
+
+
+CREATE TABLE IF NOT EXISTS asset_assignments (
+    id SERIAL PRIMARY KEY,
+    asset_id INT NOT NULL,
+    user_id INT NOT NULL,
+    assigned_by INT NOT NULL,
+    assignment_type VARCHAR(50) NOT NULL,
+    assignment_status VARCHAR(50) NOT NULL,
+    due_at TIMESTAMP,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    DeletedAt  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON DELETE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_asset_assignments_asset_id FOREIGN KEY (asset_id) REFERENCES assets(id) ON DELETE CASCADE,
+    CONSTRAINT fk_asset_assignments_user_id FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE RESTRICT,
+    CONSTRAINT fk_asset_assignments_assigned_by FOREIGN KEY (assigned_by) REFERENCES users(user_id) ON DELETE RESTRICT
+);
+
+-- Indexes:
+CREATE INDEX idx_asset_assignments_asset_id ON asset_assignments (asset_id);
+CREATE INDEX idx_asset_assignments_user_id ON asset_assignments (user_id);
+CREATE INDEX idx_asset_assignments_assigned_by ON asset_assignments (assigned_by);
+CREATE INDEX idx_asset_assignments_assignment_type ON asset_assignments (assignment_type);
+CREATE INDEX idx_asset_assignments_assignment_status ON asset_assignments (assignment_status);
+CREATE INDEX idx_asset_assignments_due_at ON asset_assignments (due_at);
+
+
+CREATE TABLE IF NOT EXISTS asset_history (
+    id SERIAL PRIMARY KEY,
+    asset_id INT NOT NULL,
+    description TEXT,
+    event_type VARCHAR(50) NOT NULL, -- Track additions, updates, deletions
+    user_id INT, -- Track who made the change
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    DeletedAt  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON DELETE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_asset_history_asset_id FOREIGN KEY (asset_id) REFERENCES assets(id) ON DELETE CASCADE,
+    CONSTRAINT fk_asset_history_user_id FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE SET NULL
+);
+
+-- Indexes:
+CREATE INDEX idx_asset_history_asset_id ON asset_history (asset_id);
+CREATE INDEX idx_asset_history_event_type ON asset_history (event_type);
+CREATE INDEX idx_asset_history_user_id ON asset_history (user_id);
+
+-------------------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS users_login_credentials (
+  id SERIAL PRIMARY KEY,
+  username VARCHAR(255) NOT NULL UNIQUE,
+  password_hash VARCHAR(255) NOT NULL,
+  password_salt VARCHAR(255) NOT NULL,
+  user_id INT NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  DeletedAt  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON DELETE CURRENT_TIMESTAMP,
+  CONSTRAINT fk_users_login_credentials_user_id FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+);
+
+-- Indexes:
+CREATE INDEX idx_users_login_credentials_username ON users_login_credentials (username);
+CREATE INDEX idx_users_login_credentials_user_id ON users_login_credentials (user_id);
+
+
+
+CREATE TABLE IF NOT EXISTS agent_login_credentials (
+  id SERIAL PRIMARY KEY,
+  username VARCHAR(255) NOT NULL UNIQUE,
+  password_hash VARCHAR(255) NOT NULL,
+  password_salt VARCHAR(255) NOT NULL,
+  agent_id INT NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  DeletedAt  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON DELETE CURRENT_TIMESTAMP,
+  CONSTRAINT fk_agent_login_credentials_agent_id FOREIGN KEY (agent_id) REFERENCES agents(agent_id) ON DELETE CASCADE
+);
+
+-- Indexes:
+CREATE INDEX idx_agent_login_credentials_username ON agent_login_credentials (username);
+CREATE INDEX idx_agent_login_credentials_agent_id ON agent_login_credentials (agent_id);
+
+
+
+CREATE TABLE IF NOT EXISTS password_reset_requests (
+  id SERIAL PRIMARY KEY,
+  user_id INT NOT NULL,
+  request_id INT NOT NULL UNIQUE,
+  token VARCHAR(255) NOT NULL UNIQUE,
+  expiration_time TIMESTAMP,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  DeletedAt  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON DELETE CURRENT_TIMESTAMP,
+  CONSTRAINT fk_password_reset_requests_user_id FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+);
+
+-- Indexes:
+CREATE INDEX idx_password_reset_requests_user_id ON password_reset_requests (user_id);
+CREATE INDEX idx_password_reset_requests_token ON password_reset_requests (token);
+CREATE INDEX idx_password_reset_requests_expiration_time ON password_reset_requests (expiration_time);
+
+
+CREATE TABLE IF NOT EXISTS password_history (
+  id SERIAL PRIMARY KEY,
+  user_id INT NOT NULL,
+  password VARCHAR(255) NOT NULL,
+  date_changed TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_password_history_user_id FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+);
+
+-- Indexes:
+CREATE INDEX idx_password_history_user_id ON password_history (user_id);
+CREATE INDEX idx_password_history_date_changed ON password_history (date_changed);
+
+
+CREATE TABLE IF NOT EXISTS agent_user_mapping (
+  id SERIAL PRIMARY KEY,
+  agent_id INT NOT NULL,
+  user_id INT NOT NULL,
+  UNIQUE (agent_id, user_id), -- One agent can be mapped to one user and vice versa
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  DeletedAt  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON DELETE CURRENT_TIMESTAMP
+  CONSTRAINT fk_agent_user_mapping_agent_id FOREIGN KEY (agent_id) REFERENCES agents(agent_id) ON DELETE CASCADE,
+  CONSTRAINT fk_agent_user_mapping_user_id FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+);
+
+-- Indexes:
+CREATE INDEX idx_agent_user_mapping_agent_id ON agent_user_mapping (agent_id);
+CREATE INDEX idx_agent_user_mapping_user_id ON agent_user_mapping (user_id);

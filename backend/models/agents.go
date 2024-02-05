@@ -23,8 +23,9 @@ type Agents struct {
 	SupervisorID           uint                  `json:"supervisor_id"`
 	CreatedAt              time.Time             `json:"created_at"`
 	UpdatedAt              time.Time             `json:"updated_at"`
+	DeletedAt              time.Time             `json:"deleted_at"`
 	RoleBase               RoleBase              `json:"role_base" gorm:"embedded"`
-	ResetPasswordRequestID uint                  `json:"reset_password_reset" gorm:"embedded"`
+	ResetPasswordRequestID uint                  `json:"reset_password_reset" gorm:"foreignKey:AgentID"`
 	Roles                  []Role                `json:"roles" gorm:"-"`
 }
 
@@ -34,6 +35,7 @@ func (Agents) TableName() string {
 }
 
 type Unit struct {
+	gorm.Model
 	ID        uint      `gorm:"primaryKey" json:"unit_id"`
 	UnitName  string    `json:"unit_name"`
 	Emoji     string    `json:"emoji"`
@@ -59,11 +61,13 @@ func (Permission) TableName() string {
 }
 
 type Teams struct {
-	ID        uint      `gorm:"primaryKey" json:"team_id"`
-	TeamName  string    `json:"team_name"`
-	Emoji     string    `json:"emoji"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	gorm.Model
+	ID               uint      `gorm:"primaryKey" json:"team_id"`
+	TeamName         string    `json:"team_name"`
+	Emoji            string    `json:"emoji"`
+	CreatedAt        time.Time `json:"created_at"`
+	UpdatedAt        time.Time `json:"updated_at"`
+	TeamPermissionID uint      `json:"team_permission" gorm:"foreignKey:TicketID"`
 }
 
 // TableName sets the table name for the Teams model.
@@ -72,14 +76,16 @@ func (Teams) TableName() string {
 }
 
 type TeamPermission struct {
-	ID          uint         `gorm:"primaryKey" json:"team_permission_id"`
-	TeamID      uint         `json:"team_id"`
-	Permissions []Permission `json:"permission_id"`
+	gorm.Model
+	ID          uint         `json:"team_permission_id" gorm:"primaryKey"`
+	TeamID      uint         `json:"team_id" gorm:"foreignKey:TeamID"`
+	Permissions []Permission `json:"permission_id" gorm:"embedded"`
 	CreatedAt   time.Time    `json:"created_at"`
 	UpdatedAt   time.Time    `json:"updated_at"`
 }
 
 type Role struct {
+	gorm.Model
 	ID        uint      `gorm:"primaryKey" json:"role_id"`
 	RoleName  string    `json:"role_name"`
 	CreatedAt time.Time `json:"created_at"`
@@ -105,8 +111,8 @@ func (RoleBase) TableName() string {
 // Define a model for rolePermissions to associate roles with permissions.
 type RolePermission struct {
 	gorm.Model
-	RoleID       uint
-	PermissionID uint
+	RoleID       uint `json:"role_id"`
+	PermissionID uint `json:"permission_id"`
 }
 
 // TableName sets the table name for the RoleBase model.
@@ -127,9 +133,10 @@ func (AgentRole) TableName() string {
 
 // UserAgent represents the relationship between a user and an agent.
 type UserAgent struct {
+	gorm.Model
 	ID      uint `gorm:"primaryKey"`
-	UserID  uint
-	AgentID uint
+	UserID  uint `json:"user_id"`
+	AgentID uint `json:"agent_id"`
 }
 
 // TableName sets the table name for the AgentRole model.
@@ -139,9 +146,10 @@ func (UserAgent) TableName() string {
 
 // TeamAgent represents the relationship between a team and an agent.
 type TeamAgent struct {
+	gorm.Model
 	ID      uint `gorm:"primaryKey"`
-	TeamID  uint
-	AgentID uint
+	TeamID  uint `json:"team_id"`
+	AgentID uint `json:"agent_id"`
 }
 
 // TableName sets the table name for the AgentRole model.
@@ -151,9 +159,10 @@ func (TeamAgent) TableName() string {
 
 // AgentPermissions represents the relationship between an agent and their granted permissions.
 type AgentPermission struct {
+	gorm.Model
 	ID           uint `gorm:"primaryKey"`
-	AgentID      uint
-	PermissionID uint
+	AgentID      uint `json:"agent_id" gorm:"foreignKey:AgentID"`
+	PermissionID uint `json:"permission_id" gorm:"foreignKey:PermissionID"`
 }
 
 // TableName sets the table name for the AgentRole model.

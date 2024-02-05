@@ -54,9 +54,8 @@ type DefaultServiceRequestService struct {
 	ServiceRequestDBModel *models.ServiceRequestDBModel
 }
 
-func NewDefaultServiceRequestService(db *gorm.DB, serviceRequestDBModel *models.ServiceRequestDBModel) *DefaultServiceRequestService {
+func NewDefaultServiceRequestService(serviceRequestDBModel *models.ServiceRequestDBModel) *DefaultServiceRequestService {
 	return &DefaultServiceRequestService{
-		DB:                    db,
 		ServiceRequestDBModel: serviceRequestDBModel,
 	}
 }

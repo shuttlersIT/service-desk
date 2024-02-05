@@ -31,6 +31,7 @@ type Ticket struct {
 	Site             string                  `json:"site"`
 	Status           Status                  `json:"status" gorm:"embedded"`
 	Comments         []Comment               `json:"hashtags" gorm:"foreignKey:TicketID"`
+	TicketHistory    []TicketHistoryEntry    `json:"ticket_history" gorm:"foreignKey:TicketID"`
 }
 
 // TableName sets the table name for the Ticket model.
@@ -101,6 +102,7 @@ type Sla struct {
 	PolicyID       int       `json:"policy_id"`
 	CreatedAt      time.Time `json:"created_at"`
 	UpdatedAt      time.Time `json:"updated_at"`
+	DeletedAt      time.Time `json:"deleted_at"`
 }
 
 // TableName sets the table name for the Sla model.
@@ -116,6 +118,7 @@ type Priority struct {
 	Colour        string    `json:"red"`
 	CreatedAt     time.Time `json:"created_at"`
 	UpdatedAt     time.Time `json:"updated_at"`
+	DeletedAt     time.Time `json:"deleted_at"`
 }
 
 // TableName sets the table name for the priority model.
@@ -131,6 +134,7 @@ type Satisfaction struct {
 	Emoji          string    `json:"emoji"`
 	CreatedAt      time.Time `json:"created_at"`
 	UpdatedAt      time.Time `json:"updated_at"`
+	DeletedAt      time.Time `json:"deleted_at"`
 }
 
 // TableName sets the table name for the Satisfaction model.
@@ -144,6 +148,7 @@ type Category struct {
 	CategoryName string    `json:"category_name"`
 	CreatedAt    time.Time `json:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at"`
+	DeletedAt    time.Time `json:"deleted_at"`
 }
 
 // TableName sets the table name for the Category model.
@@ -158,6 +163,7 @@ type SubCategory struct {
 	CategoryID      uint      `json:"category_id"`
 	CreatedAt       time.Time `json:"created_at"`
 	UpdatedAt       time.Time `json:"updated_at"`
+	DeletedAt       time.Time `json:"deleted_at"`
 }
 
 // TableName sets the table name for the SubCategory model.
@@ -171,6 +177,7 @@ type Status struct {
 	StatusName string    `json:"status_name"`
 	CreatedAt  time.Time `json:"created_at"`
 	UpdatedAt  time.Time `json:"updated_at"`
+	DeletedAt  time.Time `json:"deleted_at"`
 }
 
 // TableName sets the table name for the Status model.
@@ -186,6 +193,7 @@ type Policies struct {
 	PolicyUrl    string    `json:"policy_url"`
 	CreatedAt    time.Time `json:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at"`
+	DeletedAt    time.Time `json:"deleted_at"`
 }
 
 // TableName sets the table name for the Policies model.
@@ -196,14 +204,17 @@ func (Policies) TableName() string {
 // MediaAttachment struct for storing media attachments related to the Tickets
 type TicketMediaAttachment struct {
 	gorm.Model
-	ID        uint   `gorm:"primaryKey" json:"-"`
-	URL       string `json:"url"`
-	Type      string `json:"type"`
-	Caption   string `json:"caption"`
-	AltText   string `json:"altText"`
-	IsPrimary bool   `json:"isPrimary" gorm:"default:false"`
-	Order     int    `json:"order" gorm:"default:0"`
-	TicketID  uint   `json:"-"`
+	ID        uint      `gorm:"primaryKey" json:"-"`
+	URL       string    `json:"url"`
+	Type      string    `json:"type"`
+	Caption   string    `json:"caption"`
+	AltText   string    `json:"altText"`
+	IsPrimary bool      `json:"isPrimary" gorm:"default:false"`
+	Order     int       `json:"order" gorm:"default:0"`
+	TicketID  uint      `json:"-"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+	DeletedAt time.Time `json:"deleted_at"`
 	// Add more fields as needed
 }
 
