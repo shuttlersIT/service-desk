@@ -10,40 +10,49 @@ import (
 
 // Incident represents an incident report.
 type Incident struct {
-	ID             uint      `gorm:"primaryKey" json:"id"`
-	UserID         uint      `json:"user_id"`
-	Title          string    `json:"title"`
-	Description    string    `json:"description"`
-	Category       string    `json:"category"`
-	Priority       string    `json:"priority"`
-	Tags           []string  `gorm:"type:text[]" json:"tags"`
-	AttachmentURL  string    `json:"attachment_url"`
-	HasAttachments bool      `json:"has_attachments"`
-	CreatedAt      time.Time `json:"created_at"`
-	UpdatedAt      time.Time `json:"updated_at"`
-	Severity       string    `json:"severity"`
-	DeletedAt      time.Time `json:"deleted_at"`
+	gorm.Model            // This includes ID, CreatedAt, UpdatedAt, and DeletedAt
+	UserID         uint   `json:"user_id" gorm:"not null;index"`
+	Title          string `json:"title" gorm:"size:255;not null"`
+	Description    string `json:"description" gorm:"type:text;not null"`
+	Category       string `json:"category" gorm:"size:100;not null;index"`
+	Priority       string `json:"priority" gorm:"size:50;not null"`
+	Tags           []Tag  `json:"tags" gorm:"type:text[]"` // Use pq.StringArray for PostgreSQL; adjust for MySQL if necessary
+	AttachmentURL  string `json:"attachment_url" gorm:"size:255"`
+	HasAttachments bool   `json:"has_attachments"`
+	Severity       string `json:"severity" gorm:"size:50;not null"`
+}
+
+func (Incident) TableName() string {
+	return "incidents"
 }
 
 // IncidentHistoryEntry represents a historical entry related to an incident.
 type IncidentHistoryEntry struct {
-	ID          uint      `gorm:"primaryKey" json:"id"`
-	IncidentID  uint      `json:"incident_id"`
-	Description string    `json:"description"`
-	Status      string    `json:"status"`
+	gorm.Model            // Includes ID, CreatedAt, UpdatedAt, and DeletedAt automatically
+	IncidentID  uint      `json:"incident_id" gorm:"not null;index"`
+	Description string    `json:"description" gorm:"type:text;not null"`
+	Status      string    `json:"status" gorm:"size:100;not null"`
 	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
-	DeletedAt   time.Time `json:"deleted_at"`
+	UpdatedAt time.Time      `json:"updated_at"`
+	DeletedAt  *gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+}
+
+func (IncidentHistoryEntry) TableName() string {
+	return "incident_history_entry"
 }
 
 // IncidentComment represents a comment made on an incident.
 type IncidentComment struct {
-	ID         uint      `gorm:"primaryKey" json:"id"`
-	IncidentID uint      `json:"incident_id"`
-	Comment    string    `json:"comment"`
-	CreatedAt  time.Time `json:"created_at"`
-	UpdatedAt  time.Time `json:"updated_at"`
-	DeletedAt  time.Time `json:"deleted_at"`
+	gorm.Model                 // Includes ID, CreatedAt, UpdatedAt, and DeletedAt automatically
+	IncidentID uint            `json:"incident_id" gorm:"not null;index"`
+	Comment    string          `json:"comment" gorm:"type:text;not null"`
+	CreatedAt  time.Time       `json:"created_at"`
+	UpdatedAt time.Time      `json:"updated_at"`
+	DeletedAt  *gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+}
+
+func (IncidentComment) TableName() string {
+	return "incident_comment"
 }
 
 // IncidentStorage defines the methods for managing incidents.
@@ -314,6 +323,7 @@ func (im *IncidentDBModel) UpdateIncidentPriority(incidentID uint, priority stri
 
 // UpdateIncidentTags updates the tags of an incident.
 func (im *IncidentDBModel) UpdateIncidentTags(incidentID uint, tags []string) error {
+	t := im.CreateTag(incidentID uint, tags []string)
 	incident, err := im.GetIncidentByID(incidentID)
 	if err != nil {
 		return err

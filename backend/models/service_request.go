@@ -8,37 +8,55 @@ import (
 
 type ServiceRequest struct {
 	gorm.Model
-	Title         string    `json:"title" binding:"required"`
-	Description   string    `json:"description"`
-	UserID        uint      `json:"user_id"`
-	Status        string    `json:"status" binding:"required"`
-	CategoryID    uint      `json:"category_id" binding:"required"`
-	SubCategoryID uint      `json:"subcategory_id"`
-	Location      Location  `json:"location" gorm:"embedded"`
-	CreatedAt     time.Time `json:"created_at"`
-	UpdatedAt     time.Time `json:"updated_at"`
+	Title         string `gorm:"size:255;not null" json:"title" binding:"required"`
+	Description   string `gorm:"type:text" json:"description"`
+	UserID        uint   `gorm:"index;not null" json:"user_id"`
+	Status        string `gorm:"size:100;not null" json:"status" binding:"required"`
+	CategoryID    uint   `gorm:"index;not null" json:"category_id" binding:"required"`
+	SubCategoryID uint   `gorm:"index" json:"subcategory_id,omitempty"` // Made optional
+	LocationID    uint   `gorm:"index;not null" json:"location_id"`
+	// Removed embedded Location struct to normalize data structure and reference by ID instead
+}
+
+func (ServiceRequest) TableName() string {
+	return "service_requests"
 }
 
 type Location struct {
-	gorm.Model
-	ID           uint      `json:"service_request_id"`
-	LocationName string    `json:"location_name"`
-	CreatedAt    time.Time `json:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at"`
+	ID           uint   `gorm:"primaryKey" json:"id"`
+	LocationName string `gorm:"size:255;not null" json:"location_name"`
+	// Removed gorm.Model to prevent duplication of default model fields
+	CreatedAt time.Time      `json:"created_at"`
+	UpdatedAt time.Time      `json:"updated_at"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+}
+
+func (Location) TableName() string {
+	return "locations"
 }
 
 type ServiceRequestComment struct {
-	gorm.Model
-	ServiceRequestID uint      `json:"service_request_id"`
-	Comment          string    `json:"comment" binding:"required"`
-	CreatedAt        time.Time `json:"created_at"`
+	ID               uint           `gorm:"primaryKey" json:"id"`
+	ServiceRequestID uint           `gorm:"index;not null" json:"service_request_id"`
+	Comment          string         `gorm:"type:text;not null" json:"comment" binding:"required"`
+	CreatedAt        time.Time      `json:"created_at"`
+	DeletedAt        gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+}
+
+func (ServiceRequestComment) TableName() string {
+	return "service_request_comments"
 }
 
 type ServiceRequestHistoryEntry struct {
-	gorm.Model
-	ServiceRequestID uint      `json:"service_request_id"`
-	Status           string    `json:"status"`
-	UpdatedAt        time.Time `json:"updated_at"`
+	ID               uint           `gorm:"primaryKey" json:"id"`
+	ServiceRequestID uint           `gorm:"index;not null" json:"service_request_id"`
+	Status           string         `gorm:"size:100;not null" json:"status"`
+	UpdatedAt        time.Time      `json:"updated_at"`
+	DeletedAt        gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+}
+
+func (ServiceRequestHistoryEntry) TableName() string {
+	return "service_request_history_entries"
 }
 
 type ServiceRequestStorage interface {

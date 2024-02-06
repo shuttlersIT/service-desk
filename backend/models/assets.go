@@ -11,40 +11,38 @@ import (
 
 type Assets struct {
 	gorm.Model
-	ID            uint            `gorm:"primaryKey" json:"asset_id"`
-	Tag           AssetTag        `json:"asset_tag" gorm:"foreignKey:AssetID"`
-	AssetType     AssetType       `json:"asset_type" gorm:"embedded"`
-	AssetName     string          `json:"asset_name"`
-	Assignment    AssetAssignment `json:"asset_assignment" gorm:"foreignKey:AssetID"`
-	Description   string          `json:"description"`
-	Manufacturer  string          `json:"manufacturer"`
-	Asset_Model   string          `json:"model"`
-	SerialNumber  string          `json:"serial_number"`
-	PurchaseDate  time.Time       `json:"purchase_date"`
-	PurchasePrice string          `json:"purchase_price"`
-	Vendor        string          `json:"vendor"`
-	Site          string          `json:"site"`
-	Location      string          `json:"location"`
-	Status        string          `json:"status"`
-	CreatedBy     uint            `json:"created_by"`
-	CreatedAt     time.Time       `json:"created_at"`
-	UpdatedAt     time.Time       `json:"updated_at"`
-	DeletedAt     time.Time       `json:"deleted_at"`
+	AssetTag      string     `gorm:"size:255;not null;unique" json:"asset_tag"`
+	AssetTypeID   uint       `gorm:"index;not null" json:"asset_type_id"`
+	Name          string     `gorm:"size:255;not null" json:"name"`
+	Description   string     `gorm:"type:text" json:"description"`
+	Manufacturer  string     `gorm:"size:255" json:"manufacturer"`
+	AssetModel    string     `gorm:"size:255" json:"model"`
+	SerialNumber  string     `gorm:"size:255;unique" json:"serial_number"`
+	PurchaseDate  *time.Time `json:"purchase_date,omitempty"`
+	PurchasePrice float64    `gorm:"type:decimal(10,2)" json:"purchase_price"`
+	Vendor        string     `gorm:"size:255" json:"vendor"`
+	Status        string     `gorm:"size:100;not null" json:"status"`
+	Location      string     `gorm:"size:255" json:"location"`
+	// Assuming UserID is the identifier for the user to whom the asset is currently assigned.
+	UserID          uint  `gorm:"index" json:"user_id,omitempty"`
+	SiteID          uint  `gorm:"index" json:"site_id"`
+	CreatedByID     uint  `gorm:"index" json:"created_by_id"`
+	AssetAssignment *uint `json:"assetAssignment" gorm:"foreignKey:AssetAssignmentID"`
 }
 
-// TableName sets the table name for the Asset model.
 func (Assets) TableName() string {
 	return "assets"
 }
 
 // Hashtag represents a hashtag entity
 type AssetTag struct {
-	ID        uint      `gorm:"primaryKey" json:"id"`
-	AssetTag  string    `json:"tag"`
-	Tags      []string  `json:"tags"` // Added Tags field
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
-	AssetID   uint      `json:"-"`
+	ID        uint           `gorm:"primaryKey" json:"id"`
+	AssetTag  string         `json:"tag"`
+	Tags      []string       `json:"tags"` // Added Tags field
+	CreatedAt time.Time      `json:"created_at"`
+	UpdatedAt time.Time      `json:"updated_at"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+	AssetID   uint           `json:"-"`
 }
 
 // TableName sets the table name for the AssetTags model.
@@ -53,11 +51,11 @@ func (AssetTag) TableName() string {
 }
 
 type AssetType struct {
-	gorm.Model
-	ID        uint      `gorm:"primaryKey" json:"asset_type_id"`
-	AssetType string    `json:"asset_type"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID        uint           `gorm:"primaryKey" json:"asset_type_id"`
+	AssetType string         `json:"asset_type"`
+	CreatedAt time.Time      `json:"created_at"`
+	UpdatedAt time.Time      `json:"updated_at"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
 }
 
 // TableName sets the table name for the AssetType model.
@@ -66,21 +64,54 @@ func (AssetType) TableName() string {
 }
 
 type AssetAssignment struct {
-	gorm.Model
-	ID               uint      `gorm:"primaryKey" json:"assignment_id"`
-	AssetID          uint      `json:"_"`
-	UserID           uint      `json:"user_id"`
-	AssignedBy       uint      `json:"assigned_by"`
-	AssignmentType   string    `json:"assignment_type"`
-	AssignmentStatus string    `json:"assignment_status"`
-	DueAt            time.Time `json:"due_at"`
-	CreatedAt        time.Time `json:"created_at"`
-	UpdatedAt        time.Time `json:"updated_at"`
+	ID               uint           `gorm:"primaryKey" json:"assignment_id"`
+	AssetID          uint           `gorm:"index;not null" json:"asset_id"`
+	UserID           uint           `gorm:"index;not null" json:"user_id"`
+	AssignedBy       uint           `gorm:"index;not null" json:"assigned_by"`
+	AssignmentType   string         `gorm:"size:255" json:"assignment_type"`
+	AssignmentStatus string         `gorm:"size:255" json:"assignment_status"`
+	DueAt            *time.Time     `json:"due_at,omitempty"` // Made optional
+	CreatedAt        time.Time      `json:"created_at"`
+	UpdatedAt        time.Time      `json:"updated_at"`
+	DeletedAt        gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+	// DeletedAt removed to align with gorm.Model inclusion
 }
 
-// TableName sets the table name for the Asset Assignment model.
 func (AssetAssignment) TableName() string {
-	return "asset_assignment"
+	return "asset_assignments"
+}
+
+type Resource struct {
+	ID                 uint           `gorm:"primaryKey" json:"id"`
+	Name               string         `json:"name" binding:"required"`
+	Description        string         `json:"description"`
+	Type               string         `json:"type"`
+	Location           string         `json:"location"`
+	AvailabilityStatus string         `json:"availability_status"`
+	CreatedAt          time.Time      `json:"created_at"`
+	UpdatedAt          time.Time      `json:"updated_at"`
+	Bookings           []Booking      `json:"bookings" gorm:"foreignKey:ResourceID"`
+	DeletedAt          gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+}
+
+func (Resource) TableName() string {
+	return "resources"
+}
+
+type Booking struct {
+	ID         uint           `gorm:"primaryKey" json:"id"`
+	ResourceID uint           `json:"resource_id"`
+	UserID     uint           `json:"user_id"`
+	StartTime  time.Time      `json:"start_time"`
+	EndTime    time.Time      `json:"end_time"`
+	Status     string         `json:"status"`
+	CreatedAt  time.Time      `json:"created_at"`
+	UpdatedAt  time.Time      `json:"updated_at"`
+	DeletedAt  gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+}
+
+func (Booking) TableName() string {
+	return "bookings"
 }
 
 type AssetsStorage interface {
@@ -219,7 +250,7 @@ func (as *AssetAssignmentDBModel) AssignAsset(asset *Assets, userID uint) (*Asse
 
 // UpdateAssetAssignment updates the assignment of an existing asset.
 func (as *AssetAssignmentDBModel) UnassignAsset(assetAssignment *AssetAssignment, agentID uint) (*AssetAssignment, error) {
-
+	due_at := time.Now().AddDate(1, 0, 0)
 	assetAssignment, err := as.GetAssetAssignmentByID(assetAssignment.ID)
 	if err != nil {
 		return nil, err
@@ -230,7 +261,7 @@ func (as *AssetAssignmentDBModel) UnassignAsset(assetAssignment *AssetAssignment
 		AssignedBy:       agentID,      // Assuming the same user assigns the asset
 		AssignmentType:   "unassigned", // Update as needed
 		AssignmentStatus: "unassigned",
-		DueAt:            time.Now().AddDate(1, 0, 0), // Due date example
+		DueAt:            &due_at, // Due date example
 		CreatedAt:        time.Now(),
 	}
 
@@ -250,7 +281,7 @@ func (tdb *AssetDBModel) AssignAssetToUser(assetID, userID uint) error {
 	}
 
 	// Update the asset's UserID
-	asset.Assignment.UserID = userID
+	asset.AssetAssignment = &userID
 	if err := tdb.DB.Save(asset).Error; err != nil {
 		return err
 	}
@@ -263,6 +294,7 @@ func (ass *AssetAssignmentDBModel) CreateAssetAssignment(assetAssignment *AssetA
 }
 
 func (tdb *AssetDBModel) UnassignAsset(assetID uint) error {
+	due_at := time.Now().AddDate(1, 0, 0)
 	// Unassign an asset from a user
 	asset := &Assets{}
 	if err := tdb.DB.First(asset, assetID).Error; err != nil {
@@ -275,12 +307,12 @@ func (tdb *AssetDBModel) UnassignAsset(assetID uint) error {
 		AssignedBy:       0,            // Assuming the same user assigns the asset
 		AssignmentType:   "unassigned", // Update as needed
 		AssignmentStatus: "unassigned",
-		DueAt:            time.Now().AddDate(1, 0, 0), // Due date example
+		DueAt:            &due_at, // Due date example
 		CreatedAt:        time.Now(),
 	}
 
 	// Clear the asset's UserID
-	asset.Assignment = *newAssetAssignment
+	asset.AssetAssignment = &newAssetAssignment.ID
 	if err := tdb.DB.Save(asset).Error; err != nil {
 		return err
 	}

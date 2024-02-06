@@ -3,171 +3,188 @@
 package models
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
 	"gorm.io/gorm"
 )
 
+// Agents represents the schema of the agents table
 type Agents struct {
-	gorm.Model
-	ID                     uint                  `gorm:"primaryKey" json:"agent_id"`
-	FirstName              string                `json:"first_name" binding:"required"`
-	LastName               string                `json:"last_name" binding:"required"`
-	AgentEmail             string                `json:"agent_email" binding:"required,email"`
-	Credentials            AgentLoginCredentials `json:"agent_credentials" gorm:"foreignKey:AgentID"`
-	Phone                  string                `json:"phoneNumber" binding:"required,e164"`
-	RoleID                 Role                  `json:"role_id" gorm:"embedded"`
-	Team                   Teams                 `json:"team_id" gorm:"embedded"`
-	Unit                   Unit                  `json:"unit" gorm:"embedded"`
-	SupervisorID           uint                  `json:"supervisor_id"`
-	CreatedAt              time.Time             `json:"created_at"`
-	UpdatedAt              time.Time             `json:"updated_at"`
-	DeletedAt              time.Time             `json:"deleted_at"`
-	RoleBase               RoleBase              `json:"role_base" gorm:"embedded"`
-	ResetPasswordRequestID uint                  `json:"reset_password_reset" gorm:"foreignKey:AgentID"`
-	Roles                  []Role                `json:"roles" gorm:"-"`
+	ID           uint            `gorm:"primaryKey" json:"id"`
+	FirstName    string          `gorm:"size:255;not null" json:"first_name" binding:"required"`
+	LastName     string          `gorm:"size:255;not null" json:"last_name" binding:"required"`
+	Email        string          `gorm:"size:255;not null;unique" json:"email" binding:"required,email"`
+	PasswordHash string          `gorm:"size:60;not null" json:"-"` // Excluded from JSON responses
+	Phone        *string         `gorm:"size:20" json:"phone,omitempty" binding:"omitempty,e164"`
+	PositionID   *uint           `gorm:"type:int unsigned" json:"position_id,omitempty"`
+	DepartmentID *uint           `gorm:"type:int unsigned" json:"department_id,omitempty"`
+	IsActive     bool            `gorm:"default:true" json:"is_active"`
+	ProfilePic   *string         `gorm:"size:255" json:"profile_pic,omitempty"`
+	LastLoginAt  *time.Time      `json:"last_login_at,omitempty"`
+	CreatedAt    time.Time       `json:"created_at"`
+	UpdatedAt    time.Time       `json:"updated_at"`
+	DeletedAt    *gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+	TeamID       *uint           `gorm:"type:int unsigned" json:"team_id,omitempty"`
+	SupervisorID *uint           `gorm:"type:int unsigned" json:"supervisor_id,omitempty"`
+	Roles        []Role          `gorm:"many2many:agent_roles;" json:"roles"`
 }
 
-// TableName sets the table name for the Agent model.
 func (Agents) TableName() string {
 	return "agents"
 }
 
+// Unit represents the schema of the unit table
 type Unit struct {
-	gorm.Model
-	ID        uint      `gorm:"primaryKey" json:"unit_id"`
-	UnitName  string    `json:"unit_name"`
-	Emoji     string    `json:"emoji"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID        uint            `gorm:"primaryKey" json:"unit_id"`
+	UnitName  string          `gorm:"size:255;not null" json:"unit_name"`
+	Emoji     *string         `gorm:"size:255" json:"emoji,omitempty"`
+	CreatedAt time.Time       `json:"created_at"`
+	UpdatedAt time.Time       `json:"updated_at"`
+	DeletedAt *gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
 }
 
-// TableName sets the table name for the Unit model.
 func (Unit) TableName() string {
 	return "unit"
 }
 
+// Permission represents the schema of the permission table
 type Permission struct {
-	gorm.Model
-	ID          uint   `json:"permission_id"`
-	Name        string `json:"permission_name"`
-	Description string `json:"description"`
+	ID          uint            `gorm:"primaryKey" json:"permission_id"`
+	Name        string          `gorm:"size:255;not null" json:"permission_name"`
+	Description *string         `gorm:"type:text" json:"description,omitempty"`
+	CreatedAt   time.Time       `json:"created_at"`
+	UpdatedAt   time.Time       `json:"updated_at"`
+	DeletedAt   *gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
 }
 
-// TableName sets the table name for the Permission model.
 func (Permission) TableName() string {
 	return "permissions"
 }
 
+// Teams represents the schema of the teams table
 type Teams struct {
-	gorm.Model
-	ID               uint      `gorm:"primaryKey" json:"team_id"`
-	TeamName         string    `json:"team_name"`
-	Emoji            string    `json:"emoji"`
-	CreatedAt        time.Time `json:"created_at"`
-	UpdatedAt        time.Time `json:"updated_at"`
-	TeamPermissionID uint      `json:"team_permission" gorm:"foreignKey:TicketID"`
+	ID               uint            `gorm:"primaryKey" json:"team_id"`
+	TeamName         string          `gorm:"size:255;not null" json:"team_name"`
+	Emoji            *string         `gorm:"size:255" json:"emoji,omitempty"`
+	CreatedAt        time.Time       `json:"created_at"`
+	UpdatedAt        time.Time       `json:"updated_at"`
+	DeletedAt        *gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+	TeamPermissionID *uint           `json:"team_permission_id,omitempty" gorm:"type:int unsigned"`
 }
 
-// TableName sets the table name for the Teams model.
 func (Teams) TableName() string {
 	return "team"
 }
 
+// TeamPermission links 'teams' with their 'permissions'.
 type TeamPermission struct {
-	gorm.Model
-	ID          uint         `json:"team_permission_id" gorm:"primaryKey"`
-	TeamID      uint         `json:"team_id" gorm:"foreignKey:TeamID"`
-	Permissions []Permission `json:"permission_id" gorm:"embedded"`
-	CreatedAt   time.Time    `json:"created_at"`
-	UpdatedAt   time.Time    `json:"updated_at"`
+	ID          uint           `gorm:"primaryKey" json:"team_permission_id"`
+	TeamID      uint           `gorm:"not null;index:,unique" json:"team_id"`
+	Permissions []*Permission  `gorm:"many2many:team_permissions_permissions;" json:"permissions"`
+	CreatedAt   time.Time      `json:"created_at"`
+	UpdatedAt   time.Time      `json:"updated_at"`
+	DeletedAt   gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
 }
 
+// Role represents the schema of the role table
 type Role struct {
-	gorm.Model
-	ID        uint      `gorm:"primaryKey" json:"role_id"`
-	RoleName  string    `json:"role_name"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID          uint            `gorm:"primaryKey" json:"role_id"`
+	RoleName    string          `gorm:"size:255;not null" json:"role_name"`
+	Description *string         `gorm:"type:text" json:"description,omitempty"`
+	Users       []Users         `gorm:"many2many:user_roles;" json:"-"`
+	CreatedAt   time.Time       `json:"created_at"`
+	UpdatedAt   time.Time       `json:"updated_at"`
+	DeletedAt   *gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
 }
 
-// TableName sets the table name for the Role model.
 func (Role) TableName() string {
-	return "role"
+	return "roles"
 }
 
+// RoleBase represents a foundational role structure that may be used for additional role metadata
 type RoleBase struct {
-	gorm.Model
-	Name        string `json:"name"`
-	Description string `json:"description"`
+	ID          uint            `gorm:"primaryKey" json:"id"`
+	Name        string          `gorm:"size:255;not null" json:"name"`
+	Description string          `gorm:"type:text" json:"description"`
+	CreatedAt   time.Time       `json:"created_at"`
+	UpdatedAt   time.Time       `json:"updated_at"`
+	DeletedAt   *gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
 }
 
-// TableName sets the table name for the RoleBase model.
 func (RoleBase) TableName() string {
 	return "role_base"
 }
 
-// Define a model for rolePermissions to associate roles with permissions.
+// RolePermission links roles with permissions in a many-to-many relationship
 type RolePermission struct {
-	gorm.Model
-	RoleID       uint `json:"role_id"`
-	PermissionID uint `json:"permission_id"`
+	ID           uint            `gorm:"primaryKey" json:"id"`
+	RoleID       uint            `gorm:"not null" json:"role_id"`
+	PermissionID uint            `gorm:"not null" json:"permission_id"`
+	CreatedAt    time.Time       `json:"created_at"`
+	UpdatedAt    time.Time       `json:"updated_at"`
+	DeletedAt    *gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
 }
 
-// TableName sets the table name for the RoleBase model.
 func (RolePermission) TableName() string {
-	return "role_permission"
+	return "role_permissions"
 }
 
+// AgentRole links agents with roles in a many-to-many relationship
 type AgentRole struct {
-	gorm.Model
-	AgentID uint `json:"agent_id"`
-	RoleID  uint `json:"role_id"`
+	ID        uint            `gorm:"primaryKey" json:"id"`
+	AgentID   uint            `gorm:"not null" json:"agent_id"`
+	RoleID    uint            `gorm:"not null" json:"role_id"`
+	CreatedAt time.Time       `json:"created_at"`
+	UpdatedAt time.Time       `json:"updated_at"`
+	DeletedAt *gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
 }
 
-// TableName sets the table name for the AgentRole model.
 func (AgentRole) TableName() string {
-	return "agentRoles"
+	return "agent_roles"
 }
 
-// UserAgent represents the relationship between a user and an agent.
+// UserAgent represents the relationship between a user and an agent
 type UserAgent struct {
-	gorm.Model
-	ID      uint `gorm:"primaryKey"`
-	UserID  uint `json:"user_id"`
-	AgentID uint `json:"agent_id"`
+	ID        uint            `gorm:"primaryKey" json:"id"`
+	UserID    uint            `gorm:"not null" json:"user_id"`
+	AgentID   uint            `gorm:"not null" json:"agent_id"`
+	CreatedAt time.Time       `json:"created_at"`
+	UpdatedAt time.Time       `json:"updated_at"`
+	DeletedAt *gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
 }
 
-// TableName sets the table name for the AgentRole model.
 func (UserAgent) TableName() string {
-	return "userAgent"
+	return "user_agents"
 }
 
-// TeamAgent represents the relationship between a team and an agent.
+// TeamAgent represents the relationship between a team and an agent
 type TeamAgent struct {
-	gorm.Model
-	ID      uint `gorm:"primaryKey"`
-	TeamID  uint `json:"team_id"`
-	AgentID uint `json:"agent_id"`
+	ID        uint            `gorm:"primaryKey" json:"id"`
+	TeamID    uint            `gorm:"not null" json:"team_id"`
+	AgentID   uint            `gorm:"not null" json:"agent_id"`
+	CreatedAt time.Time       `json:"created_at"`
+	UpdatedAt time.Time       `json:"updated_at"`
+	DeletedAt *gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
 }
 
-// TableName sets the table name for the AgentRole model.
 func (TeamAgent) TableName() string {
-	return "teamAgent"
+	return "team_agents"
 }
 
-// AgentPermissions represents the relationship between an agent and their granted permissions.
+// AgentPermission represents the relationship between an agent and their granted permissions
 type AgentPermission struct {
-	gorm.Model
-	ID           uint `gorm:"primaryKey"`
-	AgentID      uint `json:"agent_id" gorm:"foreignKey:AgentID"`
-	PermissionID uint `json:"permission_id" gorm:"foreignKey:PermissionID"`
+	ID           uint            `gorm:"primaryKey" json:"id"`
+	AgentID      uint            `gorm:"not null" json:"agent_id"`
+	PermissionID uint            `gorm:"not null" json:"permission_id"`
+	CreatedAt    time.Time       `json:"created_at"`
+	UpdatedAt    time.Time       `json:"updated_at"`
+	DeletedAt    *gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
 }
 
-// TableName sets the table name for the AgentRole model.
 func (AgentPermission) TableName() string {
-	return "agentPermissions"
+	return "agent_permissions"
 }
 
 type AgentStorage interface {
@@ -178,8 +195,8 @@ type AgentStorage interface {
 	GetAgentByID(agentID uint) (*Agents, error)
 	GetAgentByNumber(agentNumber int) (*Agents, error)
 	AssignRolesToAgent(agentID uint, roleNames []string) error
-	GetAgentRoles(agentID uint) ([]*Role, error)
 	RevokeRoleFromAgent(agentID uint, roleName string) error
+	GetAgentRoles(agentID uint) ([]*Role, error)
 	GetRolesByAgent(agentID uint) ([]*Role, error)
 	Create(agent *Agents) error
 	Update(agent *Agents) error
@@ -193,11 +210,17 @@ type AgentStorage interface {
 	AssignPermissions(agentID uint, permissionNames []string) error
 	RevokePermission(agentID uint, permissionName string) error
 	GetAgents() ([]*Agents, error)
-	GetAgentPermissions(agentID uint) ([]*Permission, error)
-	AssignPermissionsToAgent(agentID uint, permissionNames []string) error
-	RevokePermissionFromAgent(agentID uint, permissionName string) error
 	GetAssignedRoles(agentID uint) ([]*Role, error)
 	GetAssignedPermissions(agentID uint) ([]*Permission, error)
+	AssignPermissionsToAgent(agentID uint, permissionNames []string) error
+	RevokePermissionFromAgent(agentID uint, permissionName string) error
+	GetAgentPermissions(agentID uint) ([]*Permission, error)
+	AssignAgentToTeam(agentID, teamID uint) error
+	RemoveAgentFromTeam(agentID, teamID uint) error
+	GetAgentTeams(agentID uint) ([]*Teams, error)
+	UpdateAgentWithRolesAndPermissions(agent *Agents, roleIDs, permissionIDs []uint) error
+	AssignAgentToMultipleTeams(agentID uint, teamIDs []uint) error
+	UpdateAgentPermissions(agentID uint, newPermissionIDs []uint) error
 }
 
 type UnitStorage interface {
@@ -308,26 +331,34 @@ func NewAgentDBModel(db *gorm.DB) *AgentDBModel {
 
 // CreateAgent creates a new Agent.
 func (as *AgentDBModel) CreateAgent(agent *Agents) (*Agents, error) {
-	result := as.DB.Create(agent)
-
-	return as.GetAgentByID(uint(result.RowsAffected))
+	result := as.DB.Create(agent).Error
+	return agent, result
+	//return as.GetAgentByID(uint(result.RowsAffected))
 }
 
-// DeleteAgent deletes an Agent from the database.
-func (as *AgentDBModel) DeleteAgent(id uint) error {
-	return as.DB.Delete(&Agents{}, id).Error
+// DeleteAgent removes an agent from the database.
+func (model *AgentDBModel) DeleteAgent(id uint) error {
+	return model.DB.Delete(&Agents{}, id).Error
 }
 
-// UpdateAgent updates the details of an existing Agent.
-func (as *AgentDBModel) UpdateAgent(agent *Agents) error {
-	return as.DB.Save(agent).Error
-}
-
-// GetAgentByID retrieves an Agent by its ID.
-func (as *AgentDBModel) GetAgentByID(id uint) (*Agents, error) {
+// GetAgentByID retrieves an agent by their ID.
+func (model *AgentDBModel) GetAgentByID(id uint) (*Agents, error) {
 	var agent Agents
-	err := as.DB.Where("id = ?", id).First(&agent).Error
-	return &agent, err
+	result := model.DB.Preload("Roles").Where("id = ?", id).First(&agent)
+
+	if result.Error != nil {
+		return nil, result.Error
+	}
+	return &agent, nil
+}
+
+// UpdateAgent updates an existing agent's details.
+func (model *AgentDBModel) UpdateAgent(agent *Agents) error {
+	if agent == nil {
+		return errors.New("agent is nil")
+	}
+
+	return model.DB.Save(agent).Error
 }
 
 // GetAgentByNumber retrieves an Agent by their agent number.
@@ -340,75 +371,47 @@ func (as *AgentDBModel) GetAgentByNumber(agentNumber int) (*Agents, error) {
 // GetAllAgents retrieves all agents from the database.
 func (as *AgentDBModel) GetAllAgents() ([]*Agents, error) {
 	var agents []*Agents
-	err := as.DB.Find(&agents).Error
-	return agents, err
+	result := as.DB.Preload("Roles").Find(&agents)
+
+	if result.Error != nil {
+		return nil, result.Error
+	}
+	return agents, nil
 }
 
-// AssignRolesToAgent assigns roles to an Agent.
-func (as *AgentDBModel) AssignRolesToAgent(agentID uint, roleNames []string) error {
-	if len(roleNames) == 0 {
-		return fmt.Errorf("no role names provided")
-	}
-
-	// Retrieve the Agent
-	agent, err := as.GetAgentByID(agentID)
-	if err != nil {
+// AssignRoleToAgent assigns a set of roles to an agent.
+func (model *AgentDBModel) AssignRoleToAgent(agentID uint, roleIDs []uint) error {
+	var agent Agents
+	if err := model.DB.First(&agent, agentID).Error; err != nil {
 		return err
 	}
 
-	// Fetch the roles and assign them to the Agent
+	return model.DB.Model(&agent).Association("Roles").Replace(roleIDs)
+}
+
+// RevokeRoleFromAgent removes a role from an agent.
+func (model *AgentDBModel) RevokeRoleFromAgent(agentID, roleID uint) error {
+	var agent Agents
+	if err := model.DB.First(&agent, agentID).Error; err != nil {
+		return err
+	}
+
+	return model.DB.Model(&agent).Association("Roles").Delete(roleID)
+}
+
+// GetAgentRoles retrieves all roles associated with an agent.
+func (model *AgentDBModel) GetAgentRoles(agentID uint) ([]Role, error) {
 	var roles []Role
-	for _, roleName := range roleNames {
-		role, err := as.GetRoleByName(roleName)
-		if err != nil {
-			return err
-		}
-		roles = append(roles, *role)
-	}
+	err := model.DB.Table("roles").
+		Joins("join agent_roles on roles.id = agent_roles.role_id").
+		Where("agent_roles.agent_id = ?", agentID).
+		Scan(&roles).Error
 
-	agent.Roles = roles
-
-	// Update the Agent with assigned roles
-	if err := as.UpdateAgent(agent); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// GetAgentRoles retrieves all roles associated with an Agent.
-func (as *AgentDBModel) GetAgentRoles(agentID uint) ([]*Role, error) {
-	var roles []*Role
-	err := as.DB.Model(&Agents{}).Where("id = ?", agentID).Association("Roles").Find(&roles)
-	return roles, err
-}
-
-// RevokeRoleFromAgent revokes a role from an Agent.
-func (as *AgentDBModel) RevokeRoleFromAgent(agentID uint, roleName string) error {
-	agent, err := as.GetAgentByID(agentID)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	var updatedRoles []Role
-	role, err := as.GetRoleByName(roleName)
-	if err != nil {
-		return err
-	}
-
-	for _, r := range agent.Roles {
-		if r.ID != role.ID {
-			updatedRoles = append(updatedRoles, r)
-		}
-	}
-
-	agent.Roles = updatedRoles
-
-	if err := as.UpdateAgent(agent); err != nil {
-		return err
-	}
-
-	return nil
+	return roles, nil
 }
 
 // GetRolesByAgent retrieves all roles associated with an Agent.
@@ -418,6 +421,28 @@ func (as *AgentDBModel) GetRolesByAgent(agentID uint) ([]Role, error) {
 		return nil, err
 	}
 	return agent.Roles, nil
+}
+
+// RevokePermissionFromRole revokes a permission from a role.
+func (as *AgentDBModel) RevokePermissionFromRole(roleName string, permissionName string) error {
+	role, err := as.GetRoleByName(roleName)
+	if err != nil {
+		return err
+	}
+
+	permission, err := as.GetPermissionByName(permissionName)
+	if err != nil {
+		return err
+	}
+
+	// Implement logic to revoke the permission from the role.
+	// Example: Delete the corresponding role-permission relationship record.
+	err = as.DB.Where("role_id = ? AND permission_id = ?", role.ID, permission.ID).Delete(&RolePermission{}).Error
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // CreateUnit creates a new unit.
@@ -485,6 +510,42 @@ func (as *AgentDBModel) GetTeamByID(id uint) (*Teams, error) {
 	return &team, err
 }
 
+// AssignAgentToTeams assigns an agent to a list of teams, ensuring each assignment is unique.
+func (db *AgentDBModel) AssignAgentToTeams(agentID uint, teamIDs []uint) error {
+	return db.DB.Transaction(func(tx *gorm.DB) error {
+		for _, teamID := range teamIDs {
+			// Check if the agent is already assigned to the team
+			var exists int64
+			tx.Model(&TeamAgent{}).Where("agent_id = ? AND team_id = ?", agentID, teamID).Count(&exists)
+			if exists == 0 {
+				// Create the assignment if it doesn't exist
+				if err := tx.Create(&TeamAgent{AgentID: agentID, TeamID: teamID}).Error; err != nil {
+					// Return error to rollback transaction
+					return err
+				}
+			}
+		}
+		// Commit transaction
+		return nil
+	})
+}
+
+// RemoveAgentFromTeam removes an agent from a team.
+func (model *AgentDBModel) RemoveAgentFromTeam(agentID, teamID uint) error {
+	return model.DB.Where("agent_id = ? AND team_id = ?", agentID, teamID).Delete(&TeamAgent{}).Error
+}
+
+// GetTeamsByAgent retrieves all teams associated with an agent.
+func (model *AgentDBModel) GetTeamsByAgent(agentID uint) ([]Teams, error) {
+	var teams []Teams
+	err := model.DB.Joins("JOIN team_agents ON teams.id = team_agents.team_id").
+		Where("team_agents.agent_id = ?", agentID).Find(&teams).Error
+	if err != nil {
+		return nil, err
+	}
+	return teams, nil
+}
+
 // AssignRolesToAgent assigns roles to an agent.
 func (as *AgentDBModel) AssignRolesToAgent2(agentID uint, roleNames []string) error {
 	if len(roleNames) == 0 {
@@ -547,14 +608,38 @@ func (as *AgentDBModel) GetAgentPermissions(agentID uint) ([]*Permission, error)
 	return permissions, nil
 }
 
+// GetPermissionsByAgent retrieves all permissions associated with an agent.
+func (model *AgentDBModel) GetPermissionsByAgent(agentID uint) ([]Permission, error) {
+	var permissions []Permission
+	err := model.DB.Table("permissions").
+		Joins("JOIN agent_permissions ON permissions.id = agent_permissions.permission_id").
+		Where("agent_permissions.agent_id = ?", agentID).Scan(&permissions).Error
+	if err != nil {
+		return nil, err
+	}
+	return permissions, nil
+}
+
 // CreateRolePermission creates a new role-permission association.
 func (as *AgentDBModel) CreateRolePermission(roleID uint, permissionID uint) error {
 	rolePermission := RolePermission{RoleID: roleID, PermissionID: permissionID}
 	return as.DB.Create(&rolePermission).Error
 }
 
+// GrantPermissionToAgent grants a specific permission to an agent.
+func (model *AgentDBModel) GrantPermissionToAgent(agentID, permissionID uint) error {
+	agentPermission := AgentPermission{AgentID: agentID, PermissionID: permissionID}
+	result := model.DB.Where(&AgentPermission{AgentID: agentID, PermissionID: permissionID}).FirstOrCreate(&agentPermission)
+	return result.Error
+}
+
+// RevokePermissionFromAgent revokes a specific permission from an agent.
+func (model *AgentDBModel) RevokePermissionFromAgent(agentID, permissionID uint) error {
+	return model.DB.Where("agent_id = ? AND permission_id = ?", agentID, permissionID).Delete(&AgentPermission{}).Error
+}
+
 // AssignPermissionsToAgent assigns permissions to an agent's roles.
-func (as *AgentDBModel) AssignPermissionsToAgent(agentID uint, permissionNames []string) error {
+func (as *AgentDBModel) AssignPermissionsToAgent2(agentID uint, permissionNames []string) error {
 	if len(permissionNames) == 0 {
 		return fmt.Errorf("no permission names provided")
 	}
@@ -570,7 +655,7 @@ func (as *AgentDBModel) AssignPermissionsToAgent(agentID uint, permissionNames [
 			// If permission doesn't exist, create it
 			newPermission := &Permission{
 				Name:        permissionName,
-				Description: "",
+				Description: nil,
 			}
 			err := as.CreatePermission(newPermission)
 			if err != nil {
@@ -619,7 +704,7 @@ func (as *AgentDBModel) AssignPermissionsToAgent(agentID uint, permissionNames [
 }
 
 // RevokePermissionFromAgent revokes a permission from an agent.
-func (as *AgentDBModel) RevokePermissionFromAgent(agentID uint, permissionName string) error {
+func (as *AgentDBModel) RevokePermissionFromAgent2(agentID uint, permissionName string) error {
 	agent, err := as.GetAgentByID(agentID)
 	if err != nil {
 		return err
@@ -640,26 +725,96 @@ func (as *AgentDBModel) RevokePermissionFromAgent(agentID uint, permissionName s
 	return nil
 }
 
-// RevokePermissionFromRole revokes a permission from a role.
-func (as *AgentDBModel) RevokePermissionFromRole(roleName string, permissionName string) error {
-	role, err := as.GetRoleByName(roleName)
-	if err != nil {
-		return err
-	}
+// UpdateAgentWithRolesAndPermissions updates agent details, roles, and permissions atomically.
+func (model *AgentDBModel) UpdateAgentWithRolesAndPermissions(agent *Agents, roleIDs, permissionIDs []uint) error {
+	return model.DB.Transaction(func(tx *gorm.DB) error {
+		// Update agent details
+		if err := tx.Save(agent).Error; err != nil {
+			return err
+		}
 
-	permission, err := as.GetPermissionByName(permissionName)
-	if err != nil {
-		return err
-	}
+		// Update agent roles
+		if err := tx.Model(&agent).Association("Roles").Replace(roleIDs); err != nil {
+			return err
+		}
 
-	// Implement logic to revoke the permission from the role.
-	// Example: Delete the corresponding role-permission relationship record.
-	err = as.DB.Where("role_id = ? AND permission_id = ?", role.ID, permission.ID).Delete(&RolePermission{}).Error
-	if err != nil {
-		return err
-	}
+		// Update agent permissions
+		for _, permissionID := range permissionIDs {
+			if err := tx.Model(&AgentPermission{}).Where("agent_id = ?", agent.ID).Update("permission_id", permissionID).Error; err != nil {
+				return err
+			}
+		}
 
-	return nil
+		return nil
+	})
+}
+
+// AssignAgentToMultipleTeams assigns an agent to multiple teams, ensuring no duplicates.
+func (model *AgentDBModel) AssignAgentToMultipleTeams(agentID uint, teamIDs []uint) error {
+	return model.DB.Transaction(func(tx *gorm.DB) error {
+		for _, teamID := range teamIDs {
+			// Check if the assignment already exists
+			exists := tx.Model(&TeamAgent{}).Where("agent_id = ? AND team_id = ?", agentID, teamID).First(&TeamAgent{}).Error
+			if errors.Is(exists, gorm.ErrRecordNotFound) {
+				// Create new assignment if it does not exist
+				if err := tx.Create(&TeamAgent{AgentID: agentID, TeamID: teamID}).Error; err != nil {
+					return err
+				}
+			}
+		}
+		return nil
+	})
+}
+
+// UpdateAgentPermissions updates the list of permissions for an agent.
+func (db *AgentDBModel) UpdateAgentPermissions(agentID uint, permissionIDs []uint) error {
+	return db.DB.Transaction(func(tx *gorm.DB) error {
+		// Remove permissions not in the new list
+		if err := tx.Where("agent_id = ? AND permission_id NOT IN (?)", agentID, permissionIDs).Delete(&AgentPermission{}).Error; err != nil {
+			return err
+		}
+
+		// Find existing permissions to avoid duplicates
+		var existingPermissions []AgentPermission
+		tx.Where("agent_id = ?", agentID).Find(&existingPermissions)
+
+		// Map for quick lookup
+		existingMap := make(map[uint]bool)
+		for _, p := range existingPermissions {
+			existingMap[p.PermissionID] = true
+		}
+
+		// Add new permissions
+		for _, pid := range permissionIDs {
+			if !existingMap[pid] {
+				if err := tx.Create(&AgentPermission{AgentID: agentID, PermissionID: pid}).Error; err != nil {
+					return err
+				}
+			}
+		}
+
+		return nil
+	})
+}
+
+// contains checks if a slice contains a specific uint value.
+func contains(s []uint, e uint) bool {
+	for _, a := range s {
+		if a == e {
+			return true
+		}
+	}
+	return false
+}
+
+// containsPermission checks if a slice of AgentPermission contains a specific PermissionID.
+func containsPermission(s []AgentPermission, e uint) bool {
+	for _, a := range s {
+		if a.PermissionID == e {
+			return true
+		}
+	}
+	return false
 }
 
 // ... Rest of your code ...
@@ -818,7 +973,7 @@ func (as *AgentDBModel) AssignPermissions(agentID uint, permissionNames []string
 			// If permission doesn't exist, create it
 			newPermission := &Permission{
 				Name:        permissionName,
-				Description: "",
+				Description: nil,
 			}
 			err := as.CreatePermission(newPermission)
 			if err != nil {
@@ -1003,14 +1158,6 @@ func (as *AgentDBModel) CreateRoleBasePermission(roleID uint, permissionID uint)
 	return as.DB.Create(&rolePermission).Error
 }
 
-// UserRole struct with UserID and RoleID fields (already defined).
-
-// AssignRoleToUser assigns a role to a user.
-func (as *AgentDBModel) AssignRoleToAgent(agentID, roleID uint) error {
-	userRole := AgentRole{AgentID: agentID, RoleID: roleID}
-	return as.DB.Create(&userRole).Error
-}
-
 // GetUserRoles returns a list of roles assigned to a user.
 func (as *AgentDBModel) GetAgentRoles2(agentID uint) ([]*Role, error) {
 	var roles []*Role
@@ -1089,7 +1236,7 @@ func (as *AgentDBModel) AssignPermissionsToRoleBase(roleName string, permissionN
 		if er != nil {
 			permis := &Permission{
 				Name:        permissionName,
-				Description: "",
+				Description: nil,
 			}
 			err := as.CreatePermission(permis)
 			if err != nil {
@@ -1169,7 +1316,7 @@ func (as *AgentDBModel) GrantPermissionToTeam(permission *Permission, teamID uin
 			return fmt.Errorf("unable to assign permission to team")
 		}
 	}
-	tp.Permissions = append(tp.Permissions, *permission)
+	tp.Permissions = append(tp.Permissions, permission)
 
 	return nil
 }
@@ -1190,8 +1337,8 @@ func (as *AgentDBModel) GetTeamPermission(teamID uint) (*TeamPermission, error) 
 
 // CreateRolePermission creates a new role-permission association.
 func (as *AgentDBModel) CreateTeamPermission(teamID uint, permission *Permission) error {
-	var p []Permission
-	p = append(p, *permission)
+	var p []*Permission
+	p = append(p, permission)
 
 	teamPermission := TeamPermission{TeamID: teamID, Permissions: p}
 	return as.DB.Create(&teamPermission).Error
@@ -1384,20 +1531,6 @@ func (as *AgentDBModel) AssignPermissionToAgent(agentID uint, permissionID uint)
 	return as.DB.Create(&agentPermission).Error
 }
 
-// TeamAgent Storage Implementations
-func (as *AgentDBModel) CreateTeamAgent(agentID uint, teamID uint) error {
-
-	return as.AddAgentToTeam(agentID, teamID)
-}
-
-// TeamAgentRepository implementations
-func (as *AgentDBModel) AddAgentToTeam(agentID uint, teamID uint) error {
-	// Implement logic to add an agent to a team.
-	// Example: Create a record in the teamAgents table.
-	teamAgent := TeamAgent{AgentID: agentID, TeamID: teamID}
-	return as.DB.Create(&teamAgent).Error
-}
-
 func (as *AgentDBModel) GetAgentsByTeam(teamID uint) ([]*Agents, error) {
 	// Implement logic to retrieve agents associated with a team.
 	// Example: Join teamAgents and agents tables to get agents by team.
@@ -1406,22 +1539,6 @@ func (as *AgentDBModel) GetAgentsByTeam(teamID uint) ([]*Agents, error) {
 		Where("teamAgents.team_id = ?", teamID).
 		Find(&agents).Error
 	return agents, err
-}
-
-func (as *AgentDBModel) GetTeamsByAgent(agentID uint) ([]*Teams, error) {
-	// Implement logic to retrieve teams associated with an agent.
-	// Example: Join teamAgents and teams tables to get teams by agent.
-	var teams []*Teams
-	err := as.DB.Joins("JOIN teamAgents ON teams.id = teamAgents.team_id").
-		Where("teamAgents.agent_id = ?", agentID).
-		Find(&teams).Error
-	return teams, err
-}
-
-func (as *AgentDBModel) RemoveAgentFromTeam(agentID uint, teamID uint) error {
-	// Implement logic to remove an agent from a team.
-	// Example: Delete the record from the teamAgents table.
-	return as.DB.Where("agent_id = ? AND team_id = ?", agentID, teamID).Delete(&TeamAgent{}).Error
 }
 
 func (as *AgentDBModel) GetTeamByName(name string) (*Teams, error) {
@@ -1457,12 +1574,6 @@ func (as *AgentDBModel) AddAgentToUser(userID uint, agentID uint) error {
 	// Implement logic to associate an agent with a user.
 	userAgent := UserAgent{UserID: userID, AgentID: agentID}
 	return as.DB.Create(&userAgent).Error
-}
-
-func (as *AgentDBModel) GrantPermissionToAgent(agentID uint, permissionID uint) error {
-	// Implement logic to grant a permission to an agent.
-	agentPermission := AgentPermission{AgentID: agentID, PermissionID: permissionID}
-	return as.DB.Create(&agentPermission).Error
 }
 
 // RevokePermissionFromRole revokes a permission from a role.

@@ -10,29 +10,38 @@ import (
 	"gorm.io/gorm"
 )
 
+type APIToken struct {
+	gorm.Model
+	UserID      uint       `gorm:"not null;index" json:"user_id"`
+	User        Users      `gorm:"foreignKey:UserID" json:"-"`
+	Token       string     `gorm:"size:255;not null;unique" json:"token"`
+	ExpiresAt   time.Time  `gorm:"type:datetime" json:"expires_at"`
+	Description string     `gorm:"size:255" json:"description"`
+	LastLoginAt *time.Time `json:"last_login_at,omitempty"`
+}
+
 type AgentLoginCredentialsStorage interface {
-	CreateAgentLoginCredentials(*AgentLoginCredentials) error
-	DeleteAgentLoginCredentials(int) error
-	UpdateAgentLoginCredentials(*AgentLoginCredentials) error
-	GetAgentLoginCredentials() ([]*AgentLoginCredentials, error)
-	GetAgentLoginCredentialsByID(int) (*AgentLoginCredentials, error)
-	GetAgentLoginCredentialsByNumber(int) (*AgentLoginCredentials, error)
+	Create(credentials *AgentLoginCredentials) error
+	Delete(id uint) error
+	Update(credentials *AgentLoginCredentials) error
+	FindByID(id uint) (*AgentLoginCredentials, error)
 }
 
 type AgentLoginCredentials struct {
 	gorm.Model
-	ID        uint      `gorm:"primaryKey" json:"_"`
-	Username  string    `json:"username"`
-	Password  string    `json:"password"`
-	AgentID   uint      `json:"agent_id"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
-	DeletedAt time.Time `json:"deleted_at"`
+	ID          uint       `gorm:"primaryKey" json:"_"`
+	Username    string     `json:"username"`
+	Password    string     `json:"password"`
+	AgentID     uint       `json:"agent_id"`
+	CreatedAt   time.Time  `json:"created_at"`
+	UpdatedAt   time.Time  `json:"updated_at"`
+	DeletedAt   time.Time  `json:"deleted_at"`
+	LastLoginAt *time.Time `json:"last_login_at,omitempty"`
 }
 
 // TableName sets the table name for the Agent model.
 func (AgentLoginCredentials) TableName() string {
-	return "agentLoginDetails"
+	return "agent_login_credentials"
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -49,16 +58,14 @@ type UsersLoginCredentials struct {
 
 // TableName sets the table name for the UsersLoginCredentials model.
 func (UsersLoginCredentials) TableName() string {
-	return "usersLoginCredentials"
+	return "users_login_credentials"
 }
 
 type UserLoginCredentialsStorage interface {
-	CreateUserLoginCredentials(*UsersLoginCredentials) error
-	DeleteUserLoginCredentials(int) error
-	UpdateUserLoginCredentials(*UsersLoginCredentials) error
-	GetUsersLoginCredentials() ([]*UsersLoginCredentials, error)
-	GetUserUserLoginCredentialsByID(int) (*UsersLoginCredentials, error)
-	GetUserLoginCredentialsByNumber(int) (*UsersLoginCredentials, error)
+	Create(credentials *UsersLoginCredentials) error
+	Delete(id uint) error
+	Update(credentials *UsersLoginCredentials) error
+	FindByID(id uint) (*UsersLoginCredentials, error)
 }
 
 // AuthModel handles database operations for Auth
@@ -251,16 +258,18 @@ func (as *AuthDBModel) GetAllAgentCreds() ([]*AgentLoginCredentials, error) {
 
 // Define a model for storing password reset requests
 type PasswordResetRequest struct {
-	gorm.Model
-	UserID    uint   `json:"user_id"`
-	RequestID uint   `json:"request_id"`
-	Token     string `json:"token"`
-	// You can add additional fields such as expiration time if needed
+	ID        uint           `gorm:"primaryKey" json:"id"`
+	UserID    uint           `json:"user_id"`
+	RequestID uint           `json:"request_id"`
+	Token     string         `json:"token"`
+	ExpiresAt time.Time      `json:"expires_at"`
+	CreatedAt time.Time      `json:"created_at"`
+	UpdatedAt time.Time      `json:"updated_at"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
 }
 
-// TableName sets the table name for the PasswordResetRequest model.
 func (PasswordResetRequest) TableName() string {
-	return "passwordResetRequests"
+	return "password_reset_requests"
 }
 
 // CreatePasswordResetRequest creates a new password reset request record.
@@ -330,18 +339,6 @@ func (as *AuthDBModel) DeleteUserLoginCredentials(id uint) error {
 	return as.DB.Delete(&UsersLoginCredentials{}, id).Error
 }
 
-type PasswordResetToken struct {
-	gorm.Model
-	Token     string    `json:"token"`
-	UserID    uint      `json:"user_id"`
-	ExpiresAt time.Time `json:"expires_at"`
-}
-
-// TableName sets the table name for the PasswordResetToken model.
-func (PasswordResetToken) TableName() string {
-	return "passwordResetTokens"
-}
-
 // CreatePasswordResetToken creates a new password reset token.
 func (as *AuthDBModel) CreatePasswordResetToken(token *PasswordResetToken) error {
 	return as.DB.Create(token).Error
@@ -362,15 +359,31 @@ func (as *AuthDBModel) DeletePasswordResetToken(token string) error {
 // /////////////////////////////////////////////////////////////////////////////////////
 // Password History
 type PasswordHistory struct {
-	gorm.Model
-	UserID      uint      `json:"user_id"`
-	Password    string    `json:"password"`
-	DateChanged time.Time `json:"date_changed"`
+	ID          uint           `gorm:"primaryKey" json:"id"`
+	UserID      uint           `json:"user_id"`
+	Password    string         `json:"-"`
+	DateChanged time.Time      `json:"date_changed"`
+	CreatedAt   time.Time      `json:"created_at"`
+	UpdatedAt   time.Time      `json:"updated_at"`
+	DeletedAt   gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
 }
 
-// TableName sets the table name for the PasswordHistory model.
 func (PasswordHistory) TableName() string {
-	return "passwordHistory"
+	return "password_history"
+}
+
+type PasswordResetToken struct {
+	ID        uint           `gorm:"primaryKey" json:"id"`
+	Token     string         `json:"token"`
+	UserID    uint           `json:"user_id"`
+	ExpiresAt time.Time      `json:"expires_at"`
+	CreatedAt time.Time      `json:"created_at"`
+	UpdatedAt time.Time      `json:"updated_at"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+}
+
+func (PasswordResetToken) TableName() string {
+	return "password_reset_tokens"
 }
 
 // CreatePasswordHistory creates a new password history entry.

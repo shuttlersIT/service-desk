@@ -9,56 +9,68 @@ import (
 )
 
 type Users struct {
-	gorm.Model
-	ID                     uint                  `gorm:"primaryKey" json:"user_id"`
-	FirstName              string                `json:"first_name" binding:"required"`
-	LastName               string                `json:"last_name" binding:"required"`
-	Email                  string                `json:"staff_email" binding:"required,email"`
-	Credentials            UsersLoginCredentials `json:"user_credentials" gorm:"foreignKey:UserID"`
-	Phone                  string                `json:"phoneNumber" binding:"required,e164"`
-	Position               Position              `json:"position_id" gorm:"embedded"`
-	Department             Department            `json:"department_id" gorm:"embedded"`
-	CreatedAt              time.Time             `json:"created_at"`
-	UpdatedAt              time.Time             `json:"updated_at"`
-	Asset                  []AssetAssignment     `json:"asset_assignment" gorm:"foreignKey:UserID"`
-	RoleBase               RoleBase              `json:"role_base" gorm:"embedded"`
-	ResetPasswordRequestID uint                  `json:"reset_password_reset" gorm:"embedded"`
-	DeletedAt              time.Time             `json:"deleted_at"`
+	ID                     uint              `gorm:"primaryKey" json:"user_id"`
+	FirstName              string            `gorm:"size:255;not null" json:"first_name" binding:"required"`
+	LastName               string            `gorm:"size:255;not null" json:"last_name" binding:"required"`
+	Email                  string            `gorm:"size:255;not null;unique" json:"email" binding:"required,email"`
+	Phone                  *string           `gorm:"size:20;null" json:"phone" binding:"omitempty,e164"`
+	PositionID             uint              `json:"position_id"`
+	DepartmentID           uint              `json:"department_id"`
+	CreatedAt              time.Time         `json:"created_at"`
+	UpdatedAt              time.Time         `json:"updated_at"`
+	DeletedAt              *gorm.DeletedAt   `gorm:"index" json:"deleted_at,omitempty"`
+	Assets                 []AssetAssignment `json:"assets" gorm:"foreignKey:UserID"`
+	IsActive               bool              `gorm:"default:true" json:"is_active"`
+	Roles                  []Role            `gorm:"many2many:user_roles;" json:"roles"`
+	Projects               []Project         `gorm:"many2many:project_members;" json:"projects"`
+	ProfilePic             string            `gorm:"size:255" json:"profile_pic"`
+	HashedPassword         string            `json:"-"`                                   // Excluded from JSON responses
+	ResetPasswordRequestID *uint             `json:"reset_password_request_id,omitempty"` // Assuming this is optional
 }
 
-// TableName sets the table name for the Users model.
 func (Users) TableName() string {
 	return "users"
 }
 
 type Position struct {
-	gorm.Model
-	PositionID   int       `gorm:"primaryKey" json:"position_id"`
-	PositionName string    `json:"position_name"`
-	CadreName    string    `json:"cadre_name"`
-	CreatedAt    time.Time `json:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at"`
-	DeletedAt    time.Time `json:"deleted_at"`
+	ID           uint            `gorm:"primaryKey" json:"position_id"`
+	PositionName string          `gorm:"size:255;not null" json:"position_name"`
+	CadreName    *string         `gorm:"size:255;null" json:"cadre_name,omitempty"`
+	CreatedAt    time.Time       `json:"created_at"`
+	UpdatedAt    time.Time       `json:"updated_at"`
+	DeletedAt    *gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
 }
 
-// TableName sets the table name for the Position model.
 func (Position) TableName() string {
-	return "position"
+	return "positions"
 }
 
 type Department struct {
-	gorm.Model
-	DepartmentID   int       `gorm:"primaryKey" json:"department_id"`
-	DepartmentName string    `json:"department_name"`
-	Emoji          string    `json:"emoji"`
-	CreatedAt      time.Time `json:"created_at"`
-	UpdatedAt      time.Time `json:"updated_at"`
-	DeletedAt      time.Time `json:"deleted_at"`
+	ID             uint            `gorm:"primaryKey" json:"department_id"`
+	DepartmentName string          `gorm:"size:255;not null" json:"department_name"`
+	Emoji          *string         `gorm:"size:255;null" json:"emoji,omitempty"`
+	CreatedAt      time.Time       `json:"created_at"`
+	UpdatedAt      time.Time       `json:"updated_at"`
+	DeletedAt      *gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
 }
 
-// TableName sets the table name for the Department model.
 func (Department) TableName() string {
-	return "department"
+	return "departments"
+}
+
+type UserRole struct {
+	ID        uint            `gorm:"primaryKey" json:"id"`
+	UserID    uint            `gorm:"not null" json:"user_id"`
+	RoleID    uint            `gorm:"not null" json:"role_id"`
+	User      Users           `gorm:"foreignKey:UserID"`
+	Role      Role            `gorm:"foreignKey:RoleID"`
+	CreatedAt time.Time       `json:"created_at"`
+	UpdatedAt time.Time       `json:"updated_at"`
+	DeletedAt *gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+}
+
+func (UserRole) TableName() string {
+	return "user_roles"
 }
 
 type UserStorage interface {

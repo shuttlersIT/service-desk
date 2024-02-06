@@ -25,6 +25,21 @@ func (as *AuthDBModel) CreateSession(session *Session) error {
 	return as.DB.Create(session).Error
 }
 
+type UserSession struct {
+	gorm.Model
+	UserID    uint      `gorm:"not null;index" json:"user_id"`
+	User      Users     `gorm:"foreignKey:UserID" json:"-"`
+	SessionID string    `gorm:"size:255;not null;unique" json:"session_id"` // Unique session identifier
+	ExpiresAt time.Time `json:"expires_at"`                                 // Session expiration time
+	IP        string    `gorm:"size:45" json:"ip"`                          // IP address of the user at session start
+	UserAgent string    `gorm:"type:text" json:"user_agent"`                // User agent of the user's browser/device
+}
+
+// TableName sets the table name for the Session model.
+func (UserSession) TableName() string {
+	return "user_sessions"
+}
+
 // GetSessionBySessionID retrieves a user session by its session ID.
 func (as *AuthDBModel) GetSessionBySessionID(sessionID string) (*Session, error) {
 	var userSession Session
@@ -35,17 +50,6 @@ func (as *AuthDBModel) GetSessionBySessionID(sessionID string) (*Session, error)
 // DeleteSessionBySessionID deletes a user session by its session ID.
 func (as *AuthDBModel) DeleteSessionBySessionID(sessionID string) error {
 	return as.DB.Where("session_id = ?", sessionID).Delete(&Session{}).Error
-}
-
-type UserRole struct {
-	gorm.Model
-	UserID uint   `json:"user_id"`
-	Role   string `json:"role"`
-}
-
-// TableName sets the table name for the UserRole model.
-func (UserRole) TableName() string {
-	return "userRoles"
 }
 
 // CreateUserRoles creates user roles for a user.
