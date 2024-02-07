@@ -1298,6 +1298,21 @@ CREATE TABLE IF NOT EXISTS asset_lifecycle_events (
     FOREIGN KEY (asset_id) REFERENCES assets(asset_id) ON DELETE CASCADE
 ) COMMENT='Logs significant lifecycle events for assets.';
 
+CREATE TABLE IF NOT EXISTS `agent_event` (
+  `gorm_model_id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `title` varchar(255) NOT NULL,
+  `description` text,
+  `start_time` datetime NOT NULL,
+  `details` text,
+  `timestamp` datetime NOT NULL,
+  `all_day` tinyint(1) NOT NULL,
+  `location` varchar(255),
+  `agent_id` int unsigned NOT NULL,
+  PRIMARY KEY (`gorm_model_id`),
+  INDEX `idx_agent_event_agent_id` (`agent_id`),
+  CONSTRAINT `fk_agent_event_agent_id` FOREIGN KEY (`agent_id`) REFERENCES `agents` (`agent_id`) ON DELETE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- Rest of script
 -- .
 -- ..

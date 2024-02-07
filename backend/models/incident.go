@@ -28,13 +28,13 @@ func (Incident) TableName() string {
 
 // IncidentHistoryEntry represents a historical entry related to an incident.
 type IncidentHistoryEntry struct {
-	gorm.Model            // Includes ID, CreatedAt, UpdatedAt, and DeletedAt automatically
-	IncidentID  uint      `json:"incident_id" gorm:"not null;index"`
-	Description string    `json:"description" gorm:"type:text;not null"`
-	Status      string    `json:"status" gorm:"size:100;not null"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt time.Time      `json:"updated_at"`
-	DeletedAt  *gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+	gorm.Model                  // Includes ID, CreatedAt, UpdatedAt, and DeletedAt automatically
+	IncidentID  uint            `json:"incident_id" gorm:"not null;index"`
+	Description string          `json:"description" gorm:"type:text;not null"`
+	Status      string          `json:"status" gorm:"size:100;not null"`
+	CreatedAt   time.Time       `json:"created_at"`
+	UpdatedAt   time.Time       `json:"updated_at"`
+	DeletedAt   *gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
 }
 
 func (IncidentHistoryEntry) TableName() string {
@@ -47,12 +47,21 @@ type IncidentComment struct {
 	IncidentID uint            `json:"incident_id" gorm:"not null;index"`
 	Comment    string          `json:"comment" gorm:"type:text;not null"`
 	CreatedAt  time.Time       `json:"created_at"`
-	UpdatedAt time.Time      `json:"updated_at"`
+	UpdatedAt  time.Time       `json:"updated_at"`
 	DeletedAt  *gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
 }
 
 func (IncidentComment) TableName() string {
 	return "incident_comment"
+}
+
+// IncidentResolutionLog tracks the resolution details of incidents.
+type IncidentResolutionLog struct {
+	ID         uint      `gorm:"primaryKey" json:"id"`
+	IncidentID uint      `json:"incident_id" gorm:"index;not null"`
+	ResolvedBy uint      `json:"resolved_by"`
+	Resolution string    `json:"resolution"`
+	ResolvedAt time.Time `json:"resolved_at"`
 }
 
 // IncidentStorage defines the methods for managing incidents.
@@ -321,9 +330,9 @@ func (im *IncidentDBModel) UpdateIncidentPriority(incidentID uint, priority stri
 	return nil
 }
 
-// UpdateIncidentTags updates the tags of an incident.
+/*// UpdateIncidentTags updates the tags of an incident.
 func (im *IncidentDBModel) UpdateIncidentTags(incidentID uint, tags []string) error {
-	t := im.CreateTag(incidentID uint, tags []string)
+	t := im.CreateIncident()(incidentID uint, tags []string)
 	incident, err := im.GetIncidentByID(incidentID)
 	if err != nil {
 		return err
@@ -333,7 +342,7 @@ func (im *IncidentDBModel) UpdateIncidentTags(incidentID uint, tags []string) er
 		return err
 	}
 	return nil
-}
+}*/
 
 // GetIncidentsByUserAndCategory retrieves incidents with a specific category assigned to a user.
 func (im *IncidentDBModel) GetIncidentsByUserAndCategory(userID uint, category string) ([]*Incident, error) {
@@ -627,4 +636,12 @@ func (idm *IncidentDBModel) GetIncidentBySubject2(subject string) (*Incident, er
 func (idm *IncidentDBModel) DeleteIncident2(incidentID uint) error {
 	err := idm.DB.Delete(&Incident{}, incidentID).Error
 	return err
+}
+
+func (im *IncidentDBModel) AutoEscalateIncidents() error {
+	// Identify incidents that need escalation and update accordingly
+}
+
+func (im *IncidentDBModel) GenerateIncidentReport(incidentID uint) (*IncidentReport, error) {
+	// Generate detailed report for a specific incident
 }

@@ -24,14 +24,27 @@ type Assets struct {
 	Status        string     `gorm:"size:100;not null" json:"status"`
 	Location      string     `gorm:"size:255" json:"location"`
 	// Assuming UserID is the identifier for the user to whom the asset is currently assigned.
-	UserID          uint  `gorm:"index" json:"user_id,omitempty"`
-	SiteID          uint  `gorm:"index" json:"site_id"`
-	CreatedByID     uint  `gorm:"index" json:"created_by_id"`
-	AssetAssignment *uint `json:"assetAssignment" gorm:"foreignKey:AssetAssignmentID"`
+	UserID              uint       `gorm:"index" json:"user_id,omitempty"`
+	SiteID              uint       `gorm:"index" json:"site_id"`
+	CreatedByID         uint       `gorm:"index" json:"created_by_id"`
+	AssetAssignment     *uint      `json:"assetAssignment" gorm:"foreignKey:AssetAssignmentID"`
+	LastMaintenanceDate *time.Time `json:"last_maintenance_date,omitempty"`
+	NextMaintenanceDate *time.Time `json:"next_maintenance_date,omitempty"`
 }
 
 func (Assets) TableName() string {
 	return "assets"
+}
+
+type EventParticipant struct {
+	ID       uint      `gorm:"primaryKey" json:"id"`
+	EventID  uint      `json:"event_id" gorm:"index;not null"`
+	AgentID  uint      `json:"agent_id" gorm:"index;not null"`
+	JoinedAt time.Time `json:"joined_at"`
+}
+
+func (EventParticipant) TableName() string {
+	return "event_participant"
 }
 
 // Hashtag represents a hashtag entity
@@ -338,4 +351,14 @@ func (adb *AssetDBModel) UnassignAssetUser2(assetID uint) error {
 	}
 
 	return nil
+}
+
+type AssetDepreciation struct {
+	AssetID      uint      `json:"asset_id" gorm:"index;not null"`
+	Depreciation float64   `json:"depreciation"`
+	RecordedAt   time.Time `json:"recorded_at"`
+}
+
+func (am *AssetDBModel) ScheduleAssetAudit(auditDate time.Time) error {
+	// Schedule an audit for the specified date
 }

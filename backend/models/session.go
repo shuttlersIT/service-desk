@@ -257,6 +257,18 @@ func (as *AuthDBModel) DeleteSession(session *Session) error {
 	return as.DB.Delete(session).Error
 }
 
+func (sm *Session) ExpireSessionsForUser(userID uint) error {
+	// Implementation details...
+}
+
+func (am *AuthDBModel) OAuthLogin(provider string, token string) (*Agents, error) {
+	// Implementation to handle OAuth flow with different providers
+}
+
+func (am *AuthDBModel) CheckAccess(agentID uint, resource string, action string) (bool, error) {
+	// Check if the agent has permission to perform the action on the resource
+}
+
 /*
 // CreateRole creates a new role.
 func (as *AuthDBModel) CreateRoleBase(role *Role) error {

@@ -31,6 +31,8 @@ type Ticket struct {
 	Comments         []Comment               `gorm:"foreignKey:TicketID" json:"comments"`
 	TicketHistory    []TicketHistoryEntry    `gorm:"foreignKey:TicketID" json:"ticket_history"`
 	DeletedAt        gorm.DeletedAt          `gorm:"index" json:"deleted_at,omitempty"`
+	AssigneeID       *uint                   `json:"assignee_id,omitempty"`
+	Assignee         *Agents                 `gorm:"foreignKey:AssigneeID" json:"assignee,omitempty"`
 }
 
 func (Ticket) TableName() string {
@@ -854,4 +856,12 @@ func (as *TicketDBModel) GetSubcategoryByNumber(subcategoryNumber int) (*SubCate
 		return nil, err
 	}
 	return &subcategory, nil
+}
+
+func (tm *TicketDBModel) SendCustomerSatisfactionSurvey(ticketID uint) error {
+	// Implementation to send a survey to the customer
+}
+
+func (tm *TicketDBModel) PrioritizeTickets() error {
+	// Re-prioritize tickets based on the defined criteria
 }

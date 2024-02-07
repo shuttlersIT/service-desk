@@ -15,6 +15,7 @@ type ServiceRequest struct {
 	CategoryID    uint   `gorm:"index;not null" json:"category_id" binding:"required"`
 	SubCategoryID uint   `gorm:"index" json:"subcategory_id,omitempty"` // Made optional
 	LocationID    uint   `gorm:"index;not null" json:"location_id"`
+	Priority      string `json:"priority"`
 	// Removed embedded Location struct to normalize data structure and reference by ID instead
 }
 

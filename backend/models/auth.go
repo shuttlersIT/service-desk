@@ -86,33 +86,26 @@ func NewAuthDBModel(db *gorm.DB, userDBModel *UserDBModel, agentDBModel *AgentDB
 
 /////////////////////////////////////////////// USERS //////////////////////////////////////////////////////////
 
-// CreateUser creates a new user.
+// CreateUserCredentials creates new user credentials.
 func (as *AuthDBModel) CreateUserCredentials(userCredentials *UsersLoginCredentials) error {
 	return as.DB.Create(userCredentials).Error
 }
 
-// GetUserByID retrieves a user by its ID.
+// GetUserCredentialsByID retrieves user credentials by their ID.
 func (as *AuthDBModel) GetUserCredentialsByID(id uint) (*UsersLoginCredentials, error) {
 	var userCredentials UsersLoginCredentials
 	err := as.DB.Where("id = ?", id).First(&userCredentials).Error
 	return &userCredentials, err
 }
 
-// UpdateUser updates the details of an existing user.
+// UpdateUserCredentials updates user credentials.
 func (as *AuthDBModel) UpdateUserCredentials(userCredentials *UsersLoginCredentials) error {
 	return as.DB.Save(userCredentials).Error
 }
 
-// DeleteUser deletes a user from the database.
+// DeleteUserCredentials deletes user credentials by their ID.
 func (as *AuthDBModel) DeleteUserCredentials(id uint) error {
 	return as.DB.Delete(&UsersLoginCredentials{}, id).Error
-}
-
-// GetAllUsers retrieves all users from the database.
-func (as *AuthDBModel) GetAllUserCreds() ([]*UsersLoginCredentials, error) {
-	var usersCredentials []*UsersLoginCredentials
-	err := as.DB.Find(&usersCredentials).Error
-	return usersCredentials, err
 }
 
 type LoginInfo struct {
@@ -134,77 +127,97 @@ func NewRegisterModel(a *UserDBModel, b *AuthDBModel) *RegisterModel {
 	}
 }
 
-// Register New User
+// Registration registers a new user.
 func (ab *RegisterModel) Registration(user *Users) (*Users, error) {
 	// Hash the user's password before storing it in the database
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(user.Credentials.Password), bcrypt.DefaultCost)
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(user.HashedPassword), bcrypt.DefaultCost)
 	if err != nil {
 		return nil, fmt.Errorf("failed to hash password")
 	}
-	user.Credentials.Password = string(hashedPassword)
+	user.HashedPassword = string(hashedPassword)
+
 	newUser, erro := ab.a.CreateUser(user)
 	if erro != nil {
-		return nil, fmt.Errorf("failed to create users")
+		return nil, fmt.Errorf("failed to create user")
 	}
-	er := ab.b.CreateUserCredentials(&newUser.Credentials)
+
+	er := ab.b.CreateUserCredentials(&UsersLoginCredentials{
+		Username: user.Email, // You can customize the username field
+		Password: user.HashedPassword,
+		UserID:   newUser.ID,
+	})
 	if er != nil {
-		return nil, fmt.Errorf("failed to create users credentials")
+		return nil, fmt.Errorf("failed to create user credentials")
 	}
+
 	e := ab.a.UpdateUser(newUser)
 	if e != nil {
-		return nil, fmt.Errorf("unable to update new users credentials")
+		return nil, fmt.Errorf("unable to update user credentials")
 	}
 
 	return newUser, nil
 }
 
-// Register New User
+// AgentRegistration registers a new agent.
 func (ab *RegisterModel) AgentRegistration(agent *Agents) (*Agents, error) {
-	// Hash the user's password before storing it in the database
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(agent.Credentials.Password), bcrypt.DefaultCost)
+	// Hash the agent's password before storing it in the database
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(agent.PasswordHash), bcrypt.DefaultCost)
 	if err != nil {
 		return nil, fmt.Errorf("failed to hash password")
 	}
-	agent.Credentials.Password = string(hashedPassword)
+	agent.PasswordHash = string(hashedPassword)
+
 	newAgent, erro := ab.c.CreateAgent(agent)
 	if erro != nil {
-		return nil, fmt.Errorf("failed to create users")
+		return nil, fmt.Errorf("failed to create agent")
 	}
-	er := ab.b.CreateAgentCredentials(&newAgent.Credentials)
+
+	er := ab.b.CreateAgentCredentials(&AgentLoginCredentials{
+		Username: agent.Email, // You can customize the username field
+		Password: agent.PasswordHash,
+		AgentID:  newAgent.ID,
+	})
 	if er != nil {
-		return nil, fmt.Errorf("failed to create users credentials")
+		return nil, fmt.Errorf("failed to create agent credentials")
 	}
+
 	e := ab.c.UpdateAgent(newAgent)
 	if e != nil {
-		return nil, fmt.Errorf("unable to update new users credentials")
+		return nil, fmt.Errorf("unable to update agent credentials")
 	}
 
 	return newAgent, nil
 }
 
-// Login User
-func (a *AuthDBModel) Login(login *LoginInfo) (*Users, error) {
+// LoginUser authenticates a user based on email and password.
+func (a *AuthDBModel) LoginUser(login *LoginInfo) (*Users, error) {
 	loginInfo := login
 	var user Users
+
 	if err := a.DB.Where("email = ?", loginInfo.Email).First(&user).Error; err != nil {
-		return nil, err
+		return nil, err // User not found
 	}
-	if err := bcrypt.CompareHashAndPassword([]byte(user.Credentials.Password), []byte(loginInfo.Password)); err != nil {
-		return nil, err
+
+	if err := bcrypt.CompareHashAndPassword([]byte(user.HashedPassword), []byte(loginInfo.Password)); err != nil {
+		return nil, err // Password does not match
 	}
+
 	return &user, nil
 }
 
-// Login User
+// LoginAgent authenticates an agent based on email and password.
 func (a *AuthDBModel) LoginAgent(login *LoginInfo) (*Agents, error) {
 	loginInfo := login
 	var agent Agents
+
 	if err := a.DB.Where("email = ?", loginInfo.Email).First(&agent).Error; err != nil {
-		return nil, err
+		return nil, err // Agent not found
 	}
-	if err := bcrypt.CompareHashAndPassword([]byte(agent.Credentials.Password), []byte(loginInfo.Password)); err != nil {
-		return nil, err
+
+	if err := bcrypt.CompareHashAndPassword([]byte(agent.PasswordHash), []byte(loginInfo.Password)); err != nil {
+		return nil, err // Password does not match
 	}
+
 	return &agent, nil
 }
 
@@ -218,30 +231,30 @@ func (as *AuthDBModel) ResetUserPassword(uint, string) ([]*UsersLoginCredentials
 /////////////////////////////////////////////// AGENTS //////////////////////////////////////////////////////////
 
 // ResetAgentPassword retrieves all agents from the database.
-func (as *AuthDBModel) ResetAgentPassword(uint, string) ([]*AgentLoginCredentials, error) {
+func (as *AuthDBModel) ResetAgentPassword() ([]*AgentLoginCredentials, error) {
 	var agentsCredentials []*AgentLoginCredentials
 	err := as.DB.Find(&agentsCredentials).Error
 	return agentsCredentials, err
 }
 
-// CreateUser creates a new user.
+// CreateAgent creates new agent credentials.
 func (as *AuthDBModel) CreateAgentCredentials(agentCredentials *AgentLoginCredentials) error {
 	return as.DB.Create(agentCredentials).Error
 }
 
-// GetUserByID retrieves a user by its ID.
+// GetAgentCredentialsByID retrieves agent credentials by their ID.
 func (as *AuthDBModel) GetAgentCredentialsByID(id uint) (*AgentLoginCredentials, error) {
 	var agentCredentials AgentLoginCredentials
 	err := as.DB.Where("id = ?", id).First(&agentCredentials).Error
 	return &agentCredentials, err
 }
 
-// UpdateUser updates the details of an existing user.
+// UpdateAgentCredentials updates agent credentials.
 func (as *AuthDBModel) UpdateAgentCredentials(agentCredentials *AgentLoginCredentials) error {
 	return as.DB.Save(agentCredentials).Error
 }
 
-// DeleteUser deletes a user from the database.
+// DeleteAgentCredentials deletes agent credentials by their ID.
 func (as *AuthDBModel) DeleteAgentCredentials(id uint) error {
 	return as.DB.Delete(&AgentLoginCredentials{}, id).Error
 }
@@ -257,42 +270,34 @@ func (as *AuthDBModel) GetAllAgentCreds() ([]*AgentLoginCredentials, error) {
 //Password Requests
 
 // Define a model for storing password reset requests
-type PasswordResetRequest struct {
-	ID        uint           `gorm:"primaryKey" json:"id"`
-	UserID    uint           `json:"user_id"`
-	RequestID uint           `json:"request_id"`
-	Token     string         `json:"token"`
-	ExpiresAt time.Time      `json:"expires_at"`
-	CreatedAt time.Time      `json:"created_at"`
-	UpdatedAt time.Time      `json:"updated_at"`
-	DeletedAt gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
-}
 
-func (PasswordResetRequest) TableName() string {
-	return "password_reset_requests"
+type PasswordResetRequest struct {
+	gorm.Model
+	UserID    uint      `json:"user_id"`
+	RequestID uint      `json:"request_id"`
+	Token     string    `json:"token"`
+	ExpiresAt time.Time `json:"expires_at"`
 }
 
 // CreatePasswordResetRequest creates a new password reset request record.
-func (as *AuthDBModel) CreatePasswordResetRequest(userID uint, requestID uint, token string) error {
-	resetRequest := &PasswordResetRequest{
-		UserID:    userID,
-		RequestID: requestID,
-		Token:     token,
-		// Set other fields as needed, such as expiration time
-	}
-	return as.DB.Create(resetRequest).Error
+func (as *AuthDBModel) CreatePasswordResetRequest(request *PasswordResetRequest) error {
+	return as.DB.Create(request).Error
 }
 
 // GetPasswordResetRequestByToken retrieves a password reset request record by its token.
 func (as *AuthDBModel) GetPasswordResetRequestByToken(token string) (*PasswordResetRequest, error) {
-	var resetRequest PasswordResetRequest
-	err := as.DB.Where("token = ?", token).First(&resetRequest).Error
-	return &resetRequest, err
+	var request PasswordResetRequest
+	err := as.DB.Where("token = ?", token).First(&request).Error
+	return &request, err
 }
 
 // DeletePasswordResetRequest deletes a password reset request record by its token.
 func (as *AuthDBModel) DeletePasswordResetRequest(token string) error {
 	return as.DB.Where("token = ?", token).Delete(&PasswordResetRequest{}).Error
+}
+
+func (PasswordResetRequest) TableName() string {
+	return "password_reset_requests"
 }
 
 // CreateAgentLoginCredentials creates new agent login credentials.
@@ -339,51 +344,13 @@ func (as *AuthDBModel) DeleteUserLoginCredentials(id uint) error {
 	return as.DB.Delete(&UsersLoginCredentials{}, id).Error
 }
 
-// CreatePasswordResetToken creates a new password reset token.
-func (as *AuthDBModel) CreatePasswordResetToken(token *PasswordResetToken) error {
-	return as.DB.Create(token).Error
-}
-
-// GetPasswordResetTokenByToken retrieves a password reset token by its token string.
-func (as *AuthDBModel) GetPasswordResetTokenByToken(token string) (*PasswordResetToken, error) {
-	var resetToken PasswordResetToken
-	err := as.DB.Where("token = ?", token).First(&resetToken).Error
-	return &resetToken, err
-}
-
-// DeletePasswordResetToken deletes a password reset token by its token string.
-func (as *AuthDBModel) DeletePasswordResetToken(token string) error {
-	return as.DB.Where("token = ?", token).Delete(&PasswordResetToken{}).Error
-}
-
 // /////////////////////////////////////////////////////////////////////////////////////
 // Password History
 type PasswordHistory struct {
-	ID          uint           `gorm:"primaryKey" json:"id"`
-	UserID      uint           `json:"user_id"`
-	Password    string         `json:"-"`
-	DateChanged time.Time      `json:"date_changed"`
-	CreatedAt   time.Time      `json:"created_at"`
-	UpdatedAt   time.Time      `json:"updated_at"`
-	DeletedAt   gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
-}
-
-func (PasswordHistory) TableName() string {
-	return "password_history"
-}
-
-type PasswordResetToken struct {
-	ID        uint           `gorm:"primaryKey" json:"id"`
-	Token     string         `json:"token"`
-	UserID    uint           `json:"user_id"`
-	ExpiresAt time.Time      `json:"expires_at"`
-	CreatedAt time.Time      `json:"created_at"`
-	UpdatedAt time.Time      `json:"updated_at"`
-	DeletedAt gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
-}
-
-func (PasswordResetToken) TableName() string {
-	return "password_reset_tokens"
+	gorm.Model
+	UserID      uint      `json:"user_id"`
+	Password    string    `json:"-"`
+	DateChanged time.Time `json:"date_changed"`
 }
 
 // CreatePasswordHistory creates a new password history entry.
@@ -411,12 +378,89 @@ func (AgentUserMapping) TableName() string {
 	return "agentUserMapping"
 }
 
+type PasswordResetToken struct {
+	gorm.Model
+	Token     string    `json:"token"`
+	UserID    uint      `json:"user_id"`
+	ExpiresAt time.Time `json:"expires_at"`
+}
+
+func (PasswordResetToken) TableName() string {
+	return "password_reset_tokens"
+}
+
+// CreatePasswordResetToken creates a new password reset token.
+func (as *AuthDBModel) CreatePasswordResetToken(token *PasswordResetToken) error {
+	return as.DB.Create(token).Error
+}
+
+// GetPasswordResetTokenByToken retrieves a password reset token by its token string.
+func (as *AuthDBModel) GetPasswordResetTokenByToken(token string) (*PasswordResetToken, error) {
+	var resetToken PasswordResetToken
+	err := as.DB.Where("token = ?", token).First(&resetToken).Error
+	return &resetToken, err
+}
+
+// DeletePasswordResetToken deletes a password reset token by its token string.
+func (as *AuthDBModel) DeletePasswordResetToken(token string) error {
+	return as.DB.Where("token = ?", token).Delete(&PasswordResetToken{}).Error
+}
+
 // CreateAgentUserMapping creates a mapping between an agent and a user.
 func (as *AuthDBModel) CreateAgentUserMapping(mapping *AgentUserMapping) error {
 	return as.DB.Create(mapping).Error
 }
 
-// DeleteAgentUserMapping deletes a mapping between an agent and a user.
+// DeleteAgentUserMapping deletes a mapping between an agent and a user by agent and user IDs.
 func (as *AuthDBModel) DeleteAgentUserMapping(agentID, userID uint) error {
 	return as.DB.Where("agent_id = ? AND user_id = ?", agentID, userID).Delete(&AgentUserMapping{}).Error
+}
+
+// GetAllUserCredentials retrieves all user login credentials from the database.
+func (as *AuthDBModel) GetAllUserCredentials() ([]*UsersLoginCredentials, error) {
+	var userCredentials []*UsersLoginCredentials
+	err := as.DB.Find(&userCredentials).Error
+	return userCredentials, err
+}
+
+// GetAllAgentCredentials retrieves all agent login credentials from the database.
+func (as *AuthDBModel) GetAllAgentCredentials() ([]*AgentLoginCredentials, error) {
+	var agentCredentials []*AgentLoginCredentials
+	err := as.DB.Find(&agentCredentials).Error
+	return agentCredentials, err
+}
+
+func (am *AuthDBModel) VerifyTwoFactorAuth(agentID uint, token string) (bool, error) {
+	// Implementation details...
+}
+
+// In auth.go
+type OAuthProvider interface {
+	ExchangeToken(code string) (token string, err error)
+	GetUserInfo(token string) (user *OAuthUserInfo, err error)
+}
+
+type OAuthUserInfo struct {
+	Email string
+	Name  string
+}
+
+func NewOAuthProvider(providerName string) OAuthProvider {
+	// Factory method to return a specific OAuth provider implementation
+	// based on the provider name, e.g., Google, Facebook, etc.
+}
+
+func (am *AuthDBModel) OAuthLogin(providerName string, code string) (*Agents, error) {
+	provider := NewOAuthProvider(providerName)
+	token, err := provider.ExchangeToken(code)
+	if err != nil {
+		return nil, err
+	}
+
+	userInfo, err := provider.GetUserInfo(token)
+	if err != nil {
+		return nil, err
+	}
+
+	// Check if user already exists, create a new one if not, and return the user
 }
