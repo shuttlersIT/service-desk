@@ -222,3 +222,21 @@ func validatePasswordResetToken(token string) (jwt.MapClaims, error) {
 
 	return claims, nil
 }
+
+func (a *DefaultAuthService) SyncDataFromExternalService(integrationID uint) error {
+	integration, err := a.AuthDBModel.GetExternalServiceIntegrationByID(integrationID)
+	if err != nil {
+		return err
+	}
+	// Use integration.ApiKey to sync data...
+	return nil
+}
+
+func (a *DefaultAuthService) CreateExternalServiceIntegration(req *models.ExternalServiceIntegration) error {
+	integration, err := a.AuthDBModel.GetExternalServiceIntegrationByID(integrationID)
+	if err != nil {
+		return err
+	}
+	// Use integration.ApiKey to sync data...
+	return nil
+}

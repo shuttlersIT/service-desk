@@ -1298,11 +1298,669 @@ CREATE TABLE IF NOT EXISTS asset_lifecycle_events (
     FOREIGN KEY (asset_id) REFERENCES assets(asset_id) ON DELETE CASCADE
 ) COMMENT='Logs significant lifecycle events for assets.';
 
--- Rest of script
--- .
--- ..
--- ...
+-- Enhancements to the Fully Enhanced MySQL Deployment Script for Service-Desk Application
 
+USE service_desk;
+
+-- Optimizing data types and adding ENUM where beneficial
+ALTER TABLE statuses MODIFY COLUMN is_closed TINYINT(1) NOT NULL DEFAULT 0;
+ALTER TABLE assets MODIFY COLUMN status ENUM('Active', 'Maintenance', 'Decommissioned', 'Lost') NOT NULL;
+ALTER TABLE incidents MODIFY COLUMN status ENUM('Open', 'Investigating', 'Resolved', 'Closed') NOT NULL;
+ALTER TABLE incidents MODIFY COLUMN severity ENUM('Low', 'Medium', 'High', 'Critical') NOT NULL;
+ALTER TABLE user_sessions MODIFY COLUMN is_active TINYINT(1) DEFAULT TRUE;
+
+-- Adding missing indexes and optimizing existing ones for performance
+CREATE INDEX idx_users_on_email ON users(email);
+CREATE INDEX idx_users_on_last_login ON users(last_login_at);
+CREATE INDEX idx_tickets_on_user_id ON tickets(user_id);
+CREATE INDEX idx_tickets_on_agent_id ON tickets(agent_id);
+CREATE INDEX idx_assets_on_user_id ON assets(user_id);
+CREATE INDEX idx_assets_on_vendor_id ON assets(vendor_id);
+
+-- Adding foreign keys where missing to ensure referential integrity
+ALTER TABLE ticket_comments ADD FOREIGN KEY (user_id) REFERENCES users(user_id);
+ALTER TABLE ticket_comments ADD FOREIGN KEY (ticket_id) REFERENCES tickets(ticket_id);
+
+-- Adjusting session management for enhanced security and performance
+ALTER TABLE user_sessions ADD COLUMN user_agent VARCHAR(255);
+ALTER TABLE user_sessions ADD COLUMN session_end TIMESTAMP NULL;
+
+-- Normalizing the database by removing redundant fields and using relation tables
+-- Note: Actual SQL commands for normalization would depend on the current schema and data. 
+-- This might involve creating new tables for many-to-many relationships, 
+-- moving redundant data to separate tables, and updating application logic to handle these changes.
+
+-- Refactoring the asset management to include a lifecycle event log for comprehensive tracking
+CREATE TABLE IF NOT EXISTS asset_events (
+    event_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    asset_id INT UNSIGNED NOT NULL,
+    event_type ENUM('Acquisition', 'Maintenance', 'Decommission', 'Disposal', 'Transfer') NOT NULL,
+    event_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    description TEXT,
+    cost DECIMAL(10, 2),
+    FOREIGN KEY (asset_id) REFERENCES assets(asset_id)
+);
+
+-- Enhancing user and role management with additional granularity and control
+ALTER TABLE roles ADD COLUMN role_type ENUM('System', 'Custom') NOT NULL DEFAULT 'Custom';
+CREATE INDEX idx_roles_on_type ON roles(role_type);
+
+-- Streamlining the SLA management to accommodate dynamic SLA metrics
+ALTER TABLE sla_metrics MODIFY COLUMN target_response_time INT UNSIGNED NOT NULL;
+ALTER TABLE sla_metrics MODIFY COLUMN target_resolution_time INT UNSIGNED NOT NULL;
+CREATE INDEX idx_sla_metrics_on_active ON sla_metrics(active);
+
+-- Implementing dynamic form fields and values for flexible ticket and asset data capture
+DROP TABLE IF EXISTS ticket_dynamic_fields; -- Assuming decision to normalize or refactor
+DROP TABLE IF EXISTS dynamic_form_values; -- Assuming decision to normalize or refactor
+
+-- Committing all schema changes
+COMMIT;
+
+-- Note: This script assumes that appropriate backup, migration strategies are in place, and all changes are tested in a development environment before being applied to production. 
+-- Specific SQL commands for data migration or transformation (as required by normalization efforts) are not included and must be designed based on the current database state.
+-- Further enhancements and optimizations
+
+-- Service Request Enhancements for better tracking and categorization
+ALTER TABLE service_requests ADD COLUMN category_id INT UNSIGNED;
+ALTER TABLE service_requests ADD FOREIGN KEY (category_id) REFERENCES categories(category_id);
+ALTER TABLE service_requests MODIFY COLUMN status ENUM('New', 'Pending', 'Completed', 'Cancelled') NOT NULL;
+CREATE INDEX idx_service_requests_on_category_id ON service_requests(category_id);
+
+-- Refining the Tickets Table with additional fields for tracking and management
+ALTER TABLE tickets ADD COLUMN impact ENUM('Low', 'Medium', 'High', 'Critical') NULL;
+ALTER TABLE tickets ADD COLUMN urgency ENUM('Low', 'Medium', 'High', 'Critical') NULL;
+CREATE INDEX idx_tickets_on_impact_urgency ON tickets(impact, urgency);
+
+-- Asset Management refinements for better lifecycle and warranty tracking
+ALTER TABLE asset_warranties ADD COLUMN warranty_status ENUM('Active', 'Expired') NOT NULL DEFAULT 'Active';
+CREATE INDEX idx_asset_warranties_on_status ON asset_warranties(warranty_status);
+
+-- User Management Enhancements for better role and access control
+ALTER TABLE user_roles ADD COLUMN access_level ENUM('Read', 'Write', 'Admin') NOT NULL DEFAULT 'Read';
+CREATE INDEX idx_user_roles_on_access_level ON user_roles(access_level);
+
+-- Implementing comprehensive audit logs for tracking changes across the system
+ALTER TABLE audit_logs MODIFY COLUMN action ENUM('Created', 'Updated', 'Deleted', 'Viewed') NOT NULL;
+CREATE INDEX idx_audit_logs_on_action_entity_type ON audit_logs(action, entity_type);
+
+-- Optimizing Incident Management with structured categorization and tracking
+ALTER TABLE incidents ADD COLUMN root_cause_analysis TEXT;
+ALTER TABLE incidents ADD COLUMN resolution_summary TEXT;
+
+-- Enhancing SLA Management with detailed tracking and compliance metrics
+ALTER TABLE sla_policies ADD COLUMN sla_compliance_threshold DECIMAL(5, 2) NOT NULL DEFAULT 95.00;
+CREATE INDEX idx_sla_policies_on_compliance_threshold ON sla_policies(sla_compliance_threshold);
+
+-- Adjusting User Sessions for improved tracking and security
+ALTER TABLE user_sessions ADD COLUMN device_info TEXT;
+ALTER TABLE user_sessions ADD COLUMN location_info TEXT;
+
+-- Adding Custom Fields for users to support flexible data storage
+CREATE TABLE IF NOT EXISTS user_custom_fields (
+    field_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    user_id INT UNSIGNED NOT NULL,
+    field_key VARCHAR(255) NOT NULL,
+    field_value TEXT,
+    FOREIGN KEY (user_id) REFERENCES users(user_id)
+);
+CREATE INDEX idx_user_custom_fields_on_user_id ON user_custom_fields(user_id);
+
+-- Enforcing stricter security and data integrity measures
+ALTER TABLE api_keys ADD COLUMN revoked TINYINT(1) NOT NULL DEFAULT 0;
+ALTER TABLE api_access_tokens ADD COLUMN revoked TINYINT(1) NOT NULL DEFAULT 0;
+CREATE INDEX idx_api_keys_on_revoked ON api_keys(revoked);
+CREATE INDEX idx_api_access_tokens_on_revoked ON api_access_tokens(revoked);
+
+-- Final Commit to apply all changes
+COMMIT;
+
+-- Reminder: Execute these changes in a controlled environment first. Ensure backups are taken and a detailed plan for data migration, where necessary, is prepared and tested.
+
+-- Enhancing the Tickets Table for better SLA tracking and performance analysis
+ALTER TABLE tickets 
+  ADD COLUMN sla_breach TINYINT(1) NOT NULL DEFAULT 0,
+  ADD COLUMN time_to_resolution INT UNSIGNED,
+  ADD COLUMN time_to_first_response INT UNSIGNED;
+CREATE INDEX idx_tickets_on_sla_breach ON tickets(sla_breach);
+
+-- Introducing a table for tracking ticket escalations for audit and performance review
+CREATE TABLE IF NOT EXISTS ticket_escalations (
+    escalation_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    ticket_id INT UNSIGNED NOT NULL,
+    escalated_by INT UNSIGNED,
+    escalation_reason VARCHAR(255),
+    escalation_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (ticket_id) REFERENCES tickets(ticket_id),
+    FOREIGN KEY (escalated_by) REFERENCES users(user_id)
+);
+CREATE INDEX idx_ticket_escalations_on_ticket_id ON ticket_escalations(ticket_id);
+
+-- Adding a comprehensive feedback system for both tickets and service requests
+CREATE TABLE IF NOT EXISTS feedback_details (
+    feedback_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    entity_id INT UNSIGNED NOT NULL,
+    entity_type ENUM('Ticket', 'ServiceRequest') NOT NULL,
+    rating INT NOT NULL,
+    comments TEXT,
+    submitted_by INT UNSIGNED,
+    submitted_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (submitted_by) REFERENCES users(user_id)
+);
+CREATE INDEX idx_feedback_details_on_entity_type_entity_id ON feedback_details(entity_type, entity_id);
+
+-- Refining the Asset Management System with location tracking and history
+CREATE TABLE IF NOT EXISTS asset_location_history (
+    history_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    asset_id INT UNSIGNED NOT NULL,
+    previous_location TEXT,
+    new_location TEXT,
+    moved_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    moved_by INT UNSIGNED,
+    FOREIGN KEY (asset_id) REFERENCES assets(asset_id),
+    FOREIGN KEY (moved_by) REFERENCES users(user_id)
+);
+CREATE INDEX idx_asset_location_history_on_asset_id ON asset_location_history(asset_id);
+
+-- Implementing a table for storing detailed change requests for auditing purposes
+CREATE TABLE IF NOT EXISTS change_requests (
+    change_request_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    requested_by INT UNSIGNED NOT NULL,
+    request_status ENUM('New', 'Approved', 'Rejected', 'Implemented') NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (requested_by) REFERENCES users(user_id)
+);
+CREATE INDEX idx_change_requests_on_request_status ON change_requests(request_status);
+
+-- Extending the User Table to include additional contact and preference information
+ALTER TABLE users 
+  ADD COLUMN alternate_email VARCHAR(255),
+  ADD COLUMN locale VARCHAR(10) DEFAULT 'en-US',
+  ADD COLUMN timezone VARCHAR(40) DEFAULT 'UTC';
+CREATE INDEX idx_users_on_locale ON users(locale);
+CREATE INDEX idx_users_on_timezone ON users(timezone);
+
+-- Adding a table for system-wide configurations to manage application settings dynamically
+CREATE TABLE IF NOT EXISTS system_configurations (
+    config_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    config_key VARCHAR(255) NOT NULL UNIQUE,
+    config_value TEXT NOT NULL,
+    last_updated TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- Introducing API rate limiting configurations for better resource management
+CREATE TABLE IF NOT EXISTS api_rate_limiting (
+    rate_limit_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    user_id INT UNSIGNED,
+    endpoint VARCHAR(255) NOT NULL,
+    limit SMALLINT UNSIGNED NOT NULL,
+    reset_interval SMALLINT UNSIGNED NOT NULL COMMENT 'Interval in seconds',
+    FOREIGN KEY (user_id) REFERENCES users(user_id)
+);
+CREATE INDEX idx_api_rate_limiting_on_user_id_endpoint ON api_rate_limiting(user_id, endpoint);
+
+-- Note: The execution of these enhancements should follow a well-planned migration strategy to ensure data integrity and system availability. Considerations should include backup processes, testing phases, and rollback plans.
+-- Implementing User Activity Logging for Enhanced Audit and Security
+CREATE TABLE IF NOT EXISTS user_activity_logs (
+    activity_log_id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    user_id INT UNSIGNED NOT NULL,
+    activity_type ENUM('Login', 'Logout', 'Update', 'Delete', 'Create'),
+    activity_details TEXT,
+    activity_timestamp TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(user_id)
+);
+CREATE INDEX idx_user_activity_logs_on_user_id ON user_activity_logs(user_id);
+CREATE INDEX idx_user_activity_logs_on_activity_type ON user_activity_logs(activity_type);
+
+-- Enhancing the Ticketing System with Automated Assignment Logic
+CREATE TABLE IF NOT EXISTS ticket_assignment_rules (
+    rule_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    rule_name VARCHAR(255) NOT NULL,
+    criteria JSON NOT NULL,
+    assigned_team_id INT UNSIGNED,
+    assigned_user_id INT UNSIGNED,
+    FOREIGN KEY (assigned_team_id) REFERENCES teams(team_id),
+    FOREIGN KEY (assigned_user_id) REFERENCES users(user_id)
+);
+CREATE INDEX idx_ticket_assignment_rules_on_assigned_team_id ON ticket_assignment_rules(assigned_team_id);
+CREATE INDEX idx_ticket_assignment_rules_on_assigned_user_id ON ticket_assignment_rules(assigned_user_id);
+
+-- Creating a Table for Storing Document Attachments Across Entities
+CREATE TABLE IF NOT EXISTS document_attachments (
+    document_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    related_entity_id INT UNSIGNED NOT NULL,
+    related_entity_type ENUM('Ticket', 'ServiceRequest', 'User', 'Asset'),
+    document_path VARCHAR(255) NOT NULL,
+    document_type VARCHAR(50),
+    uploaded_by INT UNSIGNED,
+    uploaded_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (uploaded_by) REFERENCES users(user_id)
+);
+CREATE INDEX idx_document_attachments_on_related_entity_id ON document_attachments(related_entity_id, related_entity_type);
+
+-- Introducing a Comprehensive Table for Managing all Notifications
+CREATE TABLE IF NOT EXISTS all_notifications (
+    notification_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    notification_type ENUM('System', 'User', 'Ticket', 'Asset'),
+    target_user_id INT UNSIGNED,
+    notification_content TEXT,
+    is_read BOOLEAN NOT NULL DEFAULT FALSE,
+    sent_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (target_user_id) REFERENCES users(user_id)
+);
+CREATE INDEX idx_all_notifications_on_target_user_id ON all_notifications(target_user_id);
+CREATE INDEX idx_all_notifications_on_is_read ON all_notifications(is_read);
+
+-- Adding Support for Multi-factor Authentication (MFA)
+ALTER TABLE users ADD COLUMN mfa_enabled BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE users ADD COLUMN mfa_secret VARCHAR(255);
+
+-- Setting up a Table for Scheduled Reports and Analytics
+CREATE TABLE IF NOT EXISTS scheduled_reports (
+    report_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    report_name VARCHAR(255) NOT NULL,
+    report_criteria JSON,
+    schedule_cron_expression VARCHAR(255) NOT NULL,
+    last_run_at TIMESTAMP,
+    next_run_at TIMESTAMP,
+    created_by INT UNSIGNED,
+    FOREIGN KEY (created_by) REFERENCES users(user_id)
+);
+CREATE INDEX idx_scheduled_reports_on_next_run_at ON scheduled_reports(next_run_at);
+
+-- Strengthening Data Integrity with Additional Foreign Keys and Constraints
+-- Example: Ensuring all ticket categories are valid and exist in the categories table
+ALTER TABLE tickets ADD CONSTRAINT FK_tickets_category_id FOREIGN KEY (category_id) REFERENCES categories(category_id);
+-- Similarly, apply foreign key constraints to other relevant fields across tables for maintaining data integrity.
+
+-- Note: Execution of these schema changes and additions should follow thorough planning, with careful attention to migration scripts for existing data, and extensive testing to ensure compatibility and performance. 
+
+-- Project Management Enhancements
+CREATE TABLE IF NOT EXISTS project_details (
+    project_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    project_name VARCHAR(255) NOT NULL,
+    project_description TEXT,
+    start_date DATE,
+    end_date DATE,
+    status ENUM('Planning', 'In Progress', 'Completed', 'On Hold', 'Cancelled'),
+    project_manager_id INT UNSIGNED,
+    FOREIGN KEY (project_manager_id) REFERENCES users(user_id)
+);
+CREATE INDEX idx_project_details_on_status ON project_details(status);
+CREATE INDEX idx_project_details_on_project_manager_id ON project_details(project_manager_id);
+
+-- SLA Tracking Improvements
+CREATE TABLE IF NOT EXISTS sla_breaches (
+    breach_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    ticket_id INT UNSIGNED,
+    sla_type ENUM('Response Time', 'Resolution Time'),
+    breach_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    resolved BOOLEAN NOT NULL DEFAULT FALSE,
+    FOREIGN KEY (ticket_id) REFERENCES tickets(ticket_id)
+);
+CREATE INDEX idx_sla_breaches_on_ticket_id ON sla_breaches(ticket_id);
+CREATE INDEX idx_sla_breaches_on_resolved ON sla_breaches(resolved);
+
+-- Enhanced Audit Logging for All Entities
+CREATE TABLE IF NOT EXISTS enhanced_audit_logs (
+    log_id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    user_id INT UNSIGNED,
+    action_type ENUM('Create', 'Read', 'Update', 'Delete'),
+    entity_type VARCHAR(255),
+    entity_id BIGINT UNSIGNED,
+    log_details TEXT,
+    log_timestamp TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(user_id)
+);
+CREATE INDEX idx_enhanced_audit_logs_on_user_id ON enhanced_audit_logs(user_id);
+CREATE INDEX idx_enhanced_audit_logs_on_entity_type ON enhanced_audit_logs(entity_type);
+
+-- Introducing Configuration Management for Dynamic Settings
+CREATE TABLE IF NOT EXISTS application_settings (
+    setting_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    setting_key VARCHAR(255) NOT NULL UNIQUE,
+    setting_value TEXT,
+    last_updated TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- Advanced User Profiles for More Comprehensive Data
+ALTER TABLE users ADD COLUMN bio TEXT;
+ALTER TABLE users ADD COLUMN linkedin_url VARCHAR(255);
+ALTER TABLE users ADD COLUMN github_url VARCHAR(255);
+
+-- Adding Asset Tracking and Management Features
+CREATE TABLE IF NOT EXISTS asset_history (
+    history_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    asset_id INT UNSIGNED NOT NULL,
+    status_change ENUM('Assigned', 'Returned', 'Repaired', 'Decommissioned'),
+    change_timestamp TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    notes TEXT,
+    FOREIGN KEY (asset_id) REFERENCES assets(asset_id)
+);
+CREATE INDEX idx_asset_history_on_asset_id ON asset_history(asset_id);
+
+-- User Access and Permission Management
+CREATE TABLE IF NOT EXISTS user_access_logs (
+    access_log_id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    user_id INT UNSIGNED NOT NULL,
+    access_type ENUM('Login Success', 'Login Failure', 'Logout', 'MFA Challenge'),
+    access_timestamp TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    ip_address VARCHAR(45),
+    FOREIGN KEY (user_id) REFERENCES users(user_id)
+);
+CREATE INDEX idx_user_access_logs_on_user_id ON user_access_logs(user_id);
+
+-- Implementing Feature Flags for Controlled Rollouts
+CREATE TABLE IF NOT EXISTS feature_flags (
+    flag_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    flag_key VARCHAR(255) NOT NULL UNIQUE,
+    is_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+    enabled_for JSON COMMENT 'List of user IDs for whom the feature is enabled'
+);
+
+-- Enhanced Data Analytics for User Interactions
+CREATE TABLE IF NOT EXISTS user_interaction_metrics (
+    metric_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    user_id INT UNSIGNED,
+    interaction_type VARCHAR(255),
+    interaction_count INT UNSIGNED NOT NULL DEFAULT 0,
+    last_interaction TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(user_id)
+);
+CREATE INDEX idx_user_interaction_metrics_on_user_id ON user_interaction_metrics(user_id);
+CREATE INDEX idx_user_interaction_metrics_on_interaction_type ON user_interaction_metrics(interaction_type);
+
+-- Security Measures: API Rate Limiting
+CREATE TABLE IF NOT EXISTS api_rate_limiting (
+    rate_limit_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    user_id INT UNSIGNED,
+    endpoint VARCHAR(255),
+    limit_count INT UNSIGNED,
+    reset_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(user_id)
+);
+CREATE INDEX idx_api_rate_limiting_on_user_id_endpoint ON api_rate_limiting(user_id, endpoint);
+
+-- User Engagement: Gamification and Badges
+CREATE TABLE IF NOT EXISTS user_badges (
+    badge_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    user_id INT UNSIGNED,
+    badge_name VARCHAR(255),
+    awarded_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(user_id)
+);
+CREATE INDEX idx_user_badges_on_user_id ON user_badges(user_id);
+
+-- Implementing a Tagging System for Tickets and Knowledge Base Articles
+CREATE TABLE IF NOT EXISTS tags (
+    tag_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    tag_name VARCHAR(255) NOT NULL UNIQUE
+);
+
+CREATE TABLE IF NOT EXISTS ticket_tags (
+    ticket_id INT UNSIGNED NOT NULL,
+    tag_id INT UNSIGNED NOT NULL,
+    PRIMARY KEY (ticket_id, tag_id),
+    FOREIGN KEY (ticket_id) REFERENCES tickets(ticket_id),
+    FOREIGN KEY (tag_id) REFERENCES tags(tag_id)
+);
+
+CREATE TABLE IF NOT EXISTS article_tags (
+    article_id INT UNSIGNED NOT NULL,
+    tag_id INT UNSIGNED NOT NULL,
+    PRIMARY KEY (article_id, tag_id),
+    FOREIGN KEY (article_id) REFERENCES knowledge_base_articles(article_id),
+    FOREIGN KEY (tag_id) REFERENCES tags(tag_id)
+);
+
+-- Multi-Factor Authentication (MFA) Settings for Enhanced Security
+ALTER TABLE users ADD COLUMN mfa_enabled BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE users ADD COLUMN mfa_secret VARCHAR(255);
+
+-- Structuring Feedback for Continuous Improvement
+CREATE TABLE IF NOT EXISTS service_feedback (
+    feedback_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    service_request_id INT UNSIGNED,
+    rating INT UNSIGNED NOT NULL,
+    comments TEXT,
+    submitted_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (service_request_id) REFERENCES service_requests(request_id)
+);
+
+-- Support for Scheduled Maintenance and Outages
+CREATE TABLE IF NOT EXISTS scheduled_maintenance (
+    maintenance_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    start_time TIMESTAMP NOT NULL,
+    end_time TIMESTAMP NOT NULL,
+    status ENUM('Scheduled', 'In Progress', 'Completed', 'Cancelled')
+);
+
+
+-- Advanced Reporting: Aggregated Metrics for Dashboard
+CREATE TABLE IF NOT EXISTS dashboard_metrics (
+    metric_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    metric_name VARCHAR(255) NOT NULL UNIQUE,
+    metric_value DECIMAL(10, 2),
+    last_updated TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- System Configuration Settings for Admins
+CREATE TABLE IF NOT EXISTS system_configurations (
+    config_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    config_key VARCHAR(255) NOT NULL UNIQUE,
+    config_value VARCHAR(255),
+    description TEXT,
+    last_updated TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Proactive Incident Management: Automated Monitoring Alerts
+CREATE TABLE IF NOT EXISTS monitoring_alerts (
+    alert_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    source VARCHAR(255) NOT NULL,
+    message TEXT NOT NULL,
+    severity ENUM('Informational', 'Warning', 'Critical') NOT NULL,
+    detected_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- User Task Management for Agents
+CREATE TABLE IF NOT EXISTS agent_tasks (
+    task_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    agent_id INT UNSIGNED NOT NULL,
+    task_description TEXT NOT NULL,
+    due_date DATE,
+    status ENUM('Pending', 'In Progress', 'Completed', 'Overdue') NOT NULL DEFAULT 'Pending',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (agent_id) REFERENCES agents(agent_id)
+);
+CREATE INDEX idx_agent_tasks_on_agent_id_status ON agent_tasks(agent_id, status);
+
+-- Customer Satisfaction Surveys for Closed Tickets
+CREATE TABLE IF NOT EXISTS satisfaction_surveys (
+    survey_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    ticket_id INT UNSIGNED NOT NULL,
+    satisfaction_level ENUM('Very Unsatisfied', 'Unsatisfied', 'Neutral', 'Satisfied', 'Very Satisfied'),
+    comments TEXT,
+    submitted_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (ticket_id) REFERENCES tickets(ticket_id)
+);
+CREATE INDEX idx_satisfaction_surveys_on_ticket_id ON satisfaction_surveys(ticket_id);
+
+-- Asset Tracking: Asset Movement Logs
+CREATE TABLE IF NOT EXISTS asset_movements (
+    movement_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    asset_id INT UNSIGNED NOT NULL,
+    from_location VARCHAR(255),
+    to_location VARCHAR(255),
+    movement_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    reason TEXT,
+    FOREIGN KEY (asset_id) REFERENCES assets(asset_id)
+);
+CREATE INDEX idx_asset_movements_on_asset_id ON asset_movements(asset_id);
+
+-- Audit Trails for Configuration Changes
+CREATE TABLE IF NOT EXISTS configuration_audit_logs (
+    audit_log_id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    config_key VARCHAR(255) NOT NULL,
+    previous_value VARCHAR(255),
+    new_value VARCHAR(255),
+    changed_by INT UNSIGNED,
+    changed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (changed_by) REFERENCES users(user_id)
+);
+CREATE INDEX idx_configuration_audit_logs_on_config_key ON configuration_audit_logs(config_key);
+
+-- Note: Implementation of these enhancements should be done with careful planning, especially around data migration and system testing. Always ensure backward compatibility and minimal downtime during the deployment of these new features to the production environment.
+
+
+-- Project Resource Allocation
+CREATE TABLE IF NOT EXISTS project_resources (
+    resource_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    project_id INT UNSIGNED NOT NULL,
+    resource_name VARCHAR(255) NOT NULL,
+    resource_type ENUM('Human', 'Technical', 'Financial'),
+    allocation_percentage DECIMAL(5, 2) COMMENT 'Percentage of time/resource allocated to the project',
+    start_date DATE,
+    end_date DATE,
+    FOREIGN KEY (project_id) REFERENCES projects(project_id)
+);
+CREATE INDEX idx_project_resources_on_project_id ON project_resources(project_id);
+
+-- Detailed User Profiles
+CREATE TABLE IF NOT EXISTS user_profiles (
+    profile_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    user_id INT UNSIGNED NOT NULL UNIQUE,
+    bio TEXT,
+    skills TEXT COMMENT 'JSON array of skills',
+    interests TEXT COMMENT 'JSON array of interests',
+    FOREIGN KEY (user_id) REFERENCES users(user_id)
+);
+
+-- Advanced Access Control: Role-Based Access Control (RBAC) Enhancements
+CREATE TABLE IF NOT EXISTS rbac_permissions (
+    permission_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    permission_name VARCHAR(255) NOT NULL UNIQUE,
+    description TEXT
+);
+
+CREATE TABLE IF NOT EXISTS rbac_role_permissions (
+    role_id INT UNSIGNED NOT NULL,
+    permission_id INT UNSIGNED NOT NULL,
+    PRIMARY KEY (role_id, permission_id),
+    FOREIGN KEY (role_id) REFERENCES roles(role_id),
+    FOREIGN KEY (permission_id) REFERENCES rbac_permissions(permission_id)
+);
+
+-- Service Catalog Enhancement: Service Dependencies
+CREATE TABLE IF NOT EXISTS service_dependencies (
+    service_id INT UNSIGNED NOT NULL,
+    dependent_service_id INT UNSIGNED NOT NULL,
+    PRIMARY KEY (service_id, dependent_service_id),
+    FOREIGN KEY (service_id) REFERENCES service_catalog(service_id),
+    FOREIGN KEY (dependent_service_id) REFERENCES service_catalog(service_id)
+);
+
+-- Enhanced Ticketing System: Ticket Dependencies for Complex Issues
+CREATE TABLE IF NOT EXISTS ticket_dependencies (
+    ticket_id INT UNSIGNED NOT NULL,
+    dependent_ticket_id INT UNSIGNED NOT NULL,
+    PRIMARY KEY (ticket_id, dependent_ticket_id),
+    FOREIGN KEY (ticket_id) REFERENCES tickets(ticket_id),
+    FOREIGN KEY (dependent_ticket_id) REFERENCES tickets(ticket_id)
+);
+
+-- User Action Logging for Comprehensive Activity Tracking
+CREATE TABLE IF NOT EXISTS user_action_logs (
+    action_log_id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    user_id INT UNSIGNED,
+    action_type VARCHAR(255) NOT NULL,
+    action_description TEXT,
+    action_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(user_id)
+);
+CREATE INDEX idx_user_action_logs_on_user_id ON user_action_logs(user_id);
+
+-- Advanced Configuration: Feature Flags
+CREATE TABLE IF NOT EXISTS feature_flags (
+    flag_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    flag_key VARCHAR(255) NOT NULL UNIQUE,
+    is_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+    description TEXT
+);
+
+-- Note: As with any database changes, careful consideration should be given to the impact on existing functionalities. Testing in a staging environment before deployment to production is crucial to ensure data integrity and system stability.
+-- Advanced Reporting Capabilities
+CREATE TABLE IF NOT EXISTS report_definitions (
+    report_definition_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    report_name VARCHAR(255) NOT NULL UNIQUE,
+    description TEXT,
+    query TEXT NOT NULL COMMENT 'SQL query for generating the report',
+    parameters JSON COMMENT 'JSON-encoded parameters for the report',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- Detailed Incident Management
+CREATE TABLE IF NOT EXISTS incident_updates (
+    update_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    incident_id INT UNSIGNED NOT NULL,
+    update_text TEXT NOT NULL,
+    updated_by INT UNSIGNED NOT NULL,
+    update_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (incident_id) REFERENCES incidents(incident_id),
+    FOREIGN KEY (updated_by) REFERENCES users(user_id)
+);
+
+-- Comprehensive Asset Tracking
+CREATE TABLE IF NOT EXISTS asset_tracking (
+    tracking_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    asset_id INT UNSIGNED NOT NULL,
+    location VARCHAR(255) NOT NULL,
+    status ENUM('In Use', 'In Maintenance', 'In Storage', 'Retired'),
+    update_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (asset_id) REFERENCES assets(asset_id)
+);
+CREATE INDEX idx_asset_tracking_on_asset_id ON asset_tracking(asset_id);
+
+-- User Training Records (for managing user training on various tools/services)
+CREATE TABLE IF NOT EXISTS user_training_records (
+    training_record_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    user_id INT UNSIGNED NOT NULL,
+    training_topic VARCHAR(255) NOT NULL,
+    completion_date DATE,
+    FOREIGN KEY (user_id) REFERENCES users(user_id)
+);
+CREATE INDEX idx_user_training_records_on_user_id ON user_training_records(user_id);
+
+-- Asset Maintenance Scheduling
+CREATE TABLE IF NOT EXISTS asset_maintenance_schedule (
+    schedule_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    asset_id INT UNSIGNED NOT NULL,
+    scheduled_start TIMESTAMP NOT NULL,
+    scheduled_end TIMESTAMP NOT NULL,
+    maintenance_type VARCHAR(255) NOT NULL COMMENT 'Planned, Unplanned, etc.',
+    notes TEXT,
+    FOREIGN KEY (asset_id) REFERENCES assets(asset_id)
+);
+CREATE INDEX idx_asset_maintenance_schedule_on_asset_id ON asset_maintenance_schedule(asset_id);
+
+-- Integration with External Services (e.g., Cloud Services)
+CREATE TABLE IF NOT EXISTS external_service_integrations (
+    integration_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    service_name VARCHAR(255) NOT NULL UNIQUE,
+    api_key VARCHAR(255) NOT NULL,
+    integration_config JSON NOT NULL COMMENT 'JSON-encoded configuration for the integration',
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    last_sync TIMESTAMP NULL COMMENT 'Timestamp of the last successful synchronization'
+);
+
+-- Note: This script extends the capabilities of the service desk system to include advanced reporting, more detailed incident management, comprehensive asset tracking, and user training management. It also lays the groundwork for integrating external services, providing a platform for future expansions and integrations.
+
+-- Note: It's critical to ensure that all new tables and modifications are thoroughly tested in a controlled environment before deploying them to production. Additionally, consider implementing backup strategies and data migration plans to safeguard against data loss during the upgrade process.
 
 
 -- End of Enhanced Script

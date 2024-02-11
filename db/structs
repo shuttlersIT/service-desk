@@ -1,0 +1,1758 @@
+// Here is a list of every struct entity:
+
+// Agents represents the schema of the agents table
+type Agents struct {
+	gorm.Model
+	FirstName    string     `gorm:"size:255;not null" json:"first_name" binding:"required"`
+	LastName     string     `gorm:"size:255;not null" json:"last_name" binding:"required"`
+	Email        string     `gorm:"size:255;not null;unique" json:"email" binding:"required,email"`
+	PasswordHash string     `gorm:"size:255;not null" json:"-"` // Excluded from JSON responses
+	Phone        *string    `gorm:"size:20" json:"phone,omitempty" binding:"omitempty,e164"`
+	PositionID   uint       `gorm:"index;type:int unsigned" json:"position_id,omitempty"`
+	DepartmentID uint       `gorm:"index;type:int unsigned" json:"department_id,omitempty"`
+	IsActive     bool       `gorm:"default:true" json:"is_active"`
+	ProfilePic   *string    `gorm:"size:255" json:"profile_pic,omitempty"`
+	LastLoginAt  *time.Time `json:"last_login_at,omitempty"`
+	TeamID       *uint      `gorm:"type:int unsigned" json:"team_id,omitempty"`
+	SupervisorID *uint      `gorm:"type:int unsigned" json:"supervisor_id,omitempty"`
+	Roles        []Role     `gorm:"many2many:agent_roles;" json:"roles"`
+	Biography    string     `json:"biography,omitempty"`
+	UserID       uint       `gorm:"primaryKey" json:"user_id"`
+	AgentDetails Users      `gorm:"foreignKey:UserID" json:"-"`
+}
+
+func (Agents) TableName() string {
+	return "agents"
+}
+
+type AgentProfile struct {
+	gorm.Model
+	UserID          uint   `gorm:"primaryKey"`
+	Bio             string `gorm:"type:text"`
+	AvatarURL       string `gorm:"type:text"`
+	Preferences     string `gorm:"type:text"` // JSON format to store various user preferences
+	PrivacySettings string `gorm:"type:text"` // JSON format for privacy settings
+}
+
+func (AgentProfile) TableName() string {
+	return "agent_profiles"
+}
+
+// Unit represents the schema of the unit table
+type Unit struct {
+	gorm.Model
+	UnitName string  `gorm:"size:255;not null" json:"unit_name"`
+	Emoji    *string `gorm:"size:255" json:"emoji,omitempty"`
+}
+
+func (Unit) TableName() string {
+	return "unit"
+}
+
+// Permission represents the schema of the permission table
+type Permission struct {
+	gorm.Model
+	Name        string  `gorm:"size:255;not null" json:"permission_name"`
+	Description *string `gorm:"type:text" json:"description,omitempty"`
+}
+
+func (Permission) TableName() string {
+	return "permissions"
+}
+
+// Teams represents the schema of the teams table
+type Teams struct {
+	gorm.Model
+	TeamName         string  `gorm:"size:255;not null" json:"team_name"`
+	Emoji            *string `gorm:"size:255" json:"emoji,omitempty"`
+	TeamPermissionID *uint   `json:"team_permission_id,omitempty" gorm:"type:int unsigned"`
+}
+
+func (Teams) TableName() string {
+	return "team"
+}
+
+// TeamPermission links 'teams' with their 'permissions'.
+type TeamPermission struct {
+	gorm.Model
+	TeamID      uint          `gorm:"not null;index:,unique" json:"team_id"`
+	Permissions []*Permission `gorm:"many2many:team_permissions_permissions;" json:"permissions"`
+}
+
+// Role represents the schema of the role table
+type Role struct {
+	gorm.Model
+	RoleName    string  `gorm:"size:255;not null" json:"role_name"`
+	Description *string `gorm:"type:text" json:"description,omitempty"`
+	Users       []Users `gorm:"many2many:user_roles;" json:"-"`
+}
+
+func (Role) TableName() string {
+	return "roles"
+}
+
+// RoleBase represents a foundational role structure that may be used for additional role metadata
+type RoleBase struct {
+	gorm.Model
+	Name        string `gorm:"size:255;not null" json:"name"`
+	Description string `gorm:"type:text" json:"description"`
+}
+
+func (RoleBase) TableName() string {
+	return "role_base"
+}
+
+// RolePermission links roles with permissions in a many-to-many relationship
+type RolePermission struct {
+	gorm.Model
+	RoleID       uint `gorm:"not null" json:"role_id"`
+	PermissionID uint `gorm:"not null" json:"permission_id"`
+}
+
+func (RolePermission) TableName() string {
+	return "role_permissions"
+}
+
+// AgentRole links agents with roles in a many-to-many relationship
+type AgentRole struct {
+	gorm.Model
+	AgentID uint `gorm:"not null" json:"agent_id"`
+	RoleID  uint `gorm:"not null" json:"role_id"`
+}
+
+func (AgentRole) TableName() string {
+	return "agent_roles"
+}
+
+// UserAgent represents the relationship between a user and an agent
+type UserAgent struct {
+	gorm.Model
+	UserID    uint            `gorm:"not null" json:"user_id"`
+	AgentID   uint            `gorm:"not null" json:"agent_id"`
+	CreatedAt time.Time       `json:"created_at"`
+	UpdatedAt time.Time       `json:"updated_at"`
+	DeletedAt *gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+}
+
+func (UserAgent) TableName() string {
+	return "user_agents"
+}
+
+// TeamAgent represents the relationship between a team and an agent
+type TeamAgent struct {
+	gorm.Model
+	TeamID  uint `gorm:"not null" json:"team_id"`
+	AgentID uint `gorm:"not null" json:"agent_id"`
+}
+
+func (TeamAgent) TableName() string {
+	return "team_agents"
+}
+
+// AgentPermission represents the relationship between an agent and their granted permissions
+type AgentPermission struct {
+	gorm.Model
+	AgentID      uint `gorm:"not null" json:"agent_id"`
+	PermissionID uint `gorm:"not null" json:"permission_id"`
+}
+
+func (AgentPermission) TableName() string {
+	return "agent_permissions"
+}
+
+type SearchCriteria struct {
+	gorm.Model
+	Name       string
+	Role       string
+	Department string
+}
+
+func (SearchCriteria) TableName() string {
+	return "search_criteria"
+}
+
+// Incident represents an incident report.
+type Analytics struct {
+	gorm.Model               // This includes ID, CreatedAt, UpdatedAt, and DeletedAt
+	Name           string    `gorm:"size:255;not null" json:"name"`
+	Value          float64   `json:"value" gorm:"type:decimal(10,2)"`
+	ReportedAt     time.Time `json:"reported_at" gorm:"not null"`
+	UserID         uint      `json:"user_id" gorm:"not null;index"`
+	Title          string    `json:"title" gorm:"size:255;not null"`
+	Description    string    `json:"description" gorm:"type:text;not null"`
+	Category       string    `json:"category" gorm:"size:100;not null;index"`
+	Priority       string    `json:"priority" gorm:"size:50;not null"`
+	Tags           []Tag     `json:"tags" gorm:"type:text[]"` // Use pq.StringArray for PostgreSQL; adjust for MySQL if necessary
+	AttachmentURL  string    `json:"attachment_url" gorm:"size:255"`
+	HasAttachments bool      `json:"has_attachments"`
+	Severity       string    `json:"severity" gorm:"size:50;not null"`
+}
+
+func (Analytics) TableName() string {
+	return "engagement_metrics"
+}
+
+type DeviceRegistration struct {
+	gorm.Model
+	UserID   uint   `gorm:"index;not null"`
+	DeviceID string `gorm:"type:varchar(255);not null"` // Unique identifier for the device
+	Platform string `gorm:"type:varchar(100);not null"` // E.g., "iOS", "Android"
+	Token    string `gorm:"type:text;not null"`         // Token for push notifications
+}
+
+func (DeviceRegistration) TableName() string {
+	return "device_registrations"
+}
+
+type Assets struct {
+	gorm.Model
+	AssetTag       string     `gorm:"size:100;not null;unique" json:"asset_tag"`
+	AssetTypeID    uint       `gorm:"index;not null" json:"asset_type_id"`
+	AssetName      string     `gorm:"size:255;not null" json:"asset_name"`
+	Description    string     `gorm:"type:text" json:"description"`
+	Manufacturer   string     `gorm:"size:255" json:"manufacturer"`
+	AssetModel     string     `gorm:"size:255" json:"model"`
+	SerialNumber   string     `gorm:"size:255;unique" json:"serial_number"`
+	PurchaseDate   *time.Time `json:"purchase_date,omitempty"`
+	WarrantyExpire *time.Time `json:"warranty_expire,omitempty"`
+	PurchasePrice  float64    `gorm:"type:decimal(10,2)" json:"purchase_price"`
+	Vendor         Vendor     `gorm:"foreignKey:VendorID" json:"-"`
+	User           Users      `gorm:"foreignKey:UserID" json:"-"`
+	Status         string     `gorm:"size:100;not null" json:"status"`
+	Location       string     `gorm:"size:255" json:"location"`
+	// Assuming UserID is the identifier for the user to whom the asset is currently assigned.
+	UserID          *uint `gorm:"index" json:"user_id,omitempty"`
+	SiteID          uint  `gorm:"index" json:"site_id"`
+	CreatedByID     uint  `gorm:"index" json:"created_by_id"`
+	AssetAssignment *uint `json:"assetAssignment" gorm:"foreignKey:AssetAssignmentID"`
+}
+
+func (Assets) TableName() string {
+	return "assets"
+}
+
+type InventoryItem struct {
+	gorm.Model
+	ProductID   uint   `gorm:"uniqueIndex;not null"` // Assuming a unique product ID
+	Name        string `gorm:"type:varchar(255);not null"`
+	Description string `gorm:"type:text;not null"`
+	StockLevel  int    `gorm:"not null"`
+}
+
+func (InventoryItem) TableName() string {
+	return "inventory_items"
+}
+
+// Hashtag represents a hashtag entity
+type AssetTag struct {
+	ID        uint           `gorm:"primaryKey" json:"id"`
+	AssetTag  string         `json:"tag"`
+	Tags      []string       `json:"tags"` // Added Tags field
+	CreatedAt time.Time      `json:"created_at"`
+	UpdatedAt time.Time      `json:"updated_at"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+	AssetID   uint           `json:"-"`
+}
+
+// TableName sets the table name for the AssetTags model.
+func (AssetTag) TableName() string {
+	return "asset_tag"
+}
+
+type AssetType struct {
+	ID        uint           `gorm:"primaryKey" json:"asset_type_id"`
+	AssetType string         `json:"asset_type"`
+	CreatedAt time.Time      `json:"created_at"`
+	UpdatedAt time.Time      `json:"updated_at"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+}
+
+// TableName sets the table name for the AssetType model.
+func (AssetType) TableName() string {
+	return "assetType"
+}
+
+type AssetAssignment struct {
+	ID               uint           `gorm:"primaryKey" json:"assignment_id"`
+	AssetID          uint           `gorm:"index;not null" json:"asset_id"`
+	UserID           uint           `gorm:"index;not null" json:"user_id"`
+	AssignedBy       uint           `gorm:"index;not null" json:"assigned_by"`
+	AssignmentType   string         `gorm:"size:255" json:"assignment_type"`
+	AssignmentStatus string         `gorm:"size:255" json:"assignment_status"`
+	DueAt            *time.Time     `json:"due_at,omitempty"` // Made optional
+	CreatedAt        time.Time      `json:"created_at"`
+	UpdatedAt        time.Time      `json:"updated_at"`
+	DeletedAt        gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+	// DeletedAt removed to align with gorm.Model inclusion
+}
+
+func (AssetAssignment) TableName() string {
+	return "asset_assignments"
+}
+
+type Resource struct {
+	gorm.Model
+	Name               string         `json:"name" binding:"required"`
+	Description        string         `json:"description"`
+	Type               string         `json:"type"`
+	Location           string         `json:"location"`
+	AvailabilityStatus string         `json:"availability_status"`
+	CreatedAt          time.Time      `json:"created_at"`
+	UpdatedAt          time.Time      `json:"updated_at"`
+	Bookings           []Booking      `json:"bookings" gorm:"foreignKey:ResourceID"`
+	Status             string         `gorm:"type:varchar(100);not null"` // E.g., "active", "maintenance"
+	Metadata           string         `gorm:"type:text"`                  // JSON for storing additional information
+	DeletedAt          gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+}
+
+func (Resource) TableName() string {
+	return "resources"
+}
+
+type ResourceAllocation struct {
+	gorm.Model
+	ResourceID        uint   `gorm:"index;not null"`
+	UserID            uint   `gorm:"index"`     // Optional, if allocated to a user
+	AllocationDetails string `gorm:"type:text"` // JSON detailing allocation
+	StartTime         time.Time
+	EndTime           time.Time
+}
+
+func (ResourceAllocation) TableName() string {
+	return "resource_allocations"
+}
+
+type AgentResourceAllocation struct {
+	gorm.Model
+	ResourceID        uint   `gorm:"index;not null"`
+	AgentID           uint   `gorm:"index"`     // Optional, if allocated to a user
+	AllocationDetails string `gorm:"type:text"` // JSON detailing allocation
+	StartTime         time.Time
+	EndTime           time.Time
+}
+
+func (AgentResourceAllocation) TableName() string {
+	return "agent_resource_allocations"
+}
+
+type Booking struct {
+	ID         uint           `gorm:"primaryKey" json:"id"`
+	ResourceID uint           `json:"resource_id"`
+	UserID     uint           `json:"user_id"`
+	StartTime  time.Time      `json:"start_time"`
+	EndTime    time.Time      `json:"end_time"`
+	Status     string         `json:"status"`
+	CreatedAt  time.Time      `json:"created_at"`
+	UpdatedAt  time.Time      `json:"updated_at"`
+	DeletedAt  gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+}
+
+func (Booking) TableName() string {
+	return "bookings"
+}
+
+type AccessControlList struct {
+	ID         uint   `gorm:"primaryKey"`
+	Resource   string `gorm:"type:varchar(255);not null"` // E.g., "article", "user_profile"
+	Action     string `gorm:"type:varchar(100);not null"` // E.g., "read", "write"
+	RoleID     uint   `gorm:"index"`
+	Permission bool
+}
+
+func (AccessControlList) TableName() string {
+	return "access_control_lists"
+}
+
+type ComplianceAuditLog struct {
+	ID          uint   `gorm:"primaryKey"`
+	Action      string `gorm:"type:varchar(255);not null"`
+	UserID      uint   `gorm:"index"`
+	Description string `gorm:"type:text;not null"`
+	Details     string `gorm:"type:text"` // JSON format recommended
+	CreatedAt   time.Time
+}
+
+func (ComplianceAuditLog) TableName() string {
+	return "compliance_audit_logs"
+}
+
+type Vendor struct {
+	gorm.Model
+	VendorName    string `gorm:"size:255;not null;unique" json:"vendor_name"`
+	Description   string `gorm:"type:text" json:"description"`
+	ContactInfo   string `gorm:"type:text" json:"contact_info"`
+	ContactPerson string `gorm:"size:255" json:"contact_person"`
+	Address       string `gorm:"type:text" json:"address"`
+}
+
+func (Vendor) TableName() string {
+	return "vendors"
+}
+
+type DataConsent struct {
+	ID          uint   `gorm:"primaryKey"`
+	UserID      uint   `gorm:"index;not null"`
+	ConsentType string `gorm:"type:varchar(255);not null"` // E.g., "analytics", "personalization"
+	IsGranted   bool
+	GrantedAt   time.Time
+	RevokedAt   *time.Time
+}
+
+func (DataConsent) TableName() string {
+	return "data_consents"
+}
+
+type EncryptionKey struct {
+	ID        uint   `gorm:"primaryKey"`
+	OwnerID   uint   `gorm:"index;not null"`             // Could be a user or community
+	KeyType   string `gorm:"type:varchar(100);not null"` // E.g., "AES", "RSA"
+	KeyData   string `gorm:"type:text;not null"`         // Encrypted key data
+	CreatedAt time.Time
+}
+
+func (EncryptionKey) TableName() string {
+	return "encryption_keys"
+}
+
+type APIGateway struct {
+	ID        uint   `gorm:"primaryKey"`
+	Name      string `gorm:"type:varchar(255);not null"`
+	Endpoint  string `gorm:"type:text;not null"` // URL to the gateway
+	AuthToken string `gorm:"type:text"`          // Optional token for accessing the gateway
+	IsActive  bool   `gorm:"default:true"`
+}
+
+func (APIGateway) TableName() string {
+	return "api_gateways"
+}
+
+type ExternalServiceIntegration struct {
+	IntegrationID     uint   `gorm:"primaryKey"`
+	ServiceName       string `gorm:"unique;not null"`
+	ApiKey            string `gorm:"not null"`
+	IntegrationConfig string `gorm:"type:json;not null"`
+	IsActive          bool   `gorm:"default:true"`
+	LastSync          *time.Time
+}
+
+func (ExternalServiceIntegration) TableName() string {
+	return "external_service_integration"
+}
+
+// Agent User Mapping
+type AgentUserMapping struct {
+	gorm.Model
+	AgentID uint `json:"agent_id"`
+	UserID  uint `json:"user_id"`
+}
+
+// Password History
+type PasswordHistory struct {
+	ID          uint           `gorm:"primaryKey" json:"id"`
+	UserID      uint           `json:"user_id"`
+	Password    string         `json:"-"`
+	DateChanged time.Time      `json:"date_changed"`
+	CreatedAt   time.Time      `json:"created_at"`
+	UpdatedAt   time.Time      `json:"updated_at"`
+	DeletedAt   gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+}
+
+func (PasswordHistory) TableName() string {
+	return "password_history"
+}
+
+type PasswordResetToken struct {
+	ID        uint           `gorm:"primaryKey" json:"id"`
+	Token     string         `json:"token"`
+	UserID    uint           `json:"user_id"`
+	ExpiresAt time.Time      `json:"expires_at"`
+	CreatedAt time.Time      `json:"created_at"`
+	UpdatedAt time.Time      `json:"updated_at"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+}
+
+func (PasswordResetToken) TableName() string {
+	return "password_reset_tokens"
+}
+
+//Password Requests
+
+// Define a model for storing password reset requests
+type PasswordResetRequest struct {
+	ID        uint           `gorm:"primaryKey" json:"id"`
+	UserID    uint           `json:"user_id"`
+	RequestID uint           `json:"request_id"`
+	Token     string         `json:"token"`
+	ExpiresAt time.Time      `json:"expires_at"`
+	CreatedAt time.Time      `json:"created_at"`
+	UpdatedAt time.Time      `json:"updated_at"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+}
+
+func (PasswordResetRequest) TableName() string {
+	return "password_reset_requests"
+}
+
+type LoginInfo struct {
+	Email    string `json:"email"`
+	Password string `json:"password"`
+}
+
+type RegisterModel struct {
+	a *UserDBModel
+	b *AuthDBModel
+	c *AgentDBModel
+}
+
+type UsersLoginCredentials struct {
+	gorm.Model
+	ID        uint      `gorm:"primaryKey" json:"_"`
+	Username  string    `json:"username"`
+	Password  string    `json:"password"`
+	UserID    uint      `json:"user_id"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+// TableName sets the table name for the UsersLoginCredentials model.
+func (UsersLoginCredentials) TableName() string {
+	return "users_login_credentials"
+}
+
+type AgentLoginCredentials struct {
+	gorm.Model
+	ID          uint       `gorm:"primaryKey" json:"_"`
+	Username    string     `json:"username"`
+	Password    string     `json:"password"`
+	AgentID     uint       `json:"agent_id"`
+	CreatedAt   time.Time  `json:"created_at"`
+	UpdatedAt   time.Time  `json:"updated_at"`
+	DeletedAt   time.Time  `json:"deleted_at"`
+	LastLoginAt *time.Time `json:"last_login_at,omitempty"`
+}
+
+// TableName sets the table name for the Agent model.
+func (AgentLoginCredentials) TableName() string {
+	return "agent_login_credentials"
+}
+
+type APIToken struct {
+	gorm.Model
+	UserID      uint       `gorm:"not null;index" json:"user_id"`
+	User        Users      `gorm:"foreignKey:UserID" json:"-"`
+	Token       string     `gorm:"size:255;not null;unique" json:"token"`
+	ExpiresAt   time.Time  `gorm:"type:datetime" json:"expires_at"`
+	Description string     `gorm:"size:255" json:"description"`
+	LastLoginAt *time.Time `json:"last_login_at,omitempty"`
+}
+
+func (APIToken) TableName() string {
+	return "api_tokens"
+}
+
+type APIRequestLog struct {
+	gorm.Model
+	Endpoint     string `gorm:"type:varchar(255);not null"`
+	Method       string `gorm:"type:varchar(50);not null"`
+	StatusCode   int    `gorm:"not null"`
+	RequestBody  string `gorm:"type:text"` // Optional: Store request bodies for POST/PUT requests
+	ResponseBody string `gorm:"type:text"` // Optional: Store response bodies for debugging
+	Duration     int64  `gorm:"not null"`  // Duration of the request in milliseconds
+	CreatedAt    time.Time
+	UserID       uint `gorm:"not null;index" json:"user_id"`
+}
+
+func (APIRequestLog) TableName() string {
+	return "api_request_logs"
+}
+
+type ExternalServiceToken struct {
+	ID          uint       `gorm:"primaryKey"`
+	ServiceName string     `gorm:"type:varchar(255);not null"` // Name of the external service
+	Token       string     `gorm:"type:text;not null"`         // Encrypted token or API key
+	ExpiresAt   *time.Time // Nullable if the token does not expire
+}
+
+func (ExternalServiceToken) TableName() string {
+	return "external_service_tokens"
+}
+
+type ContentArticle struct {
+	gorm.Model
+	AuthorID    uint   `gorm:"index"` // Foreign key for User
+	Title       string `gorm:"type:varchar(255);not null"`
+	Body        string `gorm:"type:text;not null"`
+	CategoryID  uint   `gorm:"index"` // Foreign key for ContentCategory
+	PublishedAt *time.Time
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+}
+
+func (ContentArticle) TableName() string {
+	return "content_articles"
+}
+
+type ContentCategory struct {
+	gorm.Model
+	Name        string `gorm:"type:varchar(100);unique;not null"`
+	Description string `gorm:"type:text"`
+}
+
+func (ContentCategory) TableName() string {
+	return "content_categories"
+}
+
+type UserInteraction struct {
+	gorm.Model
+	UserID          uint   `gorm:"index;not null"`
+	InteractionType string `gorm:"type:varchar(100);not null"` // E.g., "view", "like", "comment"
+	EntityID        uint   `gorm:"index;not null"`             // Generic ID to reference the entity interacted with
+	EntityType      string `gorm:"type:varchar(100);not null"` // To distinguish between articles, products, etc.
+	CreatedAt       time.Time
+}
+
+func (UserInteraction) TableName() string {
+	return "user_interactions"
+}
+
+type ContentMedia struct {
+	gorm.Model
+	ArticleID   uint   `gorm:"index"`                      // Associated with ContentArticle
+	MediaType   string `gorm:"type:varchar(100);not null"` // E.g., "image", "video"
+	URL         string `gorm:"type:text;not null"`
+	Description string `gorm:"type:text"`
+	CreatedAt   time.Time
+}
+
+func (ContentMedia) TableName() string {
+	return "content_media"
+}
+
+type ArticleTag struct {
+	gorm.Model
+	ArticleID uint `gorm:"primaryKey"`
+	TagID     uint `gorm:"primaryKey"`
+}
+
+func (ArticleTag) TableName() string {
+	return "article_tags"
+}
+
+type UserJourneyEvent struct {
+	ID        uint   `gorm:"primaryKey"`
+	SessionID string `gorm:"type:varchar(255);not null"`
+	UserID    uint   `gorm:"index"` // Nullable for anonymous users
+	EventName string `gorm:"type:varchar(255);not null"`
+	Details   string `gorm:"type:text"` // JSON detailing the event
+	CreatedAt time.Time
+}
+
+func (UserJourneyEvent) TableName() string {
+	return "user_journey_events"
+}
+
+type LocalizedContent struct {
+	ID             uint   `gorm:"primaryKey"`
+	ContentID      uint   `gorm:"index"`                     // Generic content ID
+	Language       string `gorm:"type:varchar(10);not null"` // ISO language code
+	TranslatedText string `gorm:"type:text;not null"`
+	CreatedAt      time.Time
+}
+
+func (LocalizedContent) TableName() string {
+	return "localized_contents"
+}
+
+type Tenant struct {
+	ID        uint   `gorm:"primaryKey"`
+	Name      string `gorm:"type:varchar(255);not null"`
+	APIKey    string `gorm:"type:varchar(255);unique;not null"`
+	IsActive  bool   `gorm:"default:true"`
+	CreatedAt time.Time
+}
+
+func (Tenant) TableName() string {
+	return "tenants"
+}
+
+type TenantScopedModel struct {
+	TenantID uint `gorm:"index;not null"` // Foreign key for Tenant
+	// Include fields common to tenant-scoped models.
+}
+
+func (TenantScopedModel) TableName() string {
+	return "tenant_scoped_model"
+}
+
+type ContentCollection struct {
+	ID          uint          `gorm:"primaryKey"`
+	Title       string        `gorm:"type:varchar(255);not null"`
+	Description string        `gorm:"type:text"`
+	CuratorID   uint          `gorm:"index"` // ID of the user or system curating the collection
+	Contents    []ContentItem `gorm:"many2many:collection_contents;"`
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+}
+
+func (ContentCollection) TableName() string {
+	return "content_collections"
+}
+
+type ContentItem struct {
+	ID          uint   `gorm:"primaryKey"`
+	Type        string `gorm:"type:varchar(100);not null"` // E.g., "article", "video", "image"
+	ReferenceID uint   `gorm:"not null"`                   // ID to the actual content, interpretation depends on Type
+	Metadata    string `gorm:"type:text"`                  // JSON for additional metadata about the item
+}
+
+func (ContentItem) TableName() string {
+	return "content_items"
+}
+
+type BehaviorEvent struct {
+	ID         uint   `gorm:"primaryKey"`
+	UserID     uint   `gorm:"index"`
+	EventType  string `gorm:"type:varchar(255);not null"`
+	EventData  string `gorm:"type:text"` // JSON detailing the event specifics
+	OccurredAt time.Time
+}
+
+func (BehaviorEvent) TableName() string {
+	return "behavior_events"
+}
+
+type SystemMetric struct {
+	ID         uint   `gorm:"primaryKey"`
+	MetricType string `gorm:"type:varchar(100);not null"`
+	Value      float64
+	RecordedAt time.Time
+}
+
+func (SystemMetric) TableName() string {
+	return "system_metrics"
+}
+
+type UserPreferenceVector struct {
+	ID          uint   `gorm:"primaryKey"`
+	UserID      uint   `gorm:"uniqueIndex;not null"`
+	Preferences string `gorm:"type:text;not null"` // JSON-encoded vector representing user preferences
+	UpdatedAt   time.Time
+}
+
+func (UserPreferenceVector) TableName() string {
+	return "user_preference_vectors"
+}
+
+type ContentRecommendation struct {
+	ID            uint    `gorm:"primaryKey"`
+	UserID        uint    `gorm:"index;not null"`
+	ContentID     uint    `gorm:"index;not null"`
+	Score         float64 // Computed score indicating the relevance to the user
+	RecommendedAt time.Time
+}
+
+func (ContentRecommendation) TableName() string {
+	return "content_recommendations"
+}
+
+type Community struct {
+	ID          uint    `gorm:"primaryKey"`
+	Name        string  `gorm:"type:varchar(255);not null"`
+	Description string  `gorm:"type:text"`
+	OwnerID     uint    `gorm:"index;not null"`
+	Members     []Users `gorm:"many2many:community_members;"`
+	CreatedAt   time.Time
+}
+
+func (Community) TableName() string {
+	return "communities"
+}
+
+type CommunityPost struct {
+	ID          uint   `gorm:"primaryKey"`
+	CommunityID uint   `gorm:"index;not null"`
+	AuthorID    uint   `gorm:"index;not null"`
+	Title       string `gorm:"type:varchar(255);not null"`
+	Body        string `gorm:"type:text;not null"`
+	PostedAt    time.Time
+}
+
+func (CommunityPost) TableName() string {
+	return "community_posts"
+}
+
+type FeatureFlag struct {
+	ID             uint   `gorm:"primaryKey"`
+	FeatureName    string `gorm:"type:varchar(255);unique;not null"`
+	IsEnabled      bool   `gorm:"not null;default:false"`
+	RolloutPercent uint   // 0-100, representing the percentage of users the feature is enabled for
+}
+
+func (FeatureFlag) TableName() string {
+	return "feature_flags"
+}
+
+type Event struct {
+	gorm.Model
+	Title       string    `gorm:"size:255;not null" json:"title"`
+	Description string    `gorm:"type:text" json:"description"`
+	StartTime   time.Time `json:"start_time" gorm:"not null"`
+	EndTime     time.Time `json:"end_time" gorm:"not null"`
+	AllDay      bool      `json:"all_day"`
+	Location    string    `gorm:"size:255" json:"location"`
+	UserID      uint      `gorm:"not null;index" json:"user_id"`
+	AgentID     uint      `gorm:"not null;index" json:"agent_id"`
+	User        Users     `gorm:"foreignKey:UserID" json:"-"`
+	OrganizerID uint      `gorm:"index" json:"organizer_id"`
+}
+
+func (Event) TableName() string {
+	return "event"
+}
+
+type LogEntry struct {
+	ID        uint      `gorm:"primaryKey" json:"id"`
+	CreatedAt time.Time `json:"created_at"`
+	Level     string    `gorm:"size:50;not null" json:"level"` // Log level (e.g., INFO, WARN, ERROR)
+	Message   string    `gorm:"type:text;not null" json:"message"`
+	Context   string    `gorm:"type:text" json:"context"` // Additional context (JSON, XML, etc.)
+}
+
+func (LogEntry) TableName() string {
+	return "log_entry"
+}
+
+type UserSetting struct {
+	gorm.Model
+	UserID       uint   `gorm:"not null;uniqueIndex:idx_user_setting" json:"user_id"`
+	User         Users  `gorm:"foreignKey:UserID" json:"-"`
+	SettingKey   string `gorm:"size:255;not null;uniqueIndex:idx_user_setting" json:"setting_key"`
+	SettingValue string `gorm:"type:text;not null" json:"setting_value"` // Stored as JSON string for flexibility
+}
+
+func (UserSetting) TableName() string {
+	return "user_setting"
+}
+
+type ApplicationSetting struct {
+	gorm.Model
+	Key         string `gorm:"size:255;not null;unique" json:"key"`
+	Value       string `gorm:"type:text;not null" json:"value"` // Stored as JSON string for flexibility
+	Description string `gorm:"size:255" json:"description"`     // Optional description of the setting
+}
+
+func (ApplicationSetting) TableName() string {
+	return "application_setting"
+}
+
+type Project struct {
+	gorm.Model
+	Name        string  `gorm:"size:255;not null" json:"name"`
+	Description string  `gorm:"type:text" json:"description"`
+	OwnerID     uint    `gorm:"not null" json:"owner_id"`
+	Owner       Users   `gorm:"foreignKey:OwnerID" json:"-"`
+	Status      string  `gorm:"size:100;not null;default:'active'" json:"status"` // Example statuses: active, completed, archived
+	TeamMembers []Users `gorm:"many2many:project_members;" json:"team_members"`
+}
+
+func (Project) TableName() string {
+	return "project"
+}
+
+type Task struct {
+	ID          uint           `gorm:"primaryKey" json:"id"`
+	ProjectID   uint           `json:"project_id"`
+	Title       string         `json:"title" binding:"required"`
+	Description string         `json:"description"`
+	AssigneeID  uint           `json:"assignee_id"`
+	Status      string         `json:"status"`
+	Priority    string         `json:"priority"`
+	Deadline    time.Time      `json:"deadline"`
+	CreatedAt   time.Time      `json:"created_at"`
+	UpdatedAt   time.Time      `json:"updated_at"`
+	DeletedAt   gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+}
+
+func (Task) TableName() string {
+	return "tasks"
+}
+
+type Notification struct {
+	gorm.Model
+	UserID  uint   `gorm:"not null;index" json:"user_id"`
+	User    Users  `gorm:"foreignKey:UserID" json:"-"`
+	Type    string `gorm:"size:100;not null" json:"type"` // e.g., email, in-app
+	Title   string `gorm:"size:255;not null" json:"title"`
+	Content string `gorm:"type:text;not null" json:"content"`
+	Message string `gorm:"type:text;not null" json:"message"`
+	IsRead  bool   `gorm:"default:false" json:"is_read"`
+	Seen    bool   `gorm:"default:false"`
+}
+
+func (Notification) TableName() string {
+	return "notification"
+}
+
+type NotificationSetting struct {
+	gorm.Model
+	UserID               uint   `gorm:"index;not null" json:"user_id"`
+	EmailNotifications   bool   `json:"email_notifications"`                    // Whether the user opts in for email notifications
+	SMSSettings          bool   `json:"sms_notifications"`                      // Whether the user opts in for SMS notifications
+	PushNotifications    bool   `json:"push_notifications"`                     // Whether the user opts in for push notifications on devices
+	NotificationChannels string `gorm:"type:text" json:"notification_channels"` // JSON-encoded string of custom notification channels
+}
+
+func (NotificationSetting) TableName() string {
+	return "notification_setting"
+}
+
+type FileUpload struct {
+	gorm.Model
+	UserID     uint   `gorm:"not null;index" json:"user_id"`
+	User       Users  `gorm:"foreignKey:UserID" json:"-"`
+	FileName   string `gorm:"size:255;not null" json:"file_name"`
+	FileType   string `gorm:"size:100;not null" json:"file_type"` // e.g., image/png, application/pdf
+	FileSize   int64  `gorm:"not null" json:"file_size"`          // in bytes
+	URL        string `gorm:"size:255;not null" json:"url"`       // URL to access the file
+	Associated string `gorm:"size:255" json:"associated"`         // Optional: associated entity (e.g., "Project", "Task")
+	EntityID   uint   `json:"entity_id"`                          // Optional: ID of the associated entity
+}
+
+func (FileUpload) TableName() string {
+	return "file_upload"
+}
+
+type UserFeedback struct {
+	gorm.Model
+	UserID    uint   `gorm:"not null;index" json:"user_id"`
+	User      Users  `gorm:"foreignKey:UserID" json:"-"`
+	Feedback  string `gorm:"type:text;not null" json:"feedback"`
+	ContactMe bool   `gorm:"default:false" json:"contact_me"` // Whether the user is open to being contacted for further discussion
+	Content   string `gorm:"type:text;not null"`
+	Response  string `gorm:"type:text"` // Optional response to the feedback
+}
+
+func (UserFeedback) TableName() string {
+	return "user_feedback"
+}
+
+type EventLog struct {
+	gorm.Model
+	UserID    uint   `gorm:"index" json:"user_id"` // Optional: associated user, if applicable
+	User      Users  `gorm:"foreignKey:UserID" json:"-"`
+	Event     string `gorm:"type:text;not null" json:"event"` // Description of the event
+	Level     string `gorm:"size:50;not null" json:"level"`   // e.g., INFO, WARNING, ERROR
+	Metadata  string `gorm:"type:text" json:"metadata"`       // JSON-encoded metadata for additional context
+	EventType string `gorm:"type:varchar(100);not null"`
+	Payload   string `gorm:"type:text;not null"`         // JSON payload of the event
+	Status    string `gorm:"type:varchar(100);not null"` // New, Processed, Error, etc.
+	CreatedAt time.Time
+}
+
+func (EventLog) TableName() string {
+	return "event_log"
+}
+
+type AppConfig struct {
+	ID    uint   `gorm:"primaryKey" json:"id"`
+	Key   string `gorm:"size:255;unique;not null" json:"key"` // Configuration key
+	Value string `gorm:"type:text;not null" json:"value"`     // Configuration value, stored as a string for flexibility
+}
+
+func (AppConfig) TableName() string {
+	return "app_config"
+}
+
+type AuditLog struct {
+	gorm.Model
+	UserID    uint   `gorm:"index" json:"user_id"`
+	Action    string `gorm:"type:text;not null" json:"action"` // Description of the action performed
+	Entity    string `gorm:"size:255;not null" json:"entity"`  // Entity affected by the action
+	EntityID  uint   `json:"entity_id"`                        // ID of the affected entity
+	Details   string `gorm:"type:text" json:"details"`         // Detailed information about the action
+	IP        string `gorm:"size:45" json:"ip"`                // IP address from which the action was performed
+	UserAgent string `gorm:"type:text" json:"user_agent"`      // User agent of the browser/device used for the action
+}
+
+func (AuditLog) TableName() string {
+	return "audit_log"
+}
+
+type UserPreference struct {
+	gorm.Model
+	UserID          uint           `json:"user_id"`
+	PreferenceKey   string         `json:"preference_key"`
+	PreferenceValue string         `json:"preference_value"`
+	CreatedAt       time.Time      `json:"created_at"`
+	UpdatedAt       time.Time      `json:"updated_at"`
+	DeletedAt       gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+	Language        string         `gorm:"type:varchar(10);not null"` // ISO language code
+	TimeZone        string         `gorm:"type:varchar(100);not null"`
+}
+
+func (UserPreference) TableName() string {
+	return "user_preferences"
+}
+
+type Feedback struct {
+	gorm.Model
+	UserID     uint      `gorm:"index;not null" json:"user_id"`
+	Feedback   string    `gorm:"type:text;not null" json:"feedback"`
+	Category   string    `gorm:"size:255" json:"category"` // Example: 'Bug Report', 'Suggestion', 'Praise'
+	Status     string    `gorm:"size:100" json:"status"`   // Example: 'New', 'Reviewed', 'Resolved'
+	ResolvedAt time.Time `json:"resolved_at,omitempty"`
+}
+
+func (Feedback) TableName() string {
+	return "feedback"
+}
+
+type UserActivityLog struct {
+	ID        uint      `gorm:"primaryKey" json:"id"`
+	UserID    uint      `json:"user_id"`
+	Activity  string    `json:"activity"`
+	Timestamp time.Time `json:"timestamp"`
+}
+
+func (UserActivityLog) TableName() string {
+	return "user_activity_log"
+}
+
+type ProductReview struct {
+	ID        uint   `gorm:"primaryKey"`
+	ProductID uint   `gorm:"index;not null"`
+	UserID    uint   `gorm:"index;not null"`
+	Review    string `gorm:"type:text;not null"`
+	Rating    int    `gorm:"check:rating >= 1 AND rating <= 5"` // Assuming a 1-5 rating scale
+	CreatedAt time.Time
+}
+
+func (ProductReview) TableName() string {
+	return "product_reviews"
+}
+
+type ScheduledTask struct {
+	ID       uint   `gorm:"primaryKey"`
+	Name     string `gorm:"type:varchar(255);not null"`
+	Type     string `gorm:"type:varchar(100);not null"` // E.g., "email", "cleanup", "reminder"
+	Schedule string `gorm:"type:varchar(100);not null"` // Cron expression or similar scheduling format
+	LastRun  *time.Time
+	NextRun  time.Time
+	IsActive bool `gorm:"default:true"`
+}
+
+func (ScheduledTask) TableName() string {
+	return "scheduled_tasks"
+}
+
+type SecurityEventLog struct {
+	ID        uint   `gorm:"primaryKey"`
+	EventType string `gorm:"type:varchar(100);not null"` // E.g., "login_attempt", "password_change"
+	UserID    uint   `gorm:"index"`                      // Optional, not all events may be user-specific
+	Details   string `gorm:"type:text"`                  // JSON or similar structured format recommended
+	CreatedAt time.Time
+}
+
+func (SecurityEventLog) TableName() string {
+	return "security_event_logs"
+}
+
+type Poll struct {
+	ID        uint   `gorm:"primaryKey"`
+	Question  string `gorm:"type:varchar(255);not null"`
+	Options   string `gorm:"type:text;not null"` // JSON format for options
+	IsActive  bool   `gorm:"default:true"`
+	EndTime   *time.Time
+	CreatedAt time.Time
+}
+
+func (Poll) TableName() string {
+	return "polls"
+}
+
+type PollVote struct {
+	ID      uint   `gorm:"primaryKey"`
+	PollID  uint   `gorm:"index;not null"`
+	UserID  uint   `gorm:"index;not null"`
+	Option  string `gorm:"type:varchar(255);not null"` // The chosen option
+	VotedAt time.Time
+}
+
+func (PollVote) TableName() string {
+	return "poll_votes"
+}
+
+type Transaction struct {
+	ID                     uint              `gorm:"primaryKey" json:"transaction_id"`
+	UserID                 uint              `binding:"required" json:"user_id"`
+	FirstName              string            `gorm:"size:255;not null" json:"first_name" binding:"required"`
+	LastName               string            `gorm:"size:255;not null" json:"last_name" binding:"required"`
+	Email                  string            `gorm:"size:255;not null;unique" json:"email" binding:"required,email"`
+	Phone                  *string           `gorm:"size:20;null" json:"phone" binding:"omitempty,e164"`
+	CreatedAt              time.Time         `json:"created_at"`
+	UpdatedAt              time.Time         `json:"updated_at"`
+	DeletedAt              *gorm.DeletedAt   `gorm:"index" json:"deleted_at,omitempty"`
+	Assets                 []AssetAssignment `json:"assets" gorm:"foreignKey:UserID"`
+	IsActive               bool              `gorm:"default:true" json:"is_active"`
+	Projects               []Project         `gorm:"many2many:project_members;" json:"projects"`
+	ProfilePic             string            `gorm:"size:255" json:"profile_pic"`
+	PasswordHashed         string            `json:"-"`                                   // Excluded from JSON responses
+	ResetPasswordRequestID *uint             `json:"reset_password_request_id,omitempty"` // Assuming this is optional
+	Processed              bool              `json:"processed,omitempty"`
+	TransactionLogID       *uint             `json:"transactionLog_id" gorm:"foreignKey:TransactionLogID"`
+	Amount                 float64           `json:"amount" gorm:"not null"`
+	Type                   string            `json:"transaction_type"`
+}
+
+func (Transaction) TableName() string {
+	return "transaction"
+}
+
+type PaymentDetails struct {
+	gorm.Model
+	UserID      uint        `gorm:"index;not null"` // Foreign key for User
+	Amount      float64     `gorm:"not null"`
+	Status      string      `gorm:"type:varchar(100);not null"`
+	PaymentInfo PaymentInfo `gorm:"embedded;embeddedPrefix:payment_"`
+}
+
+func (PaymentDetails) TableName() string {
+	return "payment_details"
+}
+
+type PaymentInfo struct {
+	Method        string `gorm:"type:varchar(100);not null"`
+	TransactionID uint   `gorm:"type:varchar(255);not null"`
+}
+
+type TransactionLog struct {
+	gorm.Model
+	UserID        uint `gorm:"index;not null"` // Foreign key for User
+	Amount        float64
+	TransactionID uint   `gorm:"type:varchar(255);not null"`
+	Status        string `gorm:"type:varchar(100);not null"`
+}
+
+func (TransactionLog) TableName() string {
+	return "transaction_logs"
+}
+
+type OrderDetails struct {
+	gorm.Model
+	UserID       uint         `gorm:"index;not null"` // Foreign key for User
+	TotalAmount  float64      `gorm:"not null"`
+	Status       string       `gorm:"type:varchar(100);not null"`
+	PaymentInfo  PaymentInfo  `gorm:"embedded;embeddedPrefix:payment_"`
+	Items        []OrderItem  `gorm:"foreignKey:OrderID"`
+	ShipmentInfo ShipmentInfo `gorm:"embedded;embeddedPrefix:shipment_"`
+}
+
+func (OrderDetails) TableName() string {
+	return "order_details"
+}
+
+type OrderItem struct {
+	ID        uint `gorm:"primaryKey"`
+	OrderID   uint `gorm:"index;not null"` // Foreign key for OrderDetails
+	ProductID uint `gorm:"not null"`
+	Quantity  int  `gorm:"not null"`
+	// Additional product-related fields as necessary.
+}
+
+func (OrderItem) TableName() string {
+	return "order_items"
+}
+
+type ShipmentInfo struct {
+	Address    string `gorm:"type:text;not null"`
+	Carrier    string `gorm:"type:varchar(100);not null"`
+	TrackingID string `gorm:"type:varchar(255);not null"`
+}
+
+func (ShipmentInfo) TableName() string {
+	return "shipment_info"
+}
+
+type Expenses struct {
+	ID            uint    `gorm:"primaryKey" json:"expenses_id"`
+	UserID        uint    `gorm:"index;not null" json:"user_id"`
+	AgentID       uint    `json:"agent_id"`
+	TransactionID uint    `gorm:"index;not null" json:"transaction_id"`
+	Amount        float64 `json:"amount" gorm:"not null"`
+	Status        string  `json:"status"`
+}
+
+func (Expenses) TableName() string {
+	return "expenses"
+}
+
+type UserWallet struct {
+	gorm.Model
+	UserID  uint    `json:"user_id"`
+	Version int     `json:"version"`
+	Balance float64 `json:"user_wallet_balance"`
+}
+
+// TableName sets the table name for the UserWallet model.
+func (UserWallet) TableName() string {
+	return "user_wallet"
+}
+
+// Incident represents an incident report.
+type Incident struct {
+	gorm.Model                 // This includes ID, CreatedAt, UpdatedAt, and DeletedAt
+	AssignedTo     *uint       `gorm:"index" json:"assigned_to,omitempty"`
+	UserID         uint        `json:"user_id" gorm:"not null;index"`
+	ReportedBy     uint        `gorm:"index" json:"reported_by"`
+	Reporter       Users       `gorm:"foreignKey:ReportedBy" json:"-"`
+	Title          string      `json:"title" gorm:"size:255;not null"`
+	Description    string      `json:"description" gorm:"type:text;not null"`
+	CategoryID     *uint       `gorm:"index" json:"category_id,omitempty"`
+	Category       Category    `gorm:"foreignKey:CategoryID" json:"-"`
+	SubCategoryID  uint        `gorm:"index" json:"sub_category_id,omitempty"`
+	SubCategory    SubCategory `gorm:"foreignKey:SubCategoryID" json:"-"`
+	Priority       string      `json:"priority" gorm:"size:50;not null"`
+	Tags           []Tag       `json:"tags" gorm:"type:text[]"` // Use pq.StringArray for PostgreSQL; adjust for MySQL if necessary
+	AttachmentURL  string      `json:"attachment_url" gorm:"size:255"`
+	HasAttachments bool        `json:"has_attachments"`
+	Severity       string      `gorm:"type:enum('Low', 'Medium', 'High', 'Critical');not null" json:"severity"`
+	Status         string      `gorm:"type:enum('Open', 'Investigating', 'Resolved', 'Closed');not null" json:"status"`
+	ResolvedAt     *time.Time  `json:"resolved_at"`
+	ClosedAt       *time.Time  `json:"closed_at,omitempty"`
+	TicketID       *uint       `json:"ticket_id" gorm:"foreignKey:TicketID"`
+}
+
+func (Incident) TableName() string {
+	return "incidents"
+}
+
+// IncidentHistoryEntry represents a historical entry related to an incident.
+type IncidentHistoryEntry struct {
+	gorm.Model                  // Includes ID, CreatedAt, UpdatedAt, and DeletedAt automatically
+	IncidentID  uint            `json:"incident_id" gorm:"not null;index"`
+	Description string          `json:"description" gorm:"type:text;not null"`
+	Status      string          `json:"status" gorm:"size:100;not null"`
+	CreatedAt   time.Time       `json:"created_at"`
+	UpdatedAt   time.Time       `json:"updated_at"`
+	DeletedAt   *gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+}
+
+func (IncidentHistoryEntry) TableName() string {
+	return "incident_history_entry"
+}
+
+// IncidentComment represents a comment made on an incident.
+type IncidentComment struct {
+	gorm.Model                 // Includes ID, CreatedAt, UpdatedAt, and DeletedAt automatically
+	IncidentID uint            `json:"incident_id" gorm:"not null;index"`
+	Comment    string          `json:"comment" gorm:"type:text;not null"`
+	CreatedAt  time.Time       `json:"created_at"`
+	UpdatedAt  time.Time       `json:"updated_at"`
+	DeletedAt  *gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+}
+
+func (IncidentComment) TableName() string {
+	return "incident_comment"
+}
+
+type ServiceRequest struct {
+	gorm.Model
+	Title         string     `gorm:"size:255;not null" json:"title" binding:"required"`
+	Description   string     `gorm:"type:text" json:"description"`
+	UserID        uint       `gorm:"index;not null" json:"user_id"`
+	Status        string     `gorm:"size:100;not null" json:"status" binding:"required"`
+	CategoryID    uint       `gorm:"index;not null" json:"category_id" binding:"required"`
+	SubCategoryID uint       `gorm:"index" json:"subcategory_id,omitempty"` // Made optional
+	LocationID    uint       `gorm:"index;not null" json:"location_id"`
+	CompletedAt   *time.Time `json:"completed_at,omitempty"`
+	AssignedTo    *uint      `gorm:"index;type:int unsigned" json:"assignee_id,omitempty"`
+	ServiceType   string     `gorm:"size:100" json:"service_type"`
+	Priority      string     `json:"priority" gorm:"size:50;not null"`
+	TicketID      *uint      `gorm:"index" json:"ticket_id,omitempty"`
+	// Removed embedded Location struct to normalize data structure and reference by ID instead
+}
+
+type Location struct {
+	ID           uint   `gorm:"primaryKey" json:"id"`
+	LocationName string `gorm:"size:255;not null" json:"location_name"`
+	// Removed gorm.Model to prevent duplication of default model fields
+	CreatedAt time.Time      `json:"created_at"`
+	UpdatedAt time.Time      `json:"updated_at"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+}
+
+func (Location) TableName() string {
+	return "locations"
+}
+
+type ServiceRequestComment struct {
+	ID               uint           `gorm:"primaryKey" json:"id"`
+	ServiceRequestID uint           `gorm:"index;not null" json:"service_request_id"`
+	Comment          string         `gorm:"type:text;not null" json:"comment" binding:"required"`
+	CreatedAt        time.Time      `json:"created_at"`
+	DeletedAt        gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+}
+
+func (ServiceRequestComment) TableName() string {
+	return "service_request_comments"
+}
+
+type ServiceRequestHistoryEntry struct {
+	ID               uint           `gorm:"primaryKey" json:"id"`
+	ServiceRequestID uint           `gorm:"index;not null" json:"service_request_id"`
+	Status           string         `gorm:"size:100;not null" json:"status"`
+	UpdatedAt        time.Time      `json:"updated_at"`
+	DeletedAt        gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+}
+
+func (ServiceRequestHistoryEntry) TableName() string {
+	return "service_request_history_entries"
+}
+
+type Session struct {
+	gorm.Model
+	UserID       uint      `gorm:"index;not null" json:"user_id"`
+	SessionID    string    `json:"session_id" gorm:"size:255;not null;unique"`
+	SessionToken string    `json:"session_token" gorm:"size:255;unique"`
+	IPAddress    string    `json:"ip_address" gorm:"size:45"`
+	IsActive     bool      `json:"is_active" gorm:"default:true"`
+	Expiry       time.Time `json:"expiry"`
+}
+
+// TableName sets the table name for the Session model.
+func (Session) TableName() string {
+	return "sessions"
+}
+
+type Authentication struct {
+	gorm.Model
+	UserID            uint       `gorm:"index;not null" json:"user_id"`
+	AuthenticationKey string     `json:"authentication_key" gorm:"size:255;not null;unique"`
+	ExpiresAt         *time.Time `json:"expires_at,omitempty"`
+}
+
+func (Authentication) TableName() string {
+	return "authentications"
+}
+
+// CreateSession creates a new user session.
+func (as *AuthDBModel) CreateSession2(session *Session) error {
+	return as.DB.Create(session).Error
+}
+
+type UserSession struct {
+	gorm.Model
+	UserID       uint      `gorm:"not null;index" json:"user_id"`
+	User         Users     `gorm:"foreignKey:UserID" json:"-"`
+	SessionID    string    `gorm:"size:255;not null;unique" json:"session_id"` // Unique session identifier
+	ExpiresAt    time.Time `json:"expires_at"`                                 // Session expiration time
+	IP           string    `gorm:"size:45" json:"ip"`                          // IP address of the user at session start
+	UserAgent    string    `gorm:"type:text" json:"user_agent"`                // User agent of the users browser/device
+	SessionToken string    `gorm:"type:varchar(255);unique;not null"`
+}
+
+// TableName sets the table name for the Session model.
+func (UserSession) TableName() string {
+	return "user_sessions"
+}
+
+type UserAgentGroup struct {
+	gorm.Model
+	Name         string         `json:"name"`
+	Type         string         `json:"type"` // Example: "user" or "agent"
+	GroupMembers []*GroupMember `json:"group_members,omitempty"`
+}
+
+// TableName sets the table name for the UserAgentGroup model.
+func (UserAgentGroup) TableName() string {
+	return "userAgentGroups"
+}
+
+type GroupMember struct {
+	gorm.Model
+	GroupID uint `json:"group_id"`
+	UserID  uint `json:"user_id,omitempty"`
+	AgentID uint `json:"agent_id,omitempty"`
+}
+
+// TableName sets the table name for the UserAgentGroup model.
+func (GroupMember) TableName() string {
+	return "groupMember"
+}
+
+type UserAgentAccess struct {
+	gorm.Model
+	UserID  uint `json:"user_id"`
+	AgentID uint `json:"agent_id"`
+	Access  bool `json:"access"`
+}
+
+// TableName sets the table name for the UserAgentAccess model.
+func (UserAgentAccess) TableName() string {
+	return "userAgentAccess"
+}
+
+type Ticket struct {
+	gorm.Model
+	Subject          string                  `gorm:"size:255;not null" json:"subject"`
+	Description      string                  `gorm:"type:text;not null" json:"description"`
+	CategoryID       uint                    `gorm:"index;not null" json:"category_id"`
+	SubCategoryID    uint                    `gorm:"index;not null" json:"sub_category_id"`
+	PriorityID       uint                    `gorm:"index;not null" json:"priority_id"`
+	SLAID            uint                    `json:"sla_id"`
+	UserID           uint                    `gorm:"index;not null" json:"user_id"`
+	AgentID          *uint                   `gorm:"index" json:"agent_id,omitempty"`
+	DueAt            *time.Time              `json:"due_at,omitempty"`
+	ClosedAt         *time.Time              `json:"closed_at,omitempty"`
+	Site             string                  `gorm:"size:255" json:"site"`
+	StatusID         uint                    `gorm:"index;not null" json:"status_id"`
+	Status           string                  `gorm:"size:100;not null" json:"status" binding:"required"`
+	StatusObject     Status                  `json:"status_details"`
+	Priority         Priority                `json:"priority"`
+	Category         Category                `gorm:"foreignKey:CategoryID" json:"-"`
+	SubCategory      SubCategory             `gorm:"foreignKey:SubCategoryID" json:"-"`
+	SLA              SLA                     `gorm:"foreignKey:sla_id" json:"-"`
+	MediaAttachments []TicketMediaAttachment `gorm:"foreignKey:TicketID" json:"media_attachments"`
+	Tags             []Tag                   `gorm:"many2many:ticket_tags;" json:"tags"`
+	Comments         []Comment               `gorm:"foreignKey:TicketID" json:"comments"`
+	TicketHistory    []TicketHistoryEntry    `gorm:"foreignKey:TicketID" json:"ticket_history"`
+	User             Users                   `gorm:"foreignKey:UserID" json:"-"`
+	Agent            Agents                  `gorm:"foreignKey:AgentID" json:"-"`
+}
+
+func (Ticket) TableName() string {
+	return "tickets"
+}
+
+type Comment struct {
+	ID        uint           `gorm:"primaryKey" json:"id"`
+	TicketID  uint           `json:"ticket_id"`
+	AuthorID  uint           `json:"author_id"`
+	Comment   string         `json:"comment"`
+	CreatedAt time.Time      `json:"created_at"`
+	UpdatedAt time.Time      `json:"updated_at"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+}
+
+func (Comment) TableName() string {
+	return "comments"
+}
+
+type TicketHistoryEntry struct {
+	gorm.Model
+	TicketID uint   `json:"ticket_id"`
+	Action   string `gorm:"size:255;not null" json:"action"`
+}
+
+func (TicketHistoryEntry) TableName() string {
+	return "ticket_history_entries"
+}
+
+// RelatedAd struct for storing related advertisements
+type RelatedTicket struct {
+	gorm.Model
+	TicketID        uint `json:"ticket_id"`
+	RelatedTicketID uint `json:"related_ticket_id"`
+}
+
+func (RelatedTicket) TableName() string {
+	return "related_tickets"
+}
+
+// Hashtag represents a hashtag entity
+type Tag struct {
+	ID        uint           `gorm:"primaryKey" json:"id"`
+	Name      string         `gorm:"size:255;not null;unique" json:"name"`
+	CreatedAt time.Time      `json:"created_at"`
+	UpdatedAt time.Time      `json:"updated_at"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+}
+
+func (Tag) TableName() string {
+	return "tags"
+}
+
+type SLA struct {
+	ID            uint           `gorm:"primaryKey" json:"id"`
+	Name          string         `gorm:"size:255;not null" json:"name"`
+	Description   string         `gorm:"type:text" json:"description,omitempty"`
+	Target        int            `json:"target"`          // Target resolution time in hours
+	TimeToResolve int            `json:"time_to_resolve"` // In hours
+	CreatedAt     time.Time      `json:"created_at"`
+	UpdatedAt     time.Time      `json:"updated_at"`
+	DeletedAt     gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+}
+
+func (SLA) TableName() string {
+	return "slas"
+}
+
+type Priority struct {
+	gorm.Model
+	Name        string `gorm:"size:255;not null" json:"name"`
+	Level       int    `json:"level"`
+	Description string `gorm:"type:text" json:"description"`
+	Color       string `gorm:"size:7;default:'#FFFFFF'" json:"color"`
+}
+
+func (Priority) TableName() string {
+	return "priorities"
+}
+
+type Satisfaction struct {
+	gorm.Model
+	SatisfactionID uint   `gorm:"primaryKey" json:"satisfaction_id"`
+	Name           string `json:"satisfaction_name"`
+	Rank           int    `json:"rank"`
+	Emoji          string `json:"emoji"`
+}
+
+// TableName sets the table name for the Satisfaction model.
+func (Satisfaction) TableName() string {
+	return "satisfaction"
+}
+
+type Category struct {
+	gorm.Model
+	CategoryName  string      `gorm:"size:255;not null;unique" json:"category_name"`
+	Description   string      `gorm:"type:text" json:"description,omitempty"`
+	SubCategories []*Category `gorm:"foreignKey:ParentCategoryID" json:"-"`
+	Icon          string      `gorm:"size:255" json:"icon,omitempty"`
+}
+
+func (Category) TableName() string {
+	return "categories"
+}
+
+type SubCategory struct {
+	gorm.Model
+	Name        string    `gorm:"size:255;not null" json:"name"`
+	CategoryID  uint      `json:"category_id"`
+	Category    *Category `gorm:"foreignKey:ParentCategoryID" json:"-"`
+	Description string    `gorm:"type:text" json:"description,omitempty"`
+	Icon        string    `gorm:"size:255" json:"icon,omitempty"`
+}
+
+func (SubCategory) TableName() string {
+	return "sub_categories"
+}
+
+type Status struct {
+	gorm.Model
+	StatusName  string `gorm:"size:255;not null" json:"status_name"`
+	Description string `gorm:"type:text" json:"description"`
+	IsClosed    bool   `gorm:"not null;default:false" json:"is_closed"`
+}
+
+func (Status) TableName() string {
+	return "statuses"
+}
+
+type Policies struct {
+	gorm.Model
+	PolicyID     uint      `gorm:"primaryKey" json:"policy_id"`
+	PolicyName   string    `json:"policy_name"`
+	EmbeddedLink string    `json:"policy_embed"`
+	PolicyUrl    string    `json:"policy_url"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
+	DeletedAt    time.Time `json:"deleted_at"`
+}
+
+// TableName sets the table name for the Policies model.
+func (Policies) TableName() string {
+	return "policies"
+}
+
+// MediaAttachment struct for storing media attachments related to the Tickets
+type TicketMediaAttachment struct {
+	ID        uint           `gorm:"primaryKey" json:"id"`
+	TicketID  uint           `json:"ticket_id"`
+	FileName  string         `gorm:"size:255" json:"file_name"`
+	FilePath  string         `gorm:"size:255" json:"file_path"`
+	MimeType  string         `gorm:"size:50" json:"mime_type"`
+	URL       string         `gorm:"size:255;not null" json:"url"`
+	Type      string         `gorm:"size:255" json:"type"` // E.g., image, document
+	Caption   string         `gorm:"size:255" json:"caption,omitempty"`
+	CreatedAt time.Time      `json:"created_at"`
+	UpdatedAt time.Time      `json:"updated_at"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+}
+
+func (TicketMediaAttachment) TableName() string {
+	return "ticket_media_attachments"
+}
+
+type TicketUpdate struct {
+	ID        uint           `gorm:"primaryKey" json:"id"`
+	TicketID  uint           `json:"ticket_id"`
+	UserID    uint           `json:"user_id"`
+	Update    string         `gorm:"type:text" json:"update"`
+	CreatedAt time.Time      `json:"created_at"`
+	UpdatedAt time.Time      `json:"updated_at"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+}
+
+func (TicketUpdate) TableName() string {
+	return "ticket_updates"
+}
+
+type TicketAsset struct {
+	ID       uint `gorm:"primaryKey" json:"id"`
+	TicketID uint `json:"ticket_id"`
+	AssetID  uint `json:"asset_id"`
+}
+
+func (TicketAsset) TableName() string {
+	return "ticket_assets"
+}
+
+type SatisfactionSurvey struct {
+	ID        uint      `gorm:"primaryKey" json:"id"`
+	TicketID  uint      `json:"ticket_id"`
+	Rating    int       `json:"rating"` // For example, 1 to 5
+	Comment   string    `gorm:"type:text" json:"comment,omitempty"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+func (SatisfactionSurvey) TableName() string {
+	return "satisfaction_surveys"
+}
+
+type SupportResponse struct {
+	ID          uint   `gorm:"primaryKey"`
+	TicketID    uint   `gorm:"index;not null"`
+	ResponderID uint   `gorm:"index;not null" json:"user_id"` // The support agent or system responding
+	Message     string `gorm:"type:text;not null"`
+	RespondedAt time.Time
+}
+
+func (SupportResponse) TableName() string {
+	return "support_responses"
+}
+
+type Users struct {
+	gorm.Model
+	FirstName              string          `gorm:"size:255;not null" json:"first_name" binding:"required"`
+	LastName               string          `gorm:"size:255;not null" json:"last_name" binding:"required"`
+	Email                  string          `gorm:"size:255;not null;unique" json:"email" binding:"required,email"`
+	Phone                  *string         `gorm:"size:20;null" json:"phone" binding:"omitempty,e164"`
+	PositionID             uint            `gorm:"index" json:"position_id"`
+	DepartmentID           uint            `gorm:"index" json:"department_id"`
+	DeletedAt              *gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+	IsActive               bool            `gorm:"default:true" json:"is_active"`
+	Roles                  []Role          `gorm:"many2many:user_roles;" json:"roles"`
+	Projects               []Project       `gorm:"many2many:project_members;" json:"projects"`
+	Position               Position        `gorm:"foreignKey:PositionID" json:"-"`
+	Department             Department      `gorm:"foreignKey:DepartmentID" json:"-"`
+	ProfilePic             string          `gorm:"size:255" json:"profile_pic,omitempty"`
+	PasswordHash           string          `json:"-"`                                   // Excluded from JSON responses
+	ResetPasswordRequestID *uint           `json:"reset_password_request_id,omitempty"` // Assuming this is optional
+	Processed              bool            `json:"processed,omitempty"`
+	LastLoginAt            *time.Time      `json:"last_login_at,omitempty"`
+}
+
+func (Users) TableName() string {
+	return "users"
+}
+
+type UserProfile struct {
+	UserID          uint   `gorm:"primaryKey"`
+	Bio             string `gorm:"type:text"`
+	AvatarURL       string `gorm:"type:text"`
+	Preferences     string `gorm:"type:text"` // JSON format to store various user preferences
+	PrivacySettings string `gorm:"type:text"` // JSON format for privacy settings
+}
+
+func (UserProfile) TableName() string {
+	return "user_profiles"
+}
+
+type Position struct {
+	gorm.Model
+	PositionName string     `gorm:"size:255;not null;unique" json:"position_name"`
+	Description  string     `gorm:"type:text" json:"description"`
+	DepartmentID uint       `gorm:"index" json:"department_id"`
+	Department   Department `gorm:"foreignKey:DepartmentID" json:"-"`
+}
+
+func (Position) TableName() string {
+	return "positions"
+}
+
+type Department struct {
+	gorm.Model
+	DepartmentName string  `gorm:"size:255;not null;unique" json:"department_name"`
+	Description    string  `gorm:"type:text" json:"description"`
+	Emoji          *string `gorm:"size:255;null" json:"emoji,omitempty"`
+}
+
+func (Department) TableName() string {
+	return "departments"
+}
+
+type UserRole struct {
+	ID        uint            `gorm:"primaryKey" json:"id"`
+	UserID    uint            `gorm:"not null" json:"user_id"`
+	RoleID    uint            `gorm:"not null" json:"role_id"`
+	User      Users           `gorm:"foreignKey:UserID"`
+	Role      Role            `gorm:"foreignKey:RoleID"`
+	CreatedAt time.Time       `json:"created_at"`
+	UpdatedAt time.Time       `json:"updated_at"`
+	DeletedAt *gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+}
+
+func (UserRole) TableName() string {
+	return "user_roles"
+}
+
+type ProjectAssignment struct {
+	gorm.Model
+	ID        uint `json:"project_assignment_id" gorm:"primaryKey"`
+	UserID    uint `json:"user_id" gorm:"index;not null"`
+	AgentID   uint `json:"agent_id" gorm:"index;not null"`
+	ProjectID uint `json:"project_id" gorm:"index;not null"`
+}
+
+// TableName sets the table name for the Project model.
+func (ProjectAssignment) TableName() string {
+	return "project_assignment"
+}
+
+type Activity struct {
+	gorm.Model
+	UserID       uint   `gorm:"index;not null"` // Foreign key for User
+	Description  string `gorm:"type:text;not null"`
+	ActivityType string `gorm:"type:varchar(100);not null"`
+}
+
+func (Activity) TableName() string {
+	return "activities"
+}
+
+type Workflow struct {
+	gorm.Model
+	Name        string         `gorm:"type:varchar(255);not null"`
+	Description string         `gorm:"type:text"`
+	IsActive    bool           `gorm:"default:true"`
+	Steps       []WorkflowStep `gorm:"foreignKey:WorkflowID"`
+	CreatedAt   time.Time
+}
+
+func (Workflow) TableName() string {
+	return "workflows"
+}
+
+type WorkflowStep struct {
+	gorm.Model
+	WorkflowID    uint   `gorm:"index;not null"`
+	StepName      string `gorm:"type:varchar(255);not null"`
+	StepOrder     int    `gorm:"not null"`
+	ActionType    string `gorm:"type:varchar(100);not null"` // E.g., "send_email", "update_status"
+	ActionDetails string `gorm:"type:text"`                  // JSON detailing the action to be taken
+	CreatedAt     time.Time
+}
+
+func (WorkflowStep) TableName() string {
+	return "workflow_steps"
+}

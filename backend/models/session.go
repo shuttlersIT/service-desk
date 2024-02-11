@@ -9,10 +9,13 @@ import (
 )
 
 type Session struct {
-	gorm.Model
-	UserID    uint      `json:"user_id"`
-	SessionID string    `json:"session_id"`
-	Expiry    time.Time `json:"expiry"`
+	ID           uint      `gorm:"primaryKey" json:"id"`
+	UserID       uint      `gorm:"index;not null" json:"user_id"`                 // User associated with the session
+	SessionID    string    `gorm:"size:255;not null;unique" json:"session_id"`    // Unique identifier for the session
+	SessionToken string    `gorm:"size:255;not null;unique" json:"session_token"` // Token associated with the session
+	IPAddress    string    `gorm:"size:45" json:"ip_address"`                     // IP address from which the session was initiated
+	IsActive     bool      `gorm:"default:true" json:"is_active"`                 // Whether the session is currently active
+	Expiry       time.Time `json:"expiry"`                                        // When the session is set to expire
 }
 
 // TableName sets the table name for the Session model.
@@ -20,24 +23,59 @@ func (Session) TableName() string {
 	return "sessions"
 }
 
+type Authentication struct {
+	ID                uint       `gorm:"primaryKey" json:"id"`
+	UserID            uint       `gorm:"index;not null" json:"user_id"`                      // User associated with the authentication
+	AuthenticationKey string     `gorm:"size:255;not null;unique" json:"authentication_key"` // Key or token used for authentication
+	ExpiresAt         *time.Time `json:"expires_at,omitempty"`                               // Expiration time of the authentication key, if applicable
+}
+
+func (Authentication) TableName() string {
+	return "authentications"
+}
+
 // CreateSession creates a new user session.
-func (as *AuthDBModel) CreateSession(session *Session) error {
+func (as *AuthDBModel) CreateSession2(session *Session) error {
 	return as.DB.Create(session).Error
 }
 
 type UserSession struct {
 	gorm.Model
-	UserID    uint      `gorm:"not null;index" json:"user_id"`
-	User      Users     `gorm:"foreignKey:UserID" json:"-"`
-	SessionID string    `gorm:"size:255;not null;unique" json:"session_id"` // Unique session identifier
-	ExpiresAt time.Time `json:"expires_at"`                                 // Session expiration time
-	IP        string    `gorm:"size:45" json:"ip"`                          // IP address of the user at session start
-	UserAgent string    `gorm:"type:text" json:"user_agent"`                // User agent of the user's browser/device
+	UserID       uint      `gorm:"not null;index" json:"user_id"`                          // Associates the session with a specific user
+	SessionID    string    `gorm:"size:255;not null;unique" json:"session_id"`             // Unique identifier for the session
+	ExpiresAt    time.Time `json:"expires_at"`                                             // Timestamp when the session expires
+	IP           string    `gorm:"size:45" json:"ip"`                                      // IP address of the user at session start
+	UserAgent    string    `gorm:"type:text" json:"user_agent"`                            // User agent of the user's browser/device at session start
+	SessionToken string    `gorm:"type:varchar(255);unique;not null" json:"session_token"` // Token for session validation
 }
 
 // TableName sets the table name for the Session model.
 func (UserSession) TableName() string {
 	return "user_sessions"
+}
+
+type UserAgentGroup struct {
+	gorm.Model
+	Name         string         `json:"name"`                    // Name of the group
+	Type         string         `json:"type"`                    // Distinguishes between user and agent groups
+	GroupMembers []*GroupMember `json:"group_members,omitempty"` // Members of the group
+}
+
+// TableName sets the table name for the UserAgentGroup model.
+func (UserAgentGroup) TableName() string {
+	return "userAgentGroups"
+}
+
+type GroupMember struct {
+	gorm.Model
+	GroupID uint `json:"group_id"`           // Identifies the group
+	UserID  uint `json:"user_id,omitempty"`  // Optional user ID for user groups
+	AgentID uint `json:"agent_id,omitempty"` // Optional agent ID for agent groups
+}
+
+// TableName sets the table name for the UserAgentGroup model.
+func (GroupMember) TableName() string {
+	return "groupMember"
 }
 
 // GetSessionBySessionID retrieves a user session by its session ID.
@@ -143,9 +181,9 @@ func (as *AuthDBModel) DeleteUserAgentMapping(mapping *UserAgentMapping) error {
 
 type UserAgentAccess struct {
 	gorm.Model
-	UserID  uint `json:"user_id"`
-	AgentID uint `json:"agent_id"`
-	Access  bool `json:"access"`
+	UserID  uint `json:"user_id"`  // The user involved in the access permission
+	AgentID uint `json:"agent_id"` // The agent involved in the access permission
+	Access  bool `json:"access"`   // Indicates whether access is granted
 }
 
 // TableName sets the table name for the UserAgentAccess model.
@@ -180,25 +218,6 @@ func (as *AuthDBModel) UpdateUserAgentAccess(access *UserAgentAccess) error {
 // DeleteUserAgentAccess deletes an access record between a user and an agent.
 func (as *AuthDBModel) DeleteUserAgentAccess(access *UserAgentAccess) error {
 	return as.DB.Delete(access).Error
-}
-
-type UserAgentGroup struct {
-	gorm.Model
-	Name         string         `json:"name"`
-	Type         string         `json:"type"` // Example: "user" or "agent"
-	GroupMembers []*GroupMember `json:"group_members,omitempty"`
-}
-
-type GroupMember struct {
-	gorm.Model
-	GroupID uint `json:"group_id"`
-	UserID  uint `json:"user_id,omitempty"`
-	AgentID uint `json:"agent_id,omitempty"`
-}
-
-// TableName sets the table name for the UserAgentGroup model.
-func (UserAgentGroup) TableName() string {
-	return "userAgentGroups"
 }
 
 // CreateGroup creates a new user-agent group.
@@ -255,6 +274,52 @@ func (as *AuthDBModel) GetSessionByUserID(userID uint) (*Session, error) {
 // DeleteSession deletes a user's session.
 func (as *AuthDBModel) DeleteSession(session *Session) error {
 	return as.DB.Delete(session).Error
+}
+
+// CreateSession stores a new session for a user.
+func (db *AuthDBModel) CreateSession(session *Session) error {
+	return db.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(session).Error; err != nil {
+			return err
+		}
+		return nil
+	})
+}
+
+// EndSession invalidates a user's session.
+func (db *AuthDBModel) EndSession(sessionID uint) error {
+	return db.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Delete(&Session{}, sessionID).Error; err != nil {
+			return err
+		}
+		return nil
+	})
+}
+
+// LogEvent records an event in the system for auditing or tracking.
+func (db *AuthDBModel) LogEvent(event *Event) error {
+	return db.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(event).Error; err != nil {
+			return err
+		}
+		return nil
+	})
+}
+
+// GetEvents retrieves events based on specified criteria.
+func (db *AuthDBModel) GetEvents(criteria map[string]interface{}) ([]Event, error) {
+	var events []Event
+	query := db.DB.Model(&Event{})
+
+	// Dynamically build query based on criteria.
+	for key, value := range criteria {
+		query = query.Where(key+" = ?", value)
+	}
+
+	if err := query.Find(&events).Error; err != nil {
+		return nil, err
+	}
+	return events, nil
 }
 
 /*

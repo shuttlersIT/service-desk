@@ -8,27 +8,24 @@ import (
 
 type ServiceRequest struct {
 	gorm.Model
-	Title         string `gorm:"size:255;not null" json:"title" binding:"required"`
-	Description   string `gorm:"type:text" json:"description"`
-	UserID        uint   `gorm:"index;not null" json:"user_id"`
-	Status        string `gorm:"size:100;not null" json:"status" binding:"required"`
-	CategoryID    uint   `gorm:"index;not null" json:"category_id" binding:"required"`
-	SubCategoryID uint   `gorm:"index" json:"subcategory_id,omitempty"` // Made optional
-	LocationID    uint   `gorm:"index;not null" json:"location_id"`
+	Title         string     `gorm:"size:255;not null" json:"title"`                       // Title of the service request
+	Description   string     `gorm:"type:text" json:"description"`                         // Detailed description of the request
+	UserID        uint       `gorm:"index;not null" json:"user_id"`                        // User who made the request
+	Status        string     `gorm:"size:100;not null" json:"status"`                      // Status of the request, e.g., "open", "closed"
+	CategoryID    uint       `gorm:"index;not null" json:"category_id"`                    // Category of the service request
+	SubCategoryID uint       `gorm:"index" json:"subcategory_id,omitempty"`                // Optional sub-category
+	LocationID    uint       `gorm:"index;not null" json:"location_id"`                    // Location of the service request
+	CompletedAt   *time.Time `json:"completed_at,omitempty"`                               // Time when the service request was completed
+	AssignedTo    *uint      `gorm:"index;type:int unsigned" json:"assignee_id,omitempty"` // Optional assignee of the service request
+	ServiceType   string     `gorm:"size:100" json:"service_type"`                         // Type of the service requested
+	Priority      string     `gorm:"size:50;not null" json:"priority"`                     // Priority of the service request
+	TicketID      *uint      `gorm:"index" json:"ticket_id,omitempty"`
 	// Removed embedded Location struct to normalize data structure and reference by ID instead
 }
 
-func (ServiceRequest) TableName() string {
-	return "service_requests"
-}
-
 type Location struct {
-	ID           uint   `gorm:"primaryKey" json:"id"`
-	LocationName string `gorm:"size:255;not null" json:"location_name"`
-	// Removed gorm.Model to prevent duplication of default model fields
-	CreatedAt time.Time      `json:"created_at"`
-	UpdatedAt time.Time      `json:"updated_at"`
-	DeletedAt gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+	gorm.Model
+	LocationName string `gorm:"size:255;not null" json:"location_name"` // Name of the location
 }
 
 func (Location) TableName() string {
@@ -36,27 +33,61 @@ func (Location) TableName() string {
 }
 
 type ServiceRequestComment struct {
-	ID               uint           `gorm:"primaryKey" json:"id"`
-	ServiceRequestID uint           `gorm:"index;not null" json:"service_request_id"`
-	Comment          string         `gorm:"type:text;not null" json:"comment" binding:"required"`
-	CreatedAt        time.Time      `json:"created_at"`
-	DeletedAt        gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+	gorm.Model       `gorm:"primaryKey" json:"id"`
+	ServiceRequestID uint   `gorm:"index;not null" json:"service_request_id"` // Foreign key linking to the service request
+	Comment          string `gorm:"type:text;not null" json:"comment"`        // Text of the comment
 }
 
 func (ServiceRequestComment) TableName() string {
 	return "service_request_comments"
 }
 
+type ServiceCatalogItem struct {
+	gorm.Model
+	Name        string `json:"name" gorm:"type:varchar(255);not null"`
+	Description string `json:"description" gorm:"type:text"`
+	ServiceTime int    `json:"service_time"` // Expected time to deliver the service in minutes
+	Category    string `json:"category" gorm:"type:varchar(100);not null"`
+}
+
+func (ServiceCatalogItem) TableName() string {
+	return "service_catalog_item"
+}
+
+type ProblemManagementRecord struct {
+	gorm.Model
+	Title        string     `json:"title" gorm:"type:varchar(255);not null"`
+	Description  string     `json:"description" gorm:"type:text"`
+	IdentifiedAt time.Time  `json:"identified_at"`
+	ResolvedAt   *time.Time `json:"resolved_at,omitempty"`
+	RootCause    string     `json:"root_cause" gorm:"type:text"`
+	Resolution   string     `json:"resolution" gorm:"type:text"`
+	Status       string     `json:"status" gorm:"type:varchar(100);not null"` // E.g., "Open", "Under Investigation", "Resolved"
+}
+
+func (ProblemManagementRecord) TableName() string {
+	return "problem_management_record"
+}
+
 type ServiceRequestHistoryEntry struct {
-	ID               uint           `gorm:"primaryKey" json:"id"`
-	ServiceRequestID uint           `gorm:"index;not null" json:"service_request_id"`
-	Status           string         `gorm:"size:100;not null" json:"status"`
-	UpdatedAt        time.Time      `json:"updated_at"`
-	DeletedAt        gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+	gorm.Model       `gorm:"primaryKey" json:"id"`
+	ServiceRequestID uint   `gorm:"index;not null" json:"service_request_id"` // Link to the service request
+	Status           string `gorm:"size:100;not null" json:"status"`          // New status after the change
 }
 
 func (ServiceRequestHistoryEntry) TableName() string {
 	return "service_request_history_entries"
+}
+
+type ChangeRequest struct {
+	gorm.Model
+	RequesterID uint       `json:"requester_id" gorm:"index;not null"`
+	Title       string     `json:"title" gorm:"type:varchar(255);not null"`
+	Description string     `json:"description" gorm:"type:text"`
+	RequestedAt time.Time  `json:"requested_at"`
+	Status      string     `json:"status" gorm:"type:varchar(100);not null"` // E.g., "New", "Approved", "Implemented", "Rejected"
+	Approval    string     `json:"approval" gorm:"type:varchar(100)"`        // E.g., "Pending", "Approved", "Rejected"
+	ImplementBy *time.Time `json:"implement_by,omitempty"`
 }
 
 type ServiceRequestStorage interface {
@@ -120,6 +151,16 @@ type ServiceRequestStorage interface {
 // ServiceRequestDBModel is the database model for service requests.
 type ServiceRequestDBModel struct {
 	DB *gorm.DB
+}
+
+// CreateServiceRequest initializes a new service request.
+func (db *ServiceRequestDBModel) CreateServiceRequest2(request *ServiceRequest) error {
+	return db.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(request).Error; err != nil {
+			return err
+		}
+		return nil
+	})
 }
 
 // GetAllServiceRequests retrieves all service requests from the database.
@@ -364,7 +405,7 @@ func (s *ServiceRequestDBModel) DeleteServiceRequest(requestID uint) error {
 	return nil
 }
 
-func (s *ServiceRequestDBModel) UpdateServiceRequestStatus(requestID uint, status string) error {
+func (s *ServiceRequestDBModel) UpdateServiceRequestStatus2(requestID uint, status string) error {
 	// Implement logic to update the status of a service request by its ID in the database.
 	if err := s.DB.Model(&ServiceRequest{}).Where("id = ?", requestID).Update("status", status).Error; err != nil {
 		return err
@@ -1014,4 +1055,24 @@ func (srm *ServiceRequestDBModel) GetUserServiceRequests(userID uint) ([]*Servic
 // CloseServiceRequest closes a service request by setting its status to "Closed" in the database.
 func (srm *ServiceRequestDBModel) CloseServiceRequest(requestID uint) error {
 	return srm.DB.Model(&ServiceRequest{}).Where("id = ?", requestID).Update("status", "Closed").Error
+}
+
+// SubmitServiceRequest captures a new service request from a user or system.
+func (db *ServiceRequestDBModel) SubmitServiceRequest(request *ServiceRequest) error {
+	return db.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(request).Error; err != nil {
+			return err
+		}
+		return nil
+	})
+}
+
+// UpdateServiceRequestStatus changes the status of a service request, e.g., to "Completed".
+func (db *ServiceRequestDBModel) UpdateServiceRequestStatus(requestID uint, status string) error {
+	return db.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Model(&ServiceRequest{}).Where("id = ?", requestID).Update("status", status).Error; err != nil {
+			return err
+		}
+		return nil
+	})
 }

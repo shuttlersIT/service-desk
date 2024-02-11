@@ -71,7 +71,8 @@ func TestCreateAgent_Success(t *testing.T) {
 		SupervisorID:           uint(1),
 		ResetPasswordRequestID: uint(1),
 	}
-	createdAgent, err := model.CreateAgent(agent)
+	err := model.CreateAgent(agent)
+	//createdAgent, err := model.CreateAgent(agent)
 
 	// Assert expected database interactions and returned agent data
 	if err := mock.ExpectationsWereMet(); err != nil {

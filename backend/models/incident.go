@@ -10,16 +10,26 @@ import (
 
 // Incident represents an incident report.
 type Incident struct {
-	gorm.Model            // This includes ID, CreatedAt, UpdatedAt, and DeletedAt
-	UserID         uint   `json:"user_id" gorm:"not null;index"`
-	Title          string `json:"title" gorm:"size:255;not null"`
-	Description    string `json:"description" gorm:"type:text;not null"`
-	Category       string `json:"category" gorm:"size:100;not null;index"`
-	Priority       string `json:"priority" gorm:"size:50;not null"`
-	Tags           []Tag  `json:"tags" gorm:"type:text[]"` // Use pq.StringArray for PostgreSQL; adjust for MySQL if necessary
-	AttachmentURL  string `json:"attachment_url" gorm:"size:255"`
-	HasAttachments bool   `json:"has_attachments"`
-	Severity       string `json:"severity" gorm:"size:50;not null"`
+	gorm.Model                 // This includes ID, CreatedAt, UpdatedAt, and DeletedAt
+	AssignedTo     *uint       `gorm:"index" json:"assigned_to,omitempty"`
+	UserID         uint        `json:"user_id" gorm:"not null;index"`
+	ReportedBy     uint        `gorm:"index" json:"reported_by"`
+	Reporter       Users       `gorm:"foreignKey:ReportedBy" json:"-"`
+	Title          string      `json:"title" gorm:"size:255;not null"`
+	Description    string      `json:"description" gorm:"type:text;not null"`
+	CategoryID     *uint       `gorm:"index" json:"category_id,omitempty"`
+	Category       Category    `gorm:"foreignKey:CategoryID" json:"-"`
+	SubCategoryID  uint        `gorm:"index" json:"sub_category_id,omitempty"`
+	SubCategory    SubCategory `gorm:"foreignKey:SubCategoryID" json:"-"`
+	Priority       string      `json:"priority" gorm:"size:50;not null"`
+	Tags           []Tag       `json:"tags" gorm:"type:text[]"` // Use pq.StringArray for PostgreSQL; adjust for MySQL if necessary
+	AttachmentURL  string      `json:"attachment_url" gorm:"size:255"`
+	HasAttachments bool        `json:"has_attachments"`
+	Severity       string      `gorm:"type:enum('Low', 'Medium', 'High', 'Critical');not null" json:"severity"`
+	Status         string      `gorm:"type:enum('Open', 'Investigating', 'Resolved', 'Closed');not null" json:"status"`
+	ResolvedAt     *time.Time  `json:"resolved_at"`
+	ClosedAt       *time.Time  `json:"closed_at,omitempty"`
+	TicketID       *uint       `json:"ticket_id" gorm:"foreignKey:TicketID"`
 }
 
 func (Incident) TableName() string {
@@ -28,13 +38,13 @@ func (Incident) TableName() string {
 
 // IncidentHistoryEntry represents a historical entry related to an incident.
 type IncidentHistoryEntry struct {
-	gorm.Model            // Includes ID, CreatedAt, UpdatedAt, and DeletedAt automatically
-	IncidentID  uint      `json:"incident_id" gorm:"not null;index"`
-	Description string    `json:"description" gorm:"type:text;not null"`
-	Status      string    `json:"status" gorm:"size:100;not null"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt time.Time      `json:"updated_at"`
-	DeletedAt  *gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+	gorm.Model                  // Includes ID, CreatedAt, UpdatedAt, and DeletedAt automatically
+	IncidentID  uint            `json:"incident_id" gorm:"not null;index"`
+	Description string          `json:"description" gorm:"type:text;not null"`
+	Status      string          `json:"status" gorm:"size:100;not null"`
+	CreatedAt   time.Time       `json:"created_at"`
+	UpdatedAt   time.Time       `json:"updated_at"`
+	DeletedAt   *gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
 }
 
 func (IncidentHistoryEntry) TableName() string {
@@ -47,7 +57,7 @@ type IncidentComment struct {
 	IncidentID uint            `json:"incident_id" gorm:"not null;index"`
 	Comment    string          `json:"comment" gorm:"type:text;not null"`
 	CreatedAt  time.Time       `json:"created_at"`
-	UpdatedAt time.Time      `json:"updated_at"`
+	UpdatedAt  time.Time       `json:"updated_at"`
 	DeletedAt  *gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
 }
 
@@ -110,6 +120,31 @@ func (idm *IncidentDBModel) GetAllIncidents() ([]*Incident, error) {
 // CreateIncident creates a new incident report.
 func (idm *IncidentDBModel) CreateIncident(incident *Incident) error {
 	return idm.DB.Create(incident).Error
+}
+
+// ReportIncident records a new incident in the database.
+func (db *IncidentDBModel) ReportIncident(incident *Incidents) error {
+	return db.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(incident).Error; err != nil {
+			return err
+		}
+		return nil
+	})
+}
+
+// UpdateIncidentStatus updates the status of an existing incident.
+func (db *IncidentDBModel) UpdateIncidentStatus(incidentID uint, status string) error {
+	return db.DB.Transaction(func(tx *gorm.DB) error {
+		var incident Incidents
+		if err := tx.First(&incident, incidentID).Error; err != nil {
+			return err
+		}
+		incident.Status = status
+		if err := tx.Save(&incident).Error; err != nil {
+			return err
+		}
+		return nil
+	})
 }
 
 // UpdateIncident updates an existing incident report.
@@ -323,7 +358,7 @@ func (im *IncidentDBModel) UpdateIncidentPriority(incidentID uint, priority stri
 
 // UpdateIncidentTags updates the tags of an incident.
 func (im *IncidentDBModel) UpdateIncidentTags(incidentID uint, tags []string) error {
-	t := im.CreateTag(incidentID uint, tags []string)
+	t := im.CreateTag(incidentID, tags)
 	incident, err := im.GetIncidentByID(incidentID)
 	if err != nil {
 		return err
@@ -456,12 +491,16 @@ func (im *IncidentDBModel) GetIncidentsWithoutAttachments() ([]*Incident, error)
 	return incidents, nil
 }
 
-func (s *IncidentDBModel) ResolveIncident(incidentID uint) error {
-	// Implement logic to mark an incident as resolved in the database.
-	if err := s.DB.Model(&Incident{}).Where("id = ?", incidentID).Update("status", "Resolved").Error; err != nil {
-		return err
-	}
-	return nil
+// ResolveIncident marks an incident as resolved.
+func (db *IncidentDBModel) ResolveIncident(id uint, resolution string) error {
+	return db.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Model(&Incident{}).Where("id = ?", id).Updates(map[string]interface{}{
+			"Status": "Resolved", "ResolvedAt": time.Now(), "Description": resolution,
+		}).Error; err != nil {
+			return err
+		}
+		return nil
+	})
 }
 
 func (s *IncidentDBModel) AddIncidentComment(incidentID uint, comment string) error {

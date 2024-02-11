@@ -12,25 +12,30 @@ import (
 
 type Ticket struct {
 	gorm.Model
-	Subject          string                  `gorm:"size:255;not null" json:"subject"`
-	Description      string                  `gorm:"type:text;not null" json:"description"`
-	CategoryID       uint                    `json:"category_id"`
-	SubCategoryID    uint                    `json:"sub_category_id"`
-	PriorityID       uint                    `json:"priority_id"`
-	SLAID            uint                    `json:"sla_id"`
-	UserID           uint                    `json:"user_id"`
-	AgentID          uint                    `json:"agent_id"`
-	DueAt            *time.Time              `json:"due_at,omitempty"`
-	Site             string                  `gorm:"size:255" json:"site"`
-	StatusID         uint                    `json:"status_id"`
-	Status           Status                  `json:"status"`
-	Priority         Priority                `json:"priority"`
-	Category         SubCategory             `json:"category"`
-	MediaAttachments []TicketMediaAttachment `gorm:"foreignKey:TicketID" json:"media_attachments"`
-	Tags             []Tag                   `gorm:"many2many:ticket_tags;" json:"tags"`
-	Comments         []Comment               `gorm:"foreignKey:TicketID" json:"comments"`
-	TicketHistory    []TicketHistoryEntry    `gorm:"foreignKey:TicketID" json:"ticket_history"`
-	DeletedAt        gorm.DeletedAt          `gorm:"index" json:"deleted_at,omitempty"`
+	Subject          string                  `gorm:"size:255;not null" json:"subject"`                   // Summary of the ticket issue
+	Description      string                  `gorm:"type:text;not null" json:"description"`              // Detailed description of the issue
+	CategoryID       uint                    `gorm:"index;not null" json:"category_id"`                  // Categorizes the ticket for routing or reporting
+	SubCategoryID    uint                    `gorm:"index;not null" json:"sub_category_id"`              // Further refines the ticket category
+	PriorityID       uint                    `gorm:"index;not null" json:"priority_id"`                  // Indicates the urgency of the ticket
+	SLAID            uint                    `json:"sla_id"`                                             // Associates the ticket with a specific Service Level Agreement
+	UserID           uint                    `gorm:"index;not null" json:"user_id"`                      // The user who submitted the ticket
+	AgentID          *uint                   `gorm:"index" json:"agent_id,omitempty"`                    // Optionally assigns the ticket to a specific agent
+	DueAt            *time.Time              `json:"due_at,omitempty"`                                   // Expected resolution time
+	ClosedAt         *time.Time              `json:"closed_at,omitempty"`                                // Time when the ticket was closed
+	Site             string                  `gorm:"size:255" json:"site"`                               // Location or site related to the ticket
+	StatusID         uint                    `gorm:"index;not null" json:"status_id"`                    // Current status of the ticket
+	Status           string                  `gorm:"size:100;not null" json:"status" binding:"required"` // Descriptive status
+	StatusObject     Status                  `json:"status_details"`                                     // Embeds status details
+	Priority         Priority                `json:"priority"`                                           // Embeds priority details
+	Category         Category                `gorm:"foreignKey:CategoryID" json:"-"`                     // Links to the category entity
+	SubCategory      SubCategory             `gorm:"foreignKey:SubCategoryID" json:"-"`                  // Links to the sub-category entity
+	SLA              SLA                     `gorm:"foreignKey:sla_id" json:"-"`                         // Links to the SLA entity
+	MediaAttachments []TicketMediaAttachment `gorm:"foreignKey:TicketID" json:"media_attachments"`       // Related media files
+	Tags             []Tag                   `gorm:"many2many:ticket_tags;" json:"tags"`                 // Tags for categorization or filtering
+	Comments         []Comment               `gorm:"foreignKey:TicketID" json:"comments"`                // User or agent comments on the ticket
+	TicketHistory    []TicketHistoryEntry    `gorm:"foreignKey:TicketID" json:"ticket_history"`          // Audit trail of ticket changes
+	User             Users                   `gorm:"foreignKey:UserID" json:"-"`                         // Links to the submitting user
+	Agent            Agents                  `gorm:"foreignKey:AgentID" json:"-"`                        // Links to the assigned agent, if any
 }
 
 func (Ticket) TableName() string {
@@ -38,13 +43,13 @@ func (Ticket) TableName() string {
 }
 
 type Comment struct {
-	ID        uint           `gorm:"primaryKey" json:"id"`
-	TicketID  uint           `json:"ticket_id"`
-	AuthorID  uint           `json:"author_id"`
-	Comment   string         `json:"comment"`
-	CreatedAt time.Time      `json:"created_at"`
-	UpdatedAt time.Time      `json:"updated_at"`
-	DeletedAt gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+	ID        uint            `gorm:"primaryKey" json:"id"`
+	TicketID  uint            `json:"ticket_id"`                         // Links comment to a specific ticket
+	AuthorID  uint            `json:"author_id"`                         // Identifies the author of the comment
+	Comment   string          `json:"comment" gorm:"type:text;not null"` // The content of the comment
+	CreatedAt time.Time       `json:"created_at"`                        // Timestamp of comment creation
+	UpdatedAt time.Time       `json:"updated_at"`                        // Timestamp of last update to comment
+	DeletedAt *gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"` // Soft delete flag
 }
 
 func (Comment) TableName() string {
@@ -53,8 +58,8 @@ func (Comment) TableName() string {
 
 type TicketHistoryEntry struct {
 	gorm.Model
-	TicketID uint   `json:"ticket_id"`
-	Action   string `gorm:"size:255;not null" json:"action"`
+	TicketID uint   `json:"ticket_id"`                       // Associates history entry with a ticket
+	Action   string `gorm:"size:255;not null" json:"action"` // Describes the action taken
 }
 
 func (TicketHistoryEntry) TableName() string {
@@ -64,8 +69,8 @@ func (TicketHistoryEntry) TableName() string {
 // RelatedAd struct for storing related advertisements
 type RelatedTicket struct {
 	gorm.Model
-	TicketID        uint `json:"ticket_id"`
-	RelatedTicketID uint `json:"related_ticket_id"`
+	TicketID        uint `json:"ticket_id" gorm:"index;not null"`
+	RelatedTicketID uint `json:"related_ticket_id" gorm:"index;not null"`
 }
 
 func (RelatedTicket) TableName() string {
@@ -74,11 +79,11 @@ func (RelatedTicket) TableName() string {
 
 // Hashtag represents a hashtag entity
 type Tag struct {
-	ID        uint           `gorm:"primaryKey" json:"id"`
-	Name      string         `gorm:"size:255;not null;unique" json:"name"`
-	CreatedAt time.Time      `json:"created_at"`
-	UpdatedAt time.Time      `json:"updated_at"`
-	DeletedAt gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+	ID        uint            `gorm:"primaryKey" json:"id"`
+	Name      string          `gorm:"size:255;not null;unique" json:"name"`
+	CreatedAt time.Time       `json:"created_at"`
+	UpdatedAt time.Time       `json:"updated_at"`
+	DeletedAt *gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
 }
 
 func (Tag) TableName() string {
@@ -86,14 +91,14 @@ func (Tag) TableName() string {
 }
 
 type SLA struct {
-	ID            uint           `gorm:"primaryKey" json:"id"`
-	Name          string         `gorm:"size:255;not null" json:"name"`
-	Description   string         `gorm:"type:text" json:"description,omitempty"`
-	Target        int            `json:"target"`          // Target resolution time in hours
-	TimeToResolve int            `json:"time_to_resolve"` // In hours
-	CreatedAt     time.Time      `json:"created_at"`
-	UpdatedAt     time.Time      `json:"updated_at"`
-	DeletedAt     gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+	ID            uint            `gorm:"primaryKey" json:"id"`
+	Name          string          `gorm:"size:255;not null" json:"name"`
+	Description   string          `gorm:"type:text" json:"description,omitempty"`
+	Target        int             `json:"target" gorm:"type:int;not null"`
+	TimeToResolve int             `json:"time_to_resolve" gorm:"type:int;not null"`
+	CreatedAt     time.Time       `json:"created_at"`
+	UpdatedAt     time.Time       `json:"updated_at"`
+	DeletedAt     *gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
 }
 
 func (SLA) TableName() string {
@@ -101,12 +106,11 @@ func (SLA) TableName() string {
 }
 
 type Priority struct {
-	ID        uint           `gorm:"primaryKey" json:"id"`
-	Name      string         `gorm:"size:255;not null" json:"name"`
-	Level     int            `json:"level"`
-	CreatedAt time.Time      `json:"created_at"`
-	UpdatedAt time.Time      `json:"updated_at"`
-	DeletedAt gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+	gorm.Model
+	Name        string `gorm:"size:255;not null" json:"name"`
+	Level       int    `json:"level" gorm:"type:int;not null"`
+	Description string `gorm:"type:text" json:"description,omitempty"`
+	Color       string `gorm:"size:7;default:'#FFFFFF'" json:"color"`
 }
 
 func (Priority) TableName() string {
@@ -114,14 +118,13 @@ func (Priority) TableName() string {
 }
 
 type Satisfaction struct {
-	gorm.Model
-	SatisfactionID uint      `gorm:"primaryKey" json:"satisfaction_id"`
-	Name           string    `json:"satisfaction_name"`
-	Rank           int       `json:"rank"`
-	Emoji          string    `json:"emoji"`
-	CreatedAt      time.Time `json:"created_at"`
-	UpdatedAt      time.Time `json:"updated_at"`
-	DeletedAt      time.Time `json:"deleted_at"`
+	ID        uint            `gorm:"primaryKey" json:"id"`
+	Name      string          `gorm:"size:255;not null" json:"name"`
+	Rank      int             `json:"rank" gorm:"type:int;not null"`
+	Emoji     string          `json:"emoji,omitempty" gorm:"size:255"`
+	CreatedAt time.Time       `json:"created_at"`
+	UpdatedAt time.Time       `json:"updated_at"`
+	DeletedAt *gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
 }
 
 // TableName sets the table name for the Satisfaction model.
@@ -130,12 +133,15 @@ func (Satisfaction) TableName() string {
 }
 
 type Category struct {
-	ID          uint           `gorm:"primaryKey" json:"id"`
-	Name        string         `gorm:"size:255;not null" json:"name"`
-	Description string         `gorm:"type:text" json:"description,omitempty"`
-	CreatedAt   time.Time      `json:"created_at"`
-	UpdatedAt   time.Time      `json:"updated_at"`
-	DeletedAt   gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+	ID               uint            `gorm:"primaryKey" json:"id"`
+	Name             string          `gorm:"size:255;not null;unique" json:"name"`
+	Description      string          `gorm:"type:text" json:"description,omitempty"`
+	SubCategories    []*Category     `gorm:"foreignKey:ParentCategoryID" json:"sub_categories,omitempty"`
+	Icon             string          `gorm:"size:255" json:"icon,omitempty"`
+	CreatedAt        time.Time       `json:"created_at"`
+	UpdatedAt        time.Time       `json:"updated_at"`
+	DeletedAt        *gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+	ParentCategoryID *uint           `json:"parent_category_id,omitempty" gorm:"index"`
 }
 
 func (Category) TableName() string {
@@ -143,13 +149,11 @@ func (Category) TableName() string {
 }
 
 type SubCategory struct {
-	ID          uint           `gorm:"primaryKey" json:"id"`
-	Name        string         `gorm:"size:255;not null" json:"name"`
-	CategoryID  uint           `json:"category_id"`
-	Description string         `gorm:"type:text" json:"description,omitempty"`
-	CreatedAt   time.Time      `json:"created_at"`
-	UpdatedAt   time.Time      `json:"updated_at"`
-	DeletedAt   gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+	ID          uint   `gorm:"primaryKey" json:"id"`
+	Name        string `gorm:"size:255;not null" json:"name"`
+	CategoryID  uint   `json:"category_id" gorm:"index;not null"`
+	Description string `gorm:"type:text" json:"description,omitempty"`
+	Icon        string `gorm:"size:255" json:"icon,omitempty"`
 }
 
 func (SubCategory) TableName() string {
@@ -157,12 +161,10 @@ func (SubCategory) TableName() string {
 }
 
 type Status struct {
-	ID        uint           `gorm:"primaryKey" json:"id"`
-	Name      string         `gorm:"size:255;not null" json:"name"`
-	IsClosed  bool           `json:"is_closed"`
-	CreatedAt time.Time      `json:"created_at"`
-	UpdatedAt time.Time      `json:"updated_at"`
-	DeletedAt gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+	ID          uint   `gorm:"primaryKey" json:"id"`
+	Name        string `gorm:"size:255;not null" json:"name"`
+	Description string `gorm:"type:text" json:"description,omitempty"`
+	IsClosed    bool   `json:"is_closed" gorm:"not null;default:false"`
 }
 
 func (Status) TableName() string {
@@ -170,14 +172,13 @@ func (Status) TableName() string {
 }
 
 type Policies struct {
-	gorm.Model
-	PolicyID     uint      `gorm:"primaryKey" json:"policy_id"`
-	PolicyName   string    `json:"policy_name"`
-	EmbeddedLink string    `json:"policy_embed"`
-	PolicyUrl    string    `json:"policy_url"`
-	CreatedAt    time.Time `json:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at"`
-	DeletedAt    time.Time `json:"deleted_at"`
+	ID           uint            `gorm:"primaryKey" json:"id"`
+	Name         string          `gorm:"size:255;not null;unique" json:"name"`
+	EmbeddedLink string          `json:"embedded_link,omitempty" gorm:"type:text"`
+	PolicyUrl    string          `json:"policy_url,omitempty" gorm:"type:text"`
+	CreatedAt    time.Time       `json:"created_at"`
+	UpdatedAt    time.Time       `json:"updated_at"`
+	DeletedAt    *gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
 }
 
 // TableName sets the table name for the Policies model.
@@ -187,17 +188,17 @@ func (Policies) TableName() string {
 
 // MediaAttachment struct for storing media attachments related to the Tickets
 type TicketMediaAttachment struct {
-	ID        uint           `gorm:"primaryKey" json:"id"`
-	TicketID  uint           `json:"ticket_id"`
-	FileName  string         `gorm:"size:255" json:"file_name"`
-	FilePath  string         `gorm:"size:255" json:"file_path"`
-	MimeType  string         `gorm:"size:50" json:"mime_type"`
-	URL       string         `gorm:"size:255;not null" json:"url"`
-	Type      string         `gorm:"size:255" json:"type"` // E.g., image, document
-	Caption   string         `gorm:"size:255" json:"caption,omitempty"`
-	CreatedAt time.Time      `json:"created_at"`
-	UpdatedAt time.Time      `json:"updated_at"`
-	DeletedAt gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+	ID        uint            `gorm:"primaryKey" json:"id"`
+	TicketID  uint            `json:"ticket_id" gorm:"index;not null"`
+	FileName  string          `gorm:"size:255" json:"file_name"`
+	FilePath  string          `gorm:"size:255" json:"file_path"`
+	MimeType  string          `gorm:"size:50" json:"mime_type"`
+	URL       string          `gorm:"size:255;not null" json:"url"`
+	Type      string          `gorm:"size:255" json:"type"`
+	Caption   string          `gorm:"size:255" json:"caption,omitempty"`
+	CreatedAt time.Time       `json:"created_at"`
+	UpdatedAt time.Time       `json:"updated_at"`
+	DeletedAt *gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
 }
 
 func (TicketMediaAttachment) TableName() string {
@@ -205,13 +206,13 @@ func (TicketMediaAttachment) TableName() string {
 }
 
 type TicketUpdate struct {
-	ID        uint           `gorm:"primaryKey" json:"id"`
-	TicketID  uint           `json:"ticket_id"`
-	UserID    uint           `json:"user_id"`
-	Update    string         `gorm:"type:text" json:"update"`
-	CreatedAt time.Time      `json:"created_at"`
-	UpdatedAt time.Time      `json:"updated_at"`
-	DeletedAt gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+	ID        uint            `gorm:"primaryKey" json:"id"`
+	TicketID  uint            `json:"ticket_id" gorm:"index;not null"`
+	UserID    uint            `json:"user_id" gorm:"index;not null"`
+	Update    string          `gorm:"type:text" json:"update"`
+	CreatedAt time.Time       `json:"created_at"`
+	UpdatedAt time.Time       `json:"updated_at"`
+	DeletedAt *gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
 }
 
 func (TicketUpdate) TableName() string {
@@ -220,8 +221,8 @@ func (TicketUpdate) TableName() string {
 
 type TicketAsset struct {
 	ID       uint `gorm:"primaryKey" json:"id"`
-	TicketID uint `json:"ticket_id"`
-	AssetID  uint `json:"asset_id"`
+	TicketID uint `json:"ticket_id" gorm:"index;not null"`
+	AssetID  uint `json:"asset_id" gorm:"index;not null"`
 }
 
 func (TicketAsset) TableName() string {
@@ -230,14 +231,60 @@ func (TicketAsset) TableName() string {
 
 type SatisfactionSurvey struct {
 	ID        uint      `gorm:"primaryKey" json:"id"`
-	TicketID  uint      `json:"ticket_id"`
-	Rating    int       `json:"rating"` // For example, 1 to 5
+	TicketID  uint      `gorm:"index;not null" json:"ticket_id"`
+	Rating    int       `json:"rating" gorm:"type:int;not null"`
 	Comment   string    `gorm:"type:text" json:"comment,omitempty"`
 	CreatedAt time.Time `json:"created_at"`
 }
 
 func (SatisfactionSurvey) TableName() string {
 	return "satisfaction_surveys"
+}
+
+type SupportResponse struct {
+	ID          uint      `gorm:"primaryKey" json:"id"`
+	TicketID    uint      `gorm:"index;not null" json:"ticket_id"`
+	ResponderID uint      `gorm:"index;not null" json:"responder_id"`
+	Message     string    `gorm:"type:text;not null" json:"message"`
+	RespondedAt time.Time `json:"responded_at"`
+}
+
+func (SupportResponse) TableName() string {
+	return "support_responses"
+}
+
+type TicketResolution struct {
+	gorm.Model
+	TicketID         uint      `json:"ticket_id" gorm:"index;not null"`
+	ResolvedBy       uint      `json:"resolved_by" gorm:"index;not null"`
+	Resolution       string    `json:"resolution" gorm:"type:text;not null"`
+	ResolvedAt       time.Time `json:"resolved_at"`
+	CustomerFeedback string    `json:"customer_feedback" gorm:"type:text"` // Optional feedback from the customer
+}
+
+func (TicketResolution) TableName() string {
+	return "ticket_resolution"
+}
+
+type CustomerSatisfactionSurvey struct {
+	gorm.Model
+	TicketID    uint      `json:"ticket_id" gorm:"index;not null"`
+	Rating      int       `json:"rating" gorm:"type:int;not null"` // E.g., 1-5 scale
+	Comments    string    `json:"comments" gorm:"type:text"`
+	SubmittedAt time.Time `json:"submitted_at"`
+}
+
+type SLAPolicy struct {
+	gorm.Model
+	Name             string `json:"name" gorm:"type:varchar(255);not null;unique"`
+	Description      string `json:"description" gorm:"type:text"`
+	ResponseTarget   int    `json:"response_target" gorm:"type:int;not null"`     // Target response time in minutes
+	ResolutionTarget int    `json:"resolution_target" gorm:"type:int;not null"`   // Target resolution time in hours
+	AppliesTo        string `json:"applies_to" gorm:"type:varchar(100);not null"` // E.g., "All Tickets", "VIP Customers"
+}
+
+func (SLAPolicy) TableName() string {
+	return "sla_policy"
 }
 
 type TicketStorage interface {
@@ -247,6 +294,7 @@ type TicketStorage interface {
 	GetTickets() ([]*Ticket, error)
 	GetTicketByID(int) (*Ticket, error)
 	GetTicketByNumber(int) (*Ticket, error)
+	ListTicketsByStatus(status string) ([]Ticket, error)
 }
 
 type CommentStorage interface {
@@ -357,32 +405,41 @@ func NewTicketHistoryEntryDBModel(db *gorm.DB) *TicketHistoryEntryDBModel {
 	}
 }
 
-// CreateTicket creates a new Ticket.
-func (as *TicketDBModel) CreateTicket(ticket *Ticket) error {
-	return as.DB.Create(ticket).Error
+// CreateTicket creates a new ticket in the database.
+func (db *TicketDBModel) CreateTicket(ticket *Ticket) error {
+	return db.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(ticket).Error; err != nil {
+			return err
+		}
+		return nil
+	})
 }
 
-// GetTicketByID retrieves a Ticket by its ID.
-func (as *TicketDBModel) GetTicketByID(id uint) (*Ticket, error) {
+// GetTicketByID retrieves a ticket by its ID.
+func (db *TicketDBModel) GetTicketByID(ticketID uint) (*Ticket, error) {
 	var ticket Ticket
-	err := as.DB.Where("id = ?", id).First(&ticket).Error
-	return &ticket, err
+	result := db.DB.First(&ticket, ticketID)
+	return &ticket, result.Error
 }
 
-// UpdateTicket updates the details of an existing Ticket.
-func (as *TicketDBModel) UpdateTicket(ticket *Ticket) error {
-	if err := as.DB.Save(ticket).Error; err != nil {
-		return err
-	}
-	return nil
+// UpdateTicket updates an existing ticket's details.
+func (db *TicketDBModel) UpdateTicket(ticket *Ticket) error {
+	return db.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Save(ticket).Error; err != nil {
+			return err
+		}
+		return nil
+	})
 }
 
-// DeleteTicket deletes a ticket from the database.
-func (as *TicketDBModel) DeleteTicket(id uint) error {
-	if err := as.DB.Delete(&Ticket{}, id).Error; err != nil {
-		return err
-	}
-	return nil
+// DeleteTicket removes a ticket from the database.
+func (db *TicketDBModel) DeleteTicket(ticketID uint) error {
+	return db.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Delete(&Ticket{}, ticketID).Error; err != nil {
+			return err
+		}
+		return nil
+	})
 }
 
 // GetAllTickets retrieves all tickets from the database.
@@ -447,19 +504,27 @@ func (as *TicketDBModel) CreateTag(ticketID uint, tag string) (*Tag, bool, error
 
 ///////////////////////////////////////////////////////////////////////////////////////////
 
-func (tdb *TicketDBModel) AssignTicketToAgent(ticketID uint, agent *Agents) error {
-	// Assign a ticket to an agent by updating the AgentID field in the ticket
-	ticket := &Ticket{}
-	if err := tdb.DB.First(&ticket, ticketID).Error; err != nil {
-		return err
-	}
+// AssignAgentToTicket assigns an agent to a ticket and updates the ticket's status.
+func (db *TicketDBModel) AssignTicketToAgent(ticketID, agentID uint) error {
+	return db.DB.Transaction(func(tx *gorm.DB) error {
+		ticket, err := db.GetTicketByID(ticketID)
+		if err != nil {
+			return err
+		}
+		ticket.AgentID = agentID
+		ticket.Status = "assigned" // Example status update
+		if err := tx.Save(ticket).Error; err != nil {
+			return err
+		}
+		return nil
+	})
+}
 
-	ticket.AgentID = *&agent.ID
-	if err := tdb.DB.Save(&ticket).Error; err != nil {
-		return err
-	}
-
-	return nil
+// ListTicketsByStatus lists all tickets with a specific status.
+func (db *TicketDBModel) ListTicketsByStatus(status string) ([]Ticket, error) {
+	var tickets []Ticket
+	result := db.DB.Where("status = ?", status).Find(&tickets)
+	return tickets, result.Error
 }
 
 func (tdb *TicketDBModel) ChangeTicketStatus(ticketID uint, newStatus *Status) error {
@@ -469,7 +534,8 @@ func (tdb *TicketDBModel) ChangeTicketStatus(ticketID uint, newStatus *Status) e
 		return err
 	}
 
-	ticket.Status = *newStatus
+	ticket.Status = *&newStatus.Name
+	ticket.StatusObject = *newStatus
 	if err := tdb.DB.Save(ticket).Error; err != nil {
 		return err
 	}

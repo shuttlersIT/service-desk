@@ -376,3 +376,19 @@ func (ac *AuthController) ResetPasswordWithToken3(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"message": "Password reset successfully"})
 }
+
+func (ac *AuthController) CreateExternalServiceIntegrationHandler(c *gin.Context) {
+	var req models.ExternalServiceIntegration
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	err := ac.AuthService.CreateExternalServiceIntegration(&req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusCreated, req)
+}

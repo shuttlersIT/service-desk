@@ -3,6 +3,7 @@
 package models
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
@@ -12,12 +13,41 @@ import (
 
 type APIToken struct {
 	gorm.Model
-	UserID      uint       `gorm:"not null;index" json:"user_id"`
-	User        Users      `gorm:"foreignKey:UserID" json:"-"`
-	Token       string     `gorm:"size:255;not null;unique" json:"token"`
-	ExpiresAt   time.Time  `gorm:"type:datetime" json:"expires_at"`
-	Description string     `gorm:"size:255" json:"description"`
-	LastLoginAt *time.Time `json:"last_login_at,omitempty"`
+	UserID      uint       `json:"user_id" gorm:"index;not null"`
+	Token       string     `json:"token" gorm:"size:255;not null;unique"`
+	Description string     `json:"description,omitempty" gorm:"size:255"`
+	ExpiresAt   time.Time  `json:"expires_at"`
+	LastUsedAt  *time.Time `json:"last_used_at,omitempty"`
+}
+
+func (APIToken) TableName() string {
+	return "api_tokens"
+}
+
+type APIRequestLog struct {
+	gorm.Model
+	UserID       uint   `json:"user_id" gorm:"index;not null"`
+	Endpoint     string `json:"endpoint" gorm:"type:varchar(255);not null"`
+	Method       string `json:"method" gorm:"type:varchar(50);not null"`
+	StatusCode   int    `json:"status_code" gorm:"not null"`
+	RequestTime  int64  `json:"request_time" gorm:"not null"` // Request duration in milliseconds
+	RequestBody  string `json:"request_body,omitempty" gorm:"type:text"`
+	ResponseBody string `json:"response_body,omitempty" gorm:"type:text"`
+}
+
+func (APIRequestLog) TableName() string {
+	return "api_request_logs"
+}
+
+type ExternalServiceToken struct {
+	gorm.Model
+	ServiceName string     `json:"service_name" gorm:"type:varchar(255);not null"`
+	Token       string     `json:"token" gorm:"type:text;not null"`
+	ExpiresAt   *time.Time `json:"expires_at,omitempty"`
+}
+
+func (ExternalServiceToken) TableName() string {
+	return "external_service_tokens"
 }
 
 type AgentLoginCredentialsStorage interface {
@@ -28,14 +58,13 @@ type AgentLoginCredentialsStorage interface {
 }
 
 type AgentLoginCredentials struct {
-	gorm.Model
-	ID          uint       `gorm:"primaryKey" json:"_"`
-	Username    string     `json:"username"`
-	Password    string     `json:"password"`
-	AgentID     uint       `json:"agent_id"`
+	ID          uint       `gorm:"primaryKey" json:"id"`
+	AgentID     uint       `json:"agent_id" gorm:"index;not null"`
+	Username    string     `gorm:"type:varchar(255);not null" json:"username"`
+	Password    string     `gorm:"-" json:"-"` // Excluded from JSON responses for security
 	CreatedAt   time.Time  `json:"created_at"`
 	UpdatedAt   time.Time  `json:"updated_at"`
-	DeletedAt   time.Time  `json:"deleted_at"`
+	DeletedAt   *time.Time `gorm:"index" json:"deleted_at,omitempty"`
 	LastLoginAt *time.Time `json:"last_login_at,omitempty"`
 }
 
@@ -48,12 +77,9 @@ func (AgentLoginCredentials) TableName() string {
 
 type UsersLoginCredentials struct {
 	gorm.Model
-	ID        uint      `gorm:"primaryKey" json:"_"`
-	Username  string    `json:"username"`
-	Password  string    `json:"password"`
-	UserID    uint      `json:"user_id"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	Username string `json:"username"`
+	Password string `json:"password"`
+	UserID   uint   `json:"user_id"`
 }
 
 // TableName sets the table name for the UsersLoginCredentials model.
@@ -134,6 +160,29 @@ func NewRegisterModel(a *UserDBModel, b *AuthDBModel) *RegisterModel {
 	}
 }
 
+// RegisterUser creates a new user account in the system.
+func (db *UserDBModel) RegisterUser(user *Users) error {
+	return db.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(user).Error; err != nil {
+			return err
+		}
+		return nil
+	})
+}
+
+// AuthenticateUser checks user credentials and returns the user if they are valid.
+func (db *UserDBModel) AuthenticateUser(email, password string) (*Users, error) {
+	var user Users
+	if err := db.DB.Where("email = ?", email).First(&user).Error; err != nil {
+		return nil, err
+	}
+	// Assume CheckPassword is a method to verify the password; implement accordingly.
+	if !CheckPassword(user.PasswordHash, password) {
+		return nil, errors.New("invalid credentials")
+	}
+	return &user, nil
+}
+
 // Register New User
 func (ab *RegisterModel) Registration(user *Users) (*Users, error) {
 	// Hash the user's password before storing it in the database
@@ -180,6 +229,19 @@ func (ab *RegisterModel) AgentRegistration(agent *Agents) (*Agents, error) {
 	}
 
 	return newAgent, nil
+}
+
+// AuthenticateUser checks user credentials and returns the user if they are valid.
+func (db *UserDBModel) AuthenticateUser(email, password string) (*Users, error) {
+	var user Users
+	if err := db.DB.Where("email = ?", email).First(&user).Error; err != nil {
+		return nil, err
+	}
+	// Assume CheckPassword is a method to verify the password; implement accordingly.
+	if !CheckPassword(user.PasswordHash, password) {
+		return nil, errors.New("invalid credentials")
+	}
+	return &user, nil
 }
 
 // Login User
@@ -258,14 +320,14 @@ func (as *AuthDBModel) GetAllAgentCreds() ([]*AgentLoginCredentials, error) {
 
 // Define a model for storing password reset requests
 type PasswordResetRequest struct {
-	ID        uint           `gorm:"primaryKey" json:"id"`
-	UserID    uint           `json:"user_id"`
-	RequestID uint           `json:"request_id"`
-	Token     string         `json:"token"`
-	ExpiresAt time.Time      `json:"expires_at"`
-	CreatedAt time.Time      `json:"created_at"`
-	UpdatedAt time.Time      `json:"updated_at"`
-	DeletedAt gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+	ID        uint            `gorm:"primaryKey" json:"id"`
+	AgentID   uint            `json:"agent_id" gorm:"index;not null"`
+	RequestID string          `gorm:"size:255;not null;unique" json:"request_id"`
+	Token     string          `gorm:"size:255;not null;unique" json:"token"`
+	ExpiresAt time.Time       `json:"expires_at"`
+	CreatedAt time.Time       `json:"created_at"`
+	UpdatedAt time.Time       `json:"updated_at"`
+	DeletedAt *gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
 }
 
 func (PasswordResetRequest) TableName() string {
@@ -359,13 +421,13 @@ func (as *AuthDBModel) DeletePasswordResetToken(token string) error {
 // /////////////////////////////////////////////////////////////////////////////////////
 // Password History
 type PasswordHistory struct {
-	ID          uint           `gorm:"primaryKey" json:"id"`
-	UserID      uint           `json:"user_id"`
-	Password    string         `json:"-"`
-	DateChanged time.Time      `json:"date_changed"`
-	CreatedAt   time.Time      `json:"created_at"`
-	UpdatedAt   time.Time      `json:"updated_at"`
-	DeletedAt   gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+	ID           uint            `gorm:"primaryKey" json:"id"`
+	UserID       uint            `json:"user_id" gorm:"index;not null"`
+	PasswordHash string          `gorm:"-" json:"-"` // Excluded from JSON for security
+	DateChanged  time.Time       `json:"date_changed"`
+	CreatedAt    time.Time       `json:"created_at"`
+	UpdatedAt    time.Time       `json:"updated_at"`
+	DeletedAt    *gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
 }
 
 func (PasswordHistory) TableName() string {
@@ -373,13 +435,13 @@ func (PasswordHistory) TableName() string {
 }
 
 type PasswordResetToken struct {
-	ID        uint           `gorm:"primaryKey" json:"id"`
-	Token     string         `json:"token"`
-	UserID    uint           `json:"user_id"`
-	ExpiresAt time.Time      `json:"expires_at"`
-	CreatedAt time.Time      `json:"created_at"`
-	UpdatedAt time.Time      `json:"updated_at"`
-	DeletedAt gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+	ID        uint            `gorm:"primaryKey" json:"id"`
+	AgentID   uint            `json:"agent_id" gorm:"index;not null"`
+	Token     string          `gorm:"size:255;not null;unique" json:"token"`
+	ExpiresAt time.Time       `json:"expires_at"`
+	CreatedAt time.Time       `json:"created_at"`
+	UpdatedAt time.Time       `json:"updated_at"`
+	DeletedAt *gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
 }
 
 func (PasswordResetToken) TableName() string {
@@ -401,9 +463,12 @@ func (as *AuthDBModel) GetPasswordHistoryByUserID(userID uint) ([]*PasswordHisto
 // //////////////////////////////////////////////////////////////////////////////////////////
 // Agent User Mapping
 type AgentUserMapping struct {
-	gorm.Model
-	AgentID uint `json:"agent_id"`
-	UserID  uint `json:"user_id"`
+	ID        uint            `gorm:"primaryKey" json:"id"`
+	AgentID   uint            `json:"agent_id" gorm:"index;not null"`
+	UserID    uint            `json:"user_id" gorm:"index;not null"`
+	CreatedAt time.Time       `json:"created_at"`
+	UpdatedAt time.Time       `json:"updated_at"`
+	DeletedAt *gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
 }
 
 // TableName sets the table name for the AgentUserMapping model.
@@ -420,3 +485,65 @@ func (as *AuthDBModel) CreateAgentUserMapping(mapping *AgentUserMapping) error {
 func (as *AuthDBModel) DeleteAgentUserMapping(agentID, userID uint) error {
 	return as.DB.Where("agent_id = ? AND user_id = ?", agentID, userID).Delete(&AgentUserMapping{}).Error
 }
+
+type DataConsent struct {
+	ID          uint       `gorm:"primaryKey"`
+	UserID      uint       `gorm:"index;not null" json:"user_id"`
+	ConsentType string     `gorm:"type:varchar(255);not null" json:"consent_type"` // E.g., "analytics", "personalization"
+	IsGranted   bool       `json:"is_granted"`
+	GrantedAt   time.Time  `json:"granted_at"`
+	RevokedAt   *time.Time `json:"revoked_at,omitempty"`
+}
+
+func (DataConsent) TableName() string {
+	return "data_consents"
+}
+
+type EncryptionKey struct {
+	ID        uint      `gorm:"primaryKey"`
+	OwnerID   uint      `gorm:"index;not null" json:"owner_id"`             // Could be a user or community
+	KeyType   string    `gorm:"type:varchar(100);not null" json:"key_type"` // E.g., "AES", "RSA"
+	KeyData   string    `gorm:"type:text;not null" json:"key_data"`         // Encrypted key data
+	CreatedAt time.Time `json:"created_at"`
+}
+
+func (EncryptionKey) TableName() string {
+	return "encryption_keys"
+}
+
+type APIGateway struct {
+	ID        uint   `gorm:"primaryKey"`
+	Name      string `gorm:"type:varchar(255);not null" json:"name"`
+	Endpoint  string `gorm:"type:text;not null" json:"endpoint"`    // URL to the gateway
+	AuthToken string `gorm:"type:text" json:"auth_token,omitempty"` // Optional token for accessing the gateway
+	IsActive  bool   `gorm:"default:true" json:"is_active"`
+}
+
+func (APIGateway) TableName() string {
+	return "api_gateways"
+}
+
+type ExternalServiceIntegration struct {
+	IntegrationID     uint       `gorm:"primaryKey"`
+	ServiceName       string     `gorm:"unique;not null" json:"service_name"`
+	ApiKey            string     `gorm:"not null" json:"api_key"`
+	IntegrationConfig string     `gorm:"type:json;not null" json:"integration_config"`
+	IsActive          bool       `gorm:"default:true" json:"is_active"`
+	LastSync          *time.Time `json:"last_sync,omitempty"`
+}
+
+func (ExternalServiceIntegration) TableName() string {
+	return "external_service_integration"
+}
+
+func (as *AuthDBModel) CreateExternalServiceIntegration(integration *ExternalServiceIntegration) error {
+	return as.DB.Create(&integration).Error
+}
+
+func (as *AuthDBModel) GetExternalServiceIntegrationByID(id uint) (*ExternalServiceIntegration, error) {
+	var integration *ExternalServiceIntegration
+	result := as.DB.First(&integration, id)
+	return integration, result.Error
+}
+
+// Implement Update and Delete similarly.

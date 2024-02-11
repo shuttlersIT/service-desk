@@ -12,37 +12,47 @@ import (
 
 // Agents represents the schema of the agents table
 type Agents struct {
-	ID           uint            `gorm:"primaryKey" json:"id"`
-	FirstName    string          `gorm:"size:255;not null" json:"first_name" binding:"required"`
-	LastName     string          `gorm:"size:255;not null" json:"last_name" binding:"required"`
-	Email        string          `gorm:"size:255;not null;unique" json:"email" binding:"required,email"`
-	PasswordHash string          `gorm:"size:60;not null" json:"-"` // Excluded from JSON responses
-	Phone        *string         `gorm:"size:20" json:"phone,omitempty" binding:"omitempty,e164"`
-	PositionID   *uint           `gorm:"type:int unsigned" json:"position_id,omitempty"`
-	DepartmentID *uint           `gorm:"type:int unsigned" json:"department_id,omitempty"`
-	IsActive     bool            `gorm:"default:true" json:"is_active"`
-	ProfilePic   *string         `gorm:"size:255" json:"profile_pic,omitempty"`
-	LastLoginAt  *time.Time      `json:"last_login_at,omitempty"`
-	CreatedAt    time.Time       `json:"created_at"`
-	UpdatedAt    time.Time       `json:"updated_at"`
-	DeletedAt    *gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
-	TeamID       *uint           `gorm:"type:int unsigned" json:"team_id,omitempty"`
-	SupervisorID *uint           `gorm:"type:int unsigned" json:"supervisor_id,omitempty"`
-	Roles        []Role          `gorm:"many2many:agent_roles;" json:"roles"`
+	gorm.Model
+	FirstName    string     `gorm:"size:255;not null" json:"first_name" binding:"required"`
+	LastName     string     `gorm:"size:255;not null" json:"last_name" binding:"required"`
+	Email        string     `gorm:"size:255;not null;unique" json:"email" binding:"required,email"`
+	PasswordHash string     `gorm:"size:255;not null" json:"-"` // Excluded from JSON responses
+	Phone        *string    `gorm:"size:20" json:"phone,omitempty" binding:"omitempty,e164"`
+	PositionID   uint       `gorm:"index;type:int unsigned" json:"position_id,omitempty"`
+	DepartmentID uint       `gorm:"index;type:int unsigned" json:"department_id,omitempty"`
+	IsActive     bool       `gorm:"default:true" json:"is_active"`
+	ProfilePic   *string    `gorm:"size:255" json:"profile_pic,omitempty"`
+	LastLoginAt  *time.Time `json:"last_login_at,omitempty"`
+	TeamID       *uint      `gorm:"type:int unsigned" json:"team_id,omitempty"`
+	SupervisorID *uint      `gorm:"type:int unsigned" json:"supervisor_id,omitempty"`
+	Roles        []Role     `gorm:"many2many:agent_roles;" json:"roles"`
+	Biography    string     `json:"biography,omitempty"`
+	UserID       uint       `gorm:"primaryKey" json:"user_id"`
+	AgentDetails Users      `gorm:"foreignKey:UserID" json:"-"`
 }
 
 func (Agents) TableName() string {
 	return "agents"
 }
 
+type AgentProfile struct {
+	gorm.Model
+	AgentID         uint   `gorm:"primaryKey;autoIncrement:false" json:"agent_id"`
+	Bio             string `gorm:"type:text" json:"bio,omitempty"`
+	AvatarURL       string `gorm:"type:text" json:"avatar_url,omitempty"`
+	Preferences     string `gorm:"type:text" json:"preferences,omitempty"`      // Assuming JSON format
+	PrivacySettings string `gorm:"type:text" json:"privacy_settings,omitempty"` // Assuming JSON format
+}
+
+func (AgentProfile) TableName() string {
+	return "agent_profiles"
+}
+
 // Unit represents the schema of the unit table
 type Unit struct {
-	ID        uint            `gorm:"primaryKey" json:"unit_id"`
-	UnitName  string          `gorm:"size:255;not null" json:"unit_name"`
-	Emoji     *string         `gorm:"size:255" json:"emoji,omitempty"`
-	CreatedAt time.Time       `json:"created_at"`
-	UpdatedAt time.Time       `json:"updated_at"`
-	DeletedAt *gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+	gorm.Model
+	UnitName string  `gorm:"size:255;not null" json:"unit_name"`
+	Emoji    *string `gorm:"size:255" json:"emoji,omitempty"`
 }
 
 func (Unit) TableName() string {
@@ -51,12 +61,9 @@ func (Unit) TableName() string {
 
 // Permission represents the schema of the permission table
 type Permission struct {
-	ID          uint            `gorm:"primaryKey" json:"permission_id"`
-	Name        string          `gorm:"size:255;not null" json:"permission_name"`
-	Description *string         `gorm:"type:text" json:"description,omitempty"`
-	CreatedAt   time.Time       `json:"created_at"`
-	UpdatedAt   time.Time       `json:"updated_at"`
-	DeletedAt   *gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+	gorm.Model
+	Name        string  `gorm:"size:255;not null" json:"name"`
+	Description *string `gorm:"type:text" json:"description,omitempty"`
 }
 
 func (Permission) TableName() string {
@@ -65,13 +72,10 @@ func (Permission) TableName() string {
 
 // Teams represents the schema of the teams table
 type Teams struct {
-	ID               uint            `gorm:"primaryKey" json:"team_id"`
-	TeamName         string          `gorm:"size:255;not null" json:"team_name"`
-	Emoji            *string         `gorm:"size:255" json:"emoji,omitempty"`
-	CreatedAt        time.Time       `json:"created_at"`
-	UpdatedAt        time.Time       `json:"updated_at"`
-	DeletedAt        *gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
-	TeamPermissionID *uint           `json:"team_permission_id,omitempty" gorm:"type:int unsigned"`
+	gorm.Model
+	TeamName         string  `gorm:"size:255;not null" json:"team_name"`
+	Emoji            *string `gorm:"size:255" json:"emoji,omitempty"`
+	TeamPermissionID *uint   `gorm:"type:int unsigned" json:"team_permission_id,omitempty"`
 }
 
 func (Teams) TableName() string {
@@ -80,23 +84,17 @@ func (Teams) TableName() string {
 
 // TeamPermission links 'teams' with their 'permissions'.
 type TeamPermission struct {
-	ID          uint           `gorm:"primaryKey" json:"team_permission_id"`
-	TeamID      uint           `gorm:"not null;index:,unique" json:"team_id"`
-	Permissions []*Permission  `gorm:"many2many:team_permissions_permissions;" json:"permissions"`
-	CreatedAt   time.Time      `json:"created_at"`
-	UpdatedAt   time.Time      `json:"updated_at"`
-	DeletedAt   gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+	gorm.Model
+	TeamID      uint          `gorm:"not null;index:idx_team_id,unique" json:"team_id"`
+	Permissions []*Permission `gorm:"many2many:team_permissions_permissions;" json:"permissions,omitempty"`
 }
 
 // Role represents the schema of the role table
 type Role struct {
-	ID          uint            `gorm:"primaryKey" json:"role_id"`
-	RoleName    string          `gorm:"size:255;not null" json:"role_name"`
-	Description *string         `gorm:"type:text" json:"description,omitempty"`
-	Users       []Users         `gorm:"many2many:user_roles;" json:"-"`
-	CreatedAt   time.Time       `json:"created_at"`
-	UpdatedAt   time.Time       `json:"updated_at"`
-	DeletedAt   *gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+	gorm.Model
+	RoleName    string  `gorm:"size:255;not null" json:"role_name"`
+	Description *string `gorm:"type:text" json:"description,omitempty"`
+	Users       []Users `gorm:"many2many:user_roles;" json:"-"`
 }
 
 func (Role) TableName() string {
@@ -105,12 +103,9 @@ func (Role) TableName() string {
 
 // RoleBase represents a foundational role structure that may be used for additional role metadata
 type RoleBase struct {
-	ID          uint            `gorm:"primaryKey" json:"id"`
-	Name        string          `gorm:"size:255;not null" json:"name"`
-	Description string          `gorm:"type:text" json:"description"`
-	CreatedAt   time.Time       `json:"created_at"`
-	UpdatedAt   time.Time       `json:"updated_at"`
-	DeletedAt   *gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+	gorm.Model
+	Name        string `gorm:"size:255;not null" json:"name"`
+	Description string `gorm:"type:text" json:"description,omitempty"`
 }
 
 func (RoleBase) TableName() string {
@@ -119,12 +114,9 @@ func (RoleBase) TableName() string {
 
 // RolePermission links roles with permissions in a many-to-many relationship
 type RolePermission struct {
-	ID           uint            `gorm:"primaryKey" json:"id"`
-	RoleID       uint            `gorm:"not null" json:"role_id"`
-	PermissionID uint            `gorm:"not null" json:"permission_id"`
-	CreatedAt    time.Time       `json:"created_at"`
-	UpdatedAt    time.Time       `json:"updated_at"`
-	DeletedAt    *gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+	gorm.Model
+	RoleID       uint `gorm:"not null;index:idx_role_permission,unique" json:"role_id"`
+	PermissionID uint `gorm:"not null;index:idx_role_permission,unique" json:"permission_id"`
 }
 
 func (RolePermission) TableName() string {
@@ -134,8 +126,8 @@ func (RolePermission) TableName() string {
 // AgentRole links agents with roles in a many-to-many relationship
 type AgentRole struct {
 	ID        uint            `gorm:"primaryKey" json:"id"`
-	AgentID   uint            `gorm:"not null" json:"agent_id"`
-	RoleID    uint            `gorm:"not null" json:"role_id"`
+	AgentID   uint            `gorm:"not null;index:idx_agent_role,unique" json:"agent_id"`
+	RoleID    uint            `gorm:"not null;index:idx_agent_role,unique" json:"role_id"`
 	CreatedAt time.Time       `json:"created_at"`
 	UpdatedAt time.Time       `json:"updated_at"`
 	DeletedAt *gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
@@ -145,11 +137,26 @@ func (AgentRole) TableName() string {
 	return "agent_roles"
 }
 
+type AgentTrainingSession struct {
+	gorm.Model
+	Title       string    `json:"title" gorm:"type:varchar(255);not null"`
+	Description string    `json:"description" gorm:"type:text"`
+	StartDate   time.Time `json:"start_date"`
+	EndDate     time.Time `json:"end_date"`
+	Location    string    `json:"location" gorm:"type:varchar(255)"`
+	TrainerID   uint      `json:"trainer_id" gorm:"index;not null"`
+	Attendees   []Agents  `gorm:"many2many:agent_training_attendees;" json:"attendees"`
+}
+
+func (AgentTrainingSession) TableName() string {
+	return "agent_training_session"
+}
+
 // UserAgent represents the relationship between a user and an agent
 type UserAgent struct {
 	ID        uint            `gorm:"primaryKey" json:"id"`
-	UserID    uint            `gorm:"not null" json:"user_id"`
-	AgentID   uint            `gorm:"not null" json:"agent_id"`
+	UserID    uint            `gorm:"not null;index:idx_user_agent,user_id" json:"user_id"`
+	AgentID   uint            `gorm:"not null;index:idx_user_agent,agent_id" json:"agent_id"`
 	CreatedAt time.Time       `json:"created_at"`
 	UpdatedAt time.Time       `json:"updated_at"`
 	DeletedAt *gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
@@ -161,12 +168,9 @@ func (UserAgent) TableName() string {
 
 // TeamAgent represents the relationship between a team and an agent
 type TeamAgent struct {
-	ID        uint            `gorm:"primaryKey" json:"id"`
-	TeamID    uint            `gorm:"not null" json:"team_id"`
-	AgentID   uint            `gorm:"not null" json:"agent_id"`
-	CreatedAt time.Time       `json:"created_at"`
-	UpdatedAt time.Time       `json:"updated_at"`
-	DeletedAt *gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+	gorm.Model
+	TeamID  uint `gorm:"not null;index:idx_team_agent,team_id" json:"team_id"`
+	AgentID uint `gorm:"not null;index:idx_team_agent,agent_id" json:"agent_id"`
 }
 
 func (TeamAgent) TableName() string {
@@ -176,8 +180,8 @@ func (TeamAgent) TableName() string {
 // AgentPermission represents the relationship between an agent and their granted permissions
 type AgentPermission struct {
 	ID           uint            `gorm:"primaryKey" json:"id"`
-	AgentID      uint            `gorm:"not null" json:"agent_id"`
-	PermissionID uint            `gorm:"not null" json:"permission_id"`
+	AgentID      uint            `json:"agent_id" gorm:"index;not null"`
+	PermissionID uint            `json:"permission_id" gorm:"index;not null"`
 	CreatedAt    time.Time       `json:"created_at"`
 	UpdatedAt    time.Time       `json:"updated_at"`
 	DeletedAt    *gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
@@ -187,7 +191,19 @@ func (AgentPermission) TableName() string {
 	return "agent_permissions"
 }
 
+type SearchCriteria struct {
+	gorm.Model
+	Name       string `json:"name,omitempty"`
+	Role       string `json:"role,omitempty"`
+	Department string `json:"department,omitempty"`
+}
+
+func (SearchCriteria) TableName() string {
+	return "search_criteria"
+}
+
 type AgentStorage interface {
+	LogAgentActivity(log AgentActivityLog) error
 	CreateAgent(agent *Agents) error
 	DeleteAgent(agentID uint) error
 	UpdateAgent(agentID *Agents) error
@@ -315,7 +331,9 @@ type TeamAgentStorage interface {
 	RemoveAgentFromTeam(agentID uint, teamID uint) error
 }
 
-// Define additional repository interfaces for user-permission relationships, team-agent relationships, etc.
+func (db *AgentDBModel) LogAgentActivity(log AgentActivityLog) error {
+	return db.DB.Create(&log).Error
+}
 
 // AgentDBModel handles database operations for Agent
 type AgentDBModel struct {
@@ -329,16 +347,48 @@ func NewAgentDBModel(db *gorm.DB) *AgentDBModel {
 	}
 }
 
-// CreateAgent creates a new Agent.
-func (as *AgentDBModel) CreateAgent(agent *Agents) (*Agents, error) {
-	result := as.DB.Create(agent).Error
-	return agent, result
-	//return as.GetAgentByID(uint(result.RowsAffected))
+// CreateAgent adds a new agent to the database.
+func (db *AgentDBModel) CreateAgent(agent *Agents) error {
+	return db.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(agent).Error; err != nil {
+			return err
+		}
+		return nil
+	})
 }
 
-// DeleteAgent removes an agent from the database.
-func (model *AgentDBModel) DeleteAgent(id uint) error {
-	return model.DB.Delete(&Agents{}, id).Error
+// DeleteAgent deletes an agent by their ID.
+func (db *AgentDBModel) DeleteAgent(agentID uint) error {
+	tx := db.DB.Begin()
+	if tx.Error != nil {
+		return tx.Error
+	}
+
+	if err := tx.Delete(&Agents{}, agentID).Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	return tx.Commit().Error
+}
+
+// UpdateAgent updates an existing agent's information.
+func (db *AgentDBModel) UpdateAgent(agent *Agents) error {
+	if agent == nil {
+		return errors.New("provided agent is nil")
+	}
+
+	tx := db.DB.Begin()
+	if tx.Error != nil {
+		return tx.Error
+	}
+
+	if err := tx.Save(agent).Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	return tx.Commit().Error
 }
 
 // GetAgentByID retrieves an agent by their ID.
@@ -350,15 +400,6 @@ func (model *AgentDBModel) GetAgentByID(id uint) (*Agents, error) {
 		return nil, result.Error
 	}
 	return &agent, nil
-}
-
-// UpdateAgent updates an existing agent's details.
-func (model *AgentDBModel) UpdateAgent(agent *Agents) error {
-	if agent == nil {
-		return errors.New("agent is nil")
-	}
-
-	return model.DB.Save(agent).Error
 }
 
 // GetAgentByNumber retrieves an Agent by their agent number.
@@ -380,13 +421,18 @@ func (as *AgentDBModel) GetAllAgents() ([]*Agents, error) {
 }
 
 // AssignRoleToAgent assigns a set of roles to an agent.
-func (model *AgentDBModel) AssignRoleToAgent(agentID uint, roleIDs []uint) error {
-	var agent Agents
-	if err := model.DB.First(&agent, agentID).Error; err != nil {
-		return err
-	}
+func (db *AgentDBModel) AssignRoleToAgent(agentID uint, roleIDs []uint) error {
+	return db.DB.Transaction(func(tx *gorm.DB) error {
+		var agent Agents
+		if err := tx.First(&agent, agentID).Error; err != nil {
+			return err
+		}
 
-	return model.DB.Model(&agent).Association("Roles").Replace(roleIDs)
+		if err := tx.Model(&agent).Association("Roles").Replace(roleIDs); err != nil {
+			return err
+		}
+		return nil
+	})
 }
 
 // RevokeRoleFromAgent removes a role from an agent.
@@ -510,29 +556,51 @@ func (as *AgentDBModel) GetTeamByID(id uint) (*Teams, error) {
 	return &team, err
 }
 
-// AssignAgentToTeams assigns an agent to a list of teams, ensuring each assignment is unique.
-func (db *AgentDBModel) AssignAgentToTeams(agentID uint, teamIDs []uint) error {
+// AssignAgentToTeam assigns an agent to a team, ensuring the assignment is unique.
+func (db *AgentDBModel) AssignAgentToTeam(agentID, teamID uint) error {
 	return db.DB.Transaction(func(tx *gorm.DB) error {
-		for _, teamID := range teamIDs {
-			// Check if the agent is already assigned to the team
-			var exists int64
-			tx.Model(&TeamAgent{}).Where("agent_id = ? AND team_id = ?", agentID, teamID).Count(&exists)
-			if exists == 0 {
-				// Create the assignment if it doesn't exist
-				if err := tx.Create(&TeamAgent{AgentID: agentID, TeamID: teamID}).Error; err != nil {
-					// Return error to rollback transaction
+		var teamAgent TeamAgent
+		// Check if the agent is already assigned to the team to prevent duplicate entries
+		if err := tx.Where("agent_id = ? AND team_id = ?", agentID, teamID).First(&teamAgent).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				// The assignment does not exist; proceed to create a new one
+				teamAgent = TeamAgent{AgentID: agentID, TeamID: teamID}
+				if err := tx.Create(&teamAgent).Error; err != nil {
+					// Error encountered while creating the assignment; rollback the transaction
 					return err
 				}
+			} else {
+				// An unexpected error occurred; rollback the transaction
+				return err
 			}
 		}
-		// Commit transaction
+		// The assignment already exists or has been successfully created
 		return nil
 	})
 }
 
-// RemoveAgentFromTeam removes an agent from a team.
-func (model *AgentDBModel) RemoveAgentFromTeam(agentID, teamID uint) error {
-	return model.DB.Where("agent_id = ? AND team_id = ?", agentID, teamID).Delete(&TeamAgent{}).Error
+// RemoveAgentFromTeam removes an agent from a specific team.
+func (db *AgentDBModel) RemoveAgentFromTeam(agentID, teamID uint) error {
+	return db.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("agent_id = ? AND team_id = ?", agentID, teamID).Delete(&TeamAgent{}).Error; err != nil {
+			// Error encountered while removing the assignment; rollback the transaction
+			return err
+		}
+		// Successfully removed the assignment
+		return nil
+	})
+}
+
+// RemoveAgentFromTeams safely removes an agent from multiple teams.
+func (db *AgentDBModel) RemoveAgentFromTeams(agentID uint, teamIDs []uint) error {
+	return db.DB.Transaction(func(tx *gorm.DB) error {
+		for _, teamID := range teamIDs {
+			if err := tx.Where("agent_id = ? AND team_id = ?", agentID, teamID).Delete(&TeamAgent{}).Error; err != nil {
+				return err // Rollback transaction on error
+			}
+		}
+		return nil // Commit transaction if all deletions succeed
+	})
 }
 
 // GetTeamsByAgent retrieves all teams associated with an agent.
@@ -544,6 +612,30 @@ func (model *AgentDBModel) GetTeamsByAgent(agentID uint) ([]Teams, error) {
 		return nil, err
 	}
 	return teams, nil
+}
+
+// UpdateAgentPermissions updates an agent's permissions comprehensively, ensuring transactional integrity.
+func (db *AgentDBModel) UpdateAgentPermissions(agentID uint, newPermissionIDs []uint) error {
+	return db.DB.Transaction(func(tx *gorm.DB) error {
+		// First, remove any existing permissions that are not in the newPermissionIDs list
+		if err := tx.Where("agent_id = ? AND permission_id NOT IN ?", agentID, newPermissionIDs).Delete(&AgentPermission{}).Error; err != nil {
+			return err // Rollback on error
+		}
+
+		// Next, add new permissions from newPermissionIDs that the agent does not already have
+		for _, permissionID := range newPermissionIDs {
+			var existing AgentPermission
+			result := tx.Where("agent_id = ? AND permission_id = ?", agentID, permissionID).First(&existing)
+			if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+				// Permission does not exist for this agent; proceed to add it
+				if err := tx.Create(&AgentPermission{AgentID: agentID, PermissionID: permissionID}).Error; err != nil {
+					return err // Rollback on error
+				}
+			} // Ignore any found records, as we do not need to add existing permissions
+		}
+
+		return nil // Commit the transaction
+	})
 }
 
 // AssignRolesToAgent assigns roles to an agent.
@@ -636,6 +728,32 @@ func (model *AgentDBModel) GrantPermissionToAgent(agentID, permissionID uint) er
 // RevokePermissionFromAgent revokes a specific permission from an agent.
 func (model *AgentDBModel) RevokePermissionFromAgent(agentID, permissionID uint) error {
 	return model.DB.Where("agent_id = ? AND permission_id = ?", agentID, permissionID).Delete(&AgentPermission{}).Error
+}
+
+// UpdateAgentRolesAndPermissions updates both roles and permissions for an agent.
+func (db *AgentDBModel) UpdateAgentRolesAndPermissions(agentID uint, newRoleIDs, newPermissionIDs []uint) error {
+	return db.DB.Transaction(func(tx *gorm.DB) error {
+		// Update roles
+		if err := updateAgentRolesWithinTransaction(tx, agentID, newRoleIDs); err != nil {
+			return err
+		}
+		// Update permissions
+		if err := updateAgentPermissionsWithinTransaction(tx, agentID, newPermissionIDs); err != nil {
+			return err
+		}
+		return nil // Commit transaction if both updates succeed
+	})
+}
+
+func updateAgentRolesWithinTransaction(tx *gorm.DB, agentID uint, newRoleIDs []uint) error {
+	// Logic to update agent's roles based on newRoleIDs
+	// Similar to the UpdateAgentPermissions logic, with appropriate adjustments for roles
+	return nil
+}
+
+func updateAgentPermissionsWithinTransaction(tx *gorm.DB, agentID uint, newPermissionIDs []uint) error {
+	// Similar logic to UpdateAgentPermissions example provided earlier
+	return nil
 }
 
 // AssignPermissionsToAgent assigns permissions to an agent's roles.
@@ -767,7 +885,7 @@ func (model *AgentDBModel) AssignAgentToMultipleTeams(agentID uint, teamIDs []ui
 }
 
 // UpdateAgentPermissions updates the list of permissions for an agent.
-func (db *AgentDBModel) UpdateAgentPermissions(agentID uint, permissionIDs []uint) error {
+func (db *AgentDBModel) UpdateAgentPermissions2(agentID uint, permissionIDs []uint) error {
 	return db.DB.Transaction(func(tx *gorm.DB) error {
 		// Remove permissions not in the new list
 		if err := tx.Where("agent_id = ? AND permission_id NOT IN (?)", agentID, permissionIDs).Delete(&AgentPermission{}).Error; err != nil {
@@ -1587,4 +1705,342 @@ func (as *AgentDBModel) DeleteTeamAgent(teamID uint, agentID uint) error {
 	}
 
 	return nil
+}
+
+// AssignMultipleAgentsToTeam facilitates the assignment of multiple agents to a specific team.
+func (db *AgentDBModel) AssignMultipleAgentsToTeam(agentIDs []uint, teamID uint) error {
+	return db.DB.Transaction(func(tx *gorm.DB) error {
+		for _, agentID := range agentIDs {
+			var teamAgent TeamAgent
+			if err := tx.Where("agent_id = ? AND team_id = ?", agentID, teamID).First(&teamAgent).Error; err != nil {
+				if errors.Is(err, gorm.ErrRecordNotFound) {
+					// Agent is not yet assigned to the team, proceed with the assignment
+					teamAgent = TeamAgent{AgentID: agentID, TeamID: teamID}
+					if err := tx.Create(&teamAgent).Error; err != nil {
+						return err // Rollback on error
+					}
+				} else {
+					return err // Rollback on unexpected error
+				}
+			}
+			// If the agent is already assigned, skip to the next agent without doing anything
+		}
+		return nil // Commit the transaction
+	})
+}
+
+// UnassignAgentsFromTeam handles the removal of multiple agents from a team.
+func (db *AgentDBModel) UnassignAgentsFromTeam(agentIDs []uint, teamID uint) error {
+	return db.DB.Transaction(func(tx *gorm.DB) error {
+		// Attempt to remove each specified agent from the team
+		if err := tx.Where("agent_id IN ? AND team_id = ?", agentIDs, teamID).Delete(&TeamAgent{}).Error; err != nil {
+			return err // Rollback on error
+		}
+		return nil // Commit the transaction
+	})
+}
+
+// UpdateTeamPermissions updates a team's permissions.
+func (db *AgentDBModel) UpdateTeamPermissions(teamID uint, permissionIDs []uint) error {
+	return db.DB.Transaction(func(tx *gorm.DB) error {
+		// Find existing TeamPermission relationship
+		var teamPermission TeamPermission
+		err := tx.Where("team_id = ?", teamID).First(&teamPermission).Error
+		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+			return err // Rollback on unexpected error
+		}
+
+		// Update the permissions associated with the team
+		if err := tx.Model(&teamPermission).Association("Permissions").Replace(permissionIDs); err != nil {
+			return err // Rollback on error
+		}
+
+		return nil // Commit the transaction
+	})
+}
+
+// PerformComplexOperationWithTransaction demonstrates a complex operation involving multiple steps.
+func (db *AgentDBModel) PerformComplexOperationWithTransaction(agentID uint, teamID uint, permissionIDs []uint) error {
+	return db.DB.Transaction(func(tx *gorm.DB) error {
+		// Example step 1: Assign an agent to a team
+		if err := db.AssignAgentToTeam(agentID, teamID); err != nil {
+			return err // Rollback on error
+		}
+
+		// Example step 2: Update agent's permissions
+		if err := db.UpdateAgentPermissions(agentID, permissionIDs); err != nil {
+			return err // Rollback on error
+		}
+
+		// Additional steps can be added here, each protected by the transaction
+		// ...
+
+		return nil // Commit the transaction if all steps are successful
+	})
+}
+
+type AgentEvent struct {
+	gorm.Model
+	Title       *string    `gorm:"size:255;not null" json:"title"` // nullable string
+	Description *string    `gorm:"type:text" json:"description"`   // nullable string
+	ActionType  *string    `json:"action_type"`
+	StartTime   *time.Time `json:"start_time"`               // nullable time.Time
+	Details     *string    `gorm:"type:text" json:"details"` // nullable string
+	Timestamp   time.Time  `json:"time_stamp"`               // nullable time.Time
+	AllDay      bool       `json:"all_day"`
+	Location    *string    `gorm:"size:255" json:"location"` // nullable string
+	AgentID     uint       `gorm:"not null;index" json:"user_id"`
+	Agents      Agents     `gorm:"foreignKey:UserID" json:"-"`
+}
+
+func (AgentEvent) TableName() string {
+	return "agent_event"
+}
+
+type AgentActivityLog struct {
+	ID        uint      `gorm:"primaryKey" json:"id"`
+	AgentID   uint      `json:"agent_id"`
+	Activity  string    `json:"activity"`
+	Timestamp time.Time `json:"timestamp"`
+}
+
+func (AgentActivityLog) TableName() string {
+	return "agent_activity_log"
+}
+
+// LogAction records an action performed by an agent for auditing purposes.
+func (db *AgentDBModel) LogAgentAction(agentID uint, actionType string, details string) error {
+	actionLog := AgentEvent{
+		AgentID:    agentID,
+		ActionType: &actionType,
+		Details:    &details,
+		Timestamp:  time.Now(),
+	}
+
+	return db.DB.Create(&actionLog).Error
+}
+
+// GetAgentActions retrieves the recent actions performed by a specific agent.
+func (db *AgentDBModel) GetAgentActions(agentID uint, limit int) ([]AgentEvent, error) {
+	var agentActions []AgentEvent
+	if err := db.DB.Where("agent_id = ?", agentID).Order("timestamp desc").Limit(limit).Find(&agentActions).Error; err != nil {
+		return nil, err
+	}
+	return agentActions, nil
+}
+
+// GetAllActions retrieves recent actions performed by all agents.
+func (db *AgentDBModel) GetAllActions(limit int) ([]AgentEvent, error) {
+	var allActions []AgentEvent
+	if err := db.DB.Order("timestamp desc").Limit(limit).Find(&allActions).Error; err != nil {
+		return nil, err
+	}
+	return allActions, nil
+}
+
+// SearchAgents searches for agents based on the provided criteria with pagination and sorting options.
+func (db *AgentDBModel) SearchAgents(criteria SearchCriteria, page, pageSize int, sortBy string, sortOrder string) ([]Agents, error) {
+	var agents []Agents
+	query := db.DB
+
+	// Apply search criteria
+	if criteria.Name != "" {
+		query = query.Where("name LIKE ?", "%"+criteria.Name+"%")
+	}
+	if criteria.Role != "" {
+		query = query.Where("role = ?", criteria.Role)
+	}
+	if criteria.Department != "" {
+		query = query.Where("department = ?", criteria.Department)
+	}
+
+	// Apply pagination
+	offset := (page - 1) * pageSize
+	query = query.Offset(offset).Limit(pageSize)
+
+	// Apply sorting
+	if sortBy != "" {
+		orderBy := sortBy + " " + sortOrder
+		query = query.Order(orderBy)
+	}
+
+	// Execute the query
+	if err := query.Find(&agents).Error; err != nil {
+		return nil, err
+	}
+
+	return agents, nil
+}
+
+// ////////////////////////////////////////////////////////////////////////////////////////
+type AgentSchedule struct {
+	gorm.Model
+	AgentID   uint      `json:"agent_id" gorm:"index;not null"`
+	StartDate time.Time `json:"start_date"`
+	EndDate   time.Time `json:"end_date"`
+	ShiftType string    `json:"shift_type" gorm:"type:varchar(100);not null"` // E.g., "morning", "night"
+	IsActive  bool      `json:"is_active" gorm:"default:true"`
+}
+type AgentShift struct {
+	gorm.Model
+	AgentID   uint      `json:"agent_id" gorm:"index;not null"`
+	ShiftDate time.Time `json:"shift_date"`
+	StartTime time.Time `json:"start_time"`
+	EndTime   time.Time `json:"end_time"`
+	ShiftType string    `json:"shift_type" gorm:"type:varchar(100);not null"` // E.g., "Morning", "Evening", "Night"
+}
+
+type AgentSkill struct {
+	gorm.Model
+	AgentID   uint   `json:"agent_id" gorm:"index;not null"`
+	SkillName string `json:"skill_name" gorm:"type:varchar(255);not null"`
+	Level     int    `json:"level" gorm:"not null"` // E.g., 1 to 5, where 5 is expert level
+}
+
+type AgentFeedback struct {
+	gorm.Model
+	AgentID      uint      `json:"agent_id" gorm:"index;not null"`
+	FeedbackType string    `json:"feedback_type" gorm:"type:varchar(100);not null"` // E.g., "Customer", "Supervisor"
+	Score        int       `json:"score" gorm:"type:int;not null"`                  // Typically a numerical score, e.g., 1-10
+	Comments     string    `json:"comments" gorm:"type:text"`
+	SubmittedAt  time.Time `json:"submitted_at"`
+}
+
+type AgentKPI struct {
+	gorm.Model
+	AgentID     uint    `json:"agent_id" gorm:"index;not null"`
+	KPIName     string  `json:"kpi_name" gorm:"type:varchar(255);not null"`
+	Value       float64 `json:"value" gorm:"type:decimal(10,2);not null"` // Example: Average resolution time, Customer satisfaction score
+	TargetValue float64 `json:"target_value" gorm:"type:decimal(10,2)"`
+	Period      string  `json:"period" gorm:"type:varchar(100);not null"` // E.g., "Monthly", "Quarterly"
+}
+
+type AgentOnboarding struct {
+	gorm.Model
+	AgentID        uint       `json:"agent_id" gorm:"index;not null"`
+	OnboardingStep string     `json:"onboarding_step" gorm:"type:varchar(255);not null"` // E.g., "Documentation", "Training", "Mentoring"
+	Status         string     `json:"status" gorm:"type:varchar(100);not null"`          // E.g., "Pending", "Completed"
+	CompletedAt    *time.Time `json:"completed_at,omitempty"`
+}
+
+type AgentTeam struct {
+	gorm.Model
+	TeamName    string   `json:"team_name" gorm:"type:varchar(255);not null;unique"`
+	Description string   `json:"description" gorm:"type:text"`
+	LeaderID    uint     `json:"leader_id" gorm:"index"` // Optional: ID of the team leader
+	Members     []Agents `gorm:"many2many:agent_teams_members;"`
+}
+
+type AgentTrainingRecord struct {
+	gorm.Model
+	AgentID          uint      `json:"agent_id" gorm:"index;not null"`
+	TrainingModuleID uint      `json:"training_module_id" gorm:"index;not null"`
+	Score            int       `json:"score"`
+	Feedback         string    `json:"feedback" gorm:"type:text"`
+	CompletedAt      time.Time `json:"completed_at"`
+}
+
+type AgentAvailability struct {
+	gorm.Model
+	AgentID       uint       `json:"agent_id" gorm:"index;not null"`
+	Availability  string     `json:"availability" gorm:"type:varchar(100);not null"` // E.g., "Available", "Busy", "Offline"
+	LastUpdated   time.Time  `json:"last_updated"`
+	NextAvailable *time.Time `json:"next_available,omitempty"`
+}
+
+type AgentContactInfo struct {
+	gorm.Model
+	AgentID      uint   `json:"agent_id" gorm:"index;not null"`
+	ContactType  string `json:"contact_type" gorm:"type:varchar(100);not null"` // E.g., "Phone", "Email", "Skype"
+	ContactValue string `json:"contact_value" gorm:"type:varchar(255);not null"`
+}
+
+type AgentLoginActivity struct {
+	gorm.Model
+	AgentID    uint       `json:"agent_id" gorm:"index;not null"`
+	LoginTime  time.Time  `json:"login_time"`
+	LogoutTime *time.Time `json:"logout_time,omitempty"`
+	IP         string     `json:"ip" gorm:"type:varchar(45)"`
+}
+
+type AgentVacation struct {
+	gorm.Model
+	AgentID    uint      `json:"agent_id" gorm:"index;not null"`
+	StartDate  time.Time `json:"start_date"`
+	EndDate    time.Time `json:"end_date"`
+	Reason     string    `json:"reason" gorm:"type:text"`
+	ApprovedBy uint      `json:"approved_by"` // Optional: Manager or supervisor who approved the vacation
+}
+type CustomerInteraction struct {
+	gorm.Model
+	CustomerID      uint      `json:"customer_id" gorm:"index;not null"`
+	AgentID         uint      `json:"agent_id" gorm:"index;not null"`
+	Channel         string    `json:"channel" gorm:"type:varchar(100);not null"` // E.g., "Email", "Phone", "Chat"
+	Content         string    `json:"content" gorm:"type:text;not null"`
+	InteractionTime time.Time `json:"interaction_time"`
+}
+
+type FeedbackReview struct {
+	gorm.Model
+	FeedbackID uint      `json:"feedback_id" gorm:"index;not null"`
+	ReviewerID uint      `json:"reviewer_id" gorm:"index;not null"` // Manager or QA specialist
+	Review     string    `json:"review" gorm:"type:text"`
+	ReviewedAt time.Time `json:"reviewed_at"`
+}
+
+type AgentTicketAssignment struct {
+	gorm.Model
+	TicketID   uint      `json:"ticket_id" gorm:"index;not null"`
+	AgentID    uint      `json:"agent_id" gorm:"index;not null"`
+	AssignedAt time.Time `json:"assigned_at"`
+}
+
+type AgentTrainingModule struct {
+	gorm.Model
+	Title       string `json:"title" gorm:"type:varchar(255);not null"`
+	Description string `json:"description" gorm:"type:text"`
+	ModuleType  string `json:"module_type" gorm:"type:varchar(100);not null"` // E.g., "Online", "In-Person"
+	Duration    int    `json:"duration"`                                      // Duration in minutes
+	IsActive    bool   `json:"is_active" gorm:"default:true"`
+}
+
+type AgentCertification struct {
+	gorm.Model
+	AgentID       uint       `json:"agent_id" gorm:"index;not null"`
+	Certification string     `json:"certification" gorm:"type:varchar(255);not null"`
+	IssuedBy      string     `json:"issued_by" gorm:"type:varchar(255)"`
+	IssuedDate    time.Time  `json:"issued_date"`
+	ExpiryDate    *time.Time `json:"expiry_date,omitempty"`
+}
+
+type AgentPerformanceReview struct {
+	gorm.Model
+	AgentID    uint      `json:"agent_id" gorm:"index;not null"`
+	ReviewDate time.Time `json:"review_date"`
+	Score      float64   `json:"score"`
+	Feedback   string    `json:"feedback" gorm:"type:text"`
+}
+
+type AgentLeaveRequest struct {
+	gorm.Model
+	AgentID   uint      `json:"agent_id" gorm:"index;not null"`
+	LeaveType string    `json:"leave_type" gorm:"type:varchar(100);not null"` // E.g., "Annual", "Sick", "Personal"
+	StartDate time.Time `json:"start_date"`
+	EndDate   time.Time `json:"end_date"`
+	Status    string    `json:"status" gorm:"type:varchar(100);not null"` // E.g., "Pending", "Approved", "Denied"
+}
+
+type AgentScheduleOverride struct {
+	gorm.Model
+	AgentID   uint      `json:"agent_id" gorm:"index;not null"`
+	StartDate time.Time `json:"start_date"`
+	EndDate   time.Time `json:"end_date"`
+	Reason    string    `json:"reason" gorm:"type:text"`
+}
+
+type AgentSkillSet struct {
+	gorm.Model
+	AgentID uint   `json:"agent_id" gorm:"index;not null"`
+	Skill   string `json:"skill" gorm:"type:varchar(255);not null"`
+	Level   string `json:"level" gorm:"type:varchar(100);not null"` // E.g., "Beginner", "Intermediate", "Expert"
 }
