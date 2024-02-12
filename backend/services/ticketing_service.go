@@ -330,7 +330,7 @@ func (ts *DefaultTicketingService) IndirectlyRemoveTagFromTicket(ticketID uint, 
 
 // backend/services/sla_service.go
 
-func (ss *DefaultTicketingService) CreateSLA(sla *models.Sla) error {
+func (ss *DefaultTicketingService) CreateSLA(sla *models.SLA) error {
 	// Create a new SLA
 	err := ss.TicketDBModel.CreateSla(sla)
 	if err != nil {
@@ -340,7 +340,7 @@ func (ss *DefaultTicketingService) CreateSLA(sla *models.Sla) error {
 	return nil
 }
 
-func (ss *DefaultTicketingService) UpdateSLA(sla *models.Sla) error {
+func (ss *DefaultTicketingService) UpdateSLA(sla *models.SLA) error {
 	// Update an existing SLA
 	err := ss.TicketDBModel.UpdateSla(sla)
 	if err != nil {

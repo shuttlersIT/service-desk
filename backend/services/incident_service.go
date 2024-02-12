@@ -322,9 +322,9 @@ func (s *DefaultIncidentService) AssignIncidentToTeam(incidentID uint, teamID ui
 	return nil
 }
 
-func (s *DefaultIncidentService) ResolveIncident(incidentID uint) error {
+func (s *DefaultIncidentService) ResolveIncident(incidentID uint, resolution string) error {
 	// Implement custom logic for resolving an incident
-	err := s.IncidentDBModel.ResolveIncident(incidentID)
+	err := s.IncidentDBModel.ResolveIncident(incidentID, resolution)
 	if err != nil {
 		return err
 	}

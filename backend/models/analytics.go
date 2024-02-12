@@ -57,16 +57,16 @@ func (db *AnalyticsDBModel) GetUserEngagementMetrics(userID uint) (*AnalyticsDBM
 }
 
 // OptimizeSystemResources suggests optimizations based on usage patterns and resource consumption.
-func (db *OptimizationDBModel) OptimizeSystemResources() ([]OptimizationSuggestion, error) {
+func (db *OptimizationDBModel) OptimizeSystemResources(threshold float64) ([]OptimizationSuggestion, error) {
 	var suggestions []OptimizationSuggestion
-	// This method might analyze various metrics across the system to suggest optimizations
-	// Example logic could include identifying under-utilized resources or bottlenecks
+	// This query identifies resources whose average usage is below a certain threshold,
+	// indicating they might be under-utilized.
 	err := db.DB.Raw(`
         SELECT resource_id, SUM(usage) AS total_usage, AVG(usage) AS avg_usage
         FROM resource_usage
         GROUP BY resource_id
-        HAVING avg_usage < threshold
-    `).Scan(&suggestions).Error
+        HAVING AVG(usage) < ?
+    `, threshold).Scan(&suggestions).Error
 	if err != nil {
 		return nil, err
 	}
@@ -91,4 +91,18 @@ type AgentPerformanceMetric struct {
 
 func (PerformanceMetric) TableName() string {
 	return "performance_metrics"
+}
+
+type OptimizationSuggestion struct {
+	ResourceID   uint    `json:"resource_id"`
+	TotalUsage   float64 `json:"total_usage"`
+	AverageUsage float64 `json:"average_usage"`
+}
+
+type OptimizationDBModel struct {
+	DB *gorm.DB
+}
+
+func NewOptimizationDBModel(db *gorm.DB) *OptimizationDBModel {
+	return &OptimizationDBModel{DB: db}
 }

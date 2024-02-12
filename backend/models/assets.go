@@ -338,7 +338,7 @@ func (as *AssetAssignmentDBModel) AssignAsset(asset *Assets, userID uint) (*Asse
 }
 
 // UpdateAssetAssignment updates the assignment of an existing asset.
-func (as *AssetAssignmentDBModel) UnassignAsset(assetAssignment *AssetAssignment, agentID uint) (*AssetAssignment, error) {
+func (as *AssetAssignmentDBModel) UnassignAsset2(assetAssignment *AssetAssignment, agentID uint) (*AssetAssignment, error) {
 	due_at := time.Now().AddDate(1, 0, 0)
 	assetAssignment, err := as.GetAssetAssignmentByID(assetAssignment.ID)
 	if err != nil {
@@ -351,7 +351,6 @@ func (as *AssetAssignmentDBModel) UnassignAsset(assetAssignment *AssetAssignment
 		AssignmentType:   "unassigned", // Update as needed
 		AssignmentStatus: "unassigned",
 		DueAt:            &due_at, // Due date example
-		CreatedAt:        time.Now(),
 	}
 
 	erro := as.CreateAssetAssignment(newAssetAssignment)
@@ -362,51 +361,51 @@ func (as *AssetAssignmentDBModel) UnassignAsset(assetAssignment *AssetAssignment
 	return newAssetAssignment, nil
 }
 
-func (tdb *AssetDBModel) AssignAssetToUser(assetID, userID uint) error {
-	// Assign an asset to a user
-	asset := &Assets{}
-	if err := tdb.DB.First(asset, assetID).Error; err != nil {
-		return err
+func (tdb *AssetDBModel) AssignAssetToUser(assetID, userID, agentID uint) error {
+	// Check if there's an existing assignment to update
+	var assetAssignment AssetAssignment
+	result := tdb.DB.Where("asset_id = ?", assetID).First(&assetAssignment)
+
+	// If there's an existing assignment, update it
+	if result.Error == nil {
+		assetAssignment.UserID = userID
+		assetAssignment.AssignedBy = agentID
+		assetAssignment.AssignmentType = "assigned"
+		assetAssignment.AssignmentStatus = "active"
+		return tdb.DB.Save(&assetAssignment).Error
 	}
 
-	// Update the asset's UserID
-	asset.AssetAssignment = &userID
-	if err := tdb.DB.Save(asset).Error; err != nil {
-		return err
+	// If no existing assignment, create a new one
+	newAssetAssignment := AssetAssignment{
+		AssetID:          assetID,
+		UserID:           userID,
+		AssignedBy:       agentID,
+		AssignmentType:   "assigned",
+		AssignmentStatus: "active",
 	}
-
-	return nil
+	return tdb.DB.Create(&newAssetAssignment).Error
 }
 
 func (ass *AssetAssignmentDBModel) CreateAssetAssignment(assetAssignment *AssetAssignment) error {
 	return ass.DB.Create(assetAssignment).Error
 }
 
-func (tdb *AssetDBModel) UnassignAsset(assetID uint) error {
-	due_at := time.Now().AddDate(1, 0, 0)
-	// Unassign an asset from a user
-	asset := &Assets{}
-	if err := tdb.DB.First(asset, assetID).Error; err != nil {
-		return err
+func (as *AssetAssignmentDBModel) UnassignAsset(assignmentID, agentID uint) error {
+	// Fetch the existing asset assignment
+	var assetAssignment AssetAssignment
+	if err := as.DB.First(&assetAssignment, assignmentID).Error; err != nil {
+		return err // Handle error if assignment is not found
 	}
 
-	newAssetAssignment := &AssetAssignment{
-		AssetID:          assetID,
-		UserID:           0,
-		AssignedBy:       0,            // Assuming the same user assigns the asset
-		AssignmentType:   "unassigned", // Update as needed
-		AssignmentStatus: "unassigned",
-		DueAt:            &due_at, // Due date example
-		CreatedAt:        time.Now(),
-	}
+	// Update fields to reflect unassignment
+	assetAssignment.UserID = 0 // Assuming this indicates unassignment
+	assetAssignment.AssignedBy = agentID
+	assetAssignment.AssignmentType = "unassigned"
+	assetAssignment.AssignmentStatus = "unassigned"
+	assetAssignment.DueAt = nil // Clear due date if appropriate
 
-	// Clear the asset's UserID
-	asset.AssetAssignment = &newAssetAssignment.ID
-	if err := tdb.DB.Save(asset).Error; err != nil {
-		return err
-	}
-
-	return nil
+	// Save changes
+	return as.DB.Save(&assetAssignment).Error
 }
 
 // backend/models/asset_db_model.go

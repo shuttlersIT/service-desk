@@ -119,8 +119,9 @@ func (ctrl *IncidentController) AssignIncidentToTeamHandler(c *gin.Context) {
 func (ctrl *IncidentController) ResolveIncidentHandler(c *gin.Context) {
 	id, _ := strconv.Atoi(c.Param("id"))
 	incidentID := uint(id)
+	response := c.Param("resolution")
 
-	if err := ctrl.IncidentService.ResolveIncident(incidentID); err != nil {
+	if err := ctrl.IncidentService.ResolveIncident(incidentID, response); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}

@@ -10,12 +10,16 @@ import (
 	"github.com/shuttlersit/service-desk/backend/routes"
 	"github.com/shuttlersit/service-desk/backend/services"
 
+	"github.com/gin-contrib/sessions"
+	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
 )
 
 func main() {
 	// Initialize Gin Engine
 	r := gin.Default()
+	store := cookie.NewStore([]byte("secret"))
+	r.Use(sessions.Sessions("mysession", store))
 
 	// Initialize Database
 	/*db, err := database.ConnectDB()
@@ -38,6 +42,10 @@ func main() {
 	)*/
 
 	db := InitDB()
+
+	// Public routes
+	r.GET("/auth/google", controllers.GoogleLogin)
+	r.GET("/auth/google/callback", controllers.GoogleAuthCallback)
 
 	agentDBModel := models.NewAgentDBModel(db)
 	userDBModel := models.NewUserDBModel(db)

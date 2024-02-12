@@ -451,13 +451,13 @@ func (as *TicketDBModel) GetAllTickets() ([]*Ticket, error) {
 
 // ////////////////////////////////////////////////////////////////////////////////////
 // CreateTicketComment creates a new TicketComment.
-func (as *TicketCommentDBModel) CreateTicketComment(ticketID uint, c string) (*Comment, error) {
-	var comment Comment
-	comment.TicketID = ticketID
-	//comment.Author = getCurrentUser()
-	comment.Comment = c
-	id := as.DB.Create(comment).RowsAffected
-	return as.GetCommentByID(uint(id))
+func (tm *TicketCommentDBModel) CreateTicketComment(comment *Comment) error {
+	return tm.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(comment).Error; err != nil {
+			return err
+		}
+		return nil
+	})
 }
 
 // GetCommentByID retrieves a Comment by its ID.
@@ -476,30 +476,62 @@ func (as *TicketHistoryEntryDBModel) CreateTicketHistoryEntry(ticketHistory *Tic
 }
 
 // GetCommentByID retrieves a Comment by its ID.
-func (as *TicketHistoryEntryDBModel) GetHistoryEntriesByTicketID(ticketID uint) []*TicketHistoryEntry {
-	var ticketHistory []*TicketHistoryEntry
-	err := as.DB.Find(&ticketHistory).Error
-	if err != nil {
-		return nil
-	}
-	return ticketHistory
+func (thdm *TicketHistoryEntryDBModel) GetHistoryEntriesByTicketID(ticketID uint) ([]TicketHistoryEntry, error) {
+	var historyEntries []TicketHistoryEntry
+	err := thdm.DB.Where("ticket_id = ?", ticketID).Find(&historyEntries).Error
+	return historyEntries, err
 }
 
 // ///////////////////////////////////////////////////////////////////////////////////////////
-// CreateTicket creates a new Tag.
-func (as *TicketDBModel) CreateTag(ticketID uint, tag string) (*Tag, bool, error) {
+func (as *TicketDBModel) CreateTag(ticketID uint, tagName string) (*Tag, bool, error) {
+	var tag Tag
 	addTagStatus := false
-	ticket, err := as.GetTicketByID(ticketID)
+
+	// Check if the tag already exists; if not, create a new one
+	err := as.DB.FirstOrCreate(&tag, Tag{Name: tagName}).Error
 	if err != nil {
-		return nil, addTagStatus, fmt.Errorf("ticket not found")
+		return nil, addTagStatus, fmt.Errorf("error handling the tag: %v", err)
 	}
-	ticket.Tags = append(ticket.Tags, tag)
-	erro := as.UpdateTicket(ticket)
-	if erro != nil {
-		return nil, addTagStatus, fmt.Errorf("ticket not found")
+
+	// Fetch the ticket with its tags to avoid replacing existing associations
+	var ticket Ticket
+	if err := as.DB.Preload("Tags").First(&ticket, ticketID).Error; err != nil {
+		return nil, addTagStatus, fmt.Errorf("ticket not found: %v", err)
 	}
-	addTagStatus = true
-	return ticket.Tags, addTagStatus, nil
+
+	// Associate the tag with the ticket
+	// Check if the tag is already associated to avoid duplicates
+	alreadyExists := false
+	for _, existingTag := range ticket.Tags {
+		if existingTag.ID == tag.ID {
+			alreadyExists = true
+			break
+		}
+	}
+
+	if !alreadyExists {
+		if err := as.DB.Model(&ticket).Association("Tags").Append(&tag); err != nil {
+			return nil, addTagStatus, fmt.Errorf("failed to associate tag with ticket: %v", err)
+		}
+		addTagStatus = true // Indicate that the tag was successfully added
+	}
+
+	return &tag, addTagStatus, nil
+}
+
+func (tm *TicketDBModel) CreateTagAndAssociateWithTicket(ticketID uint, tagName string) error {
+	return tm.DB.Transaction(func(tx *gorm.DB) error {
+		var tag Tag
+		if err := tx.FirstOrCreate(&tag, Tag{Name: tagName}).Error; err != nil {
+			return err
+		}
+
+		if err := tx.Model(&Ticket{Model: gorm.Model{ID: ticketID}}).Association("Tags").Append(&tag); err != nil {
+			return err
+		}
+
+		return nil
+	})
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////
@@ -507,12 +539,11 @@ func (as *TicketDBModel) CreateTag(ticketID uint, tag string) (*Tag, bool, error
 // AssignAgentToTicket assigns an agent to a ticket and updates the ticket's status.
 func (db *TicketDBModel) AssignTicketToAgent(ticketID, agentID uint) error {
 	return db.DB.Transaction(func(tx *gorm.DB) error {
-		ticket, err := db.GetTicketByID(ticketID)
-		if err != nil {
+		ticket := &Ticket{}
+		if err := tx.First(ticket, ticketID).Error; err != nil {
 			return err
 		}
-		ticket.AgentID = agentID
-		ticket.Status = "assigned" // Example status update
+		ticket.AgentID = &agentID
 		if err := tx.Save(ticket).Error; err != nil {
 			return err
 		}
@@ -534,7 +565,7 @@ func (tdb *TicketDBModel) ChangeTicketStatus(ticketID uint, newStatus *Status) e
 		return err
 	}
 
-	ticket.Status = *&newStatus.Name
+	ticket.Status = newStatus.Name
 	ticket.StatusObject = *newStatus
 	if err := tdb.DB.Save(ticket).Error; err != nil {
 		return err
@@ -585,12 +616,12 @@ func (tdb *TicketDBModel) GetTicketHistory(ticketID uint) ([]*TicketHistoryEntry
 ///////////////////////////////////////////////////////// SLA
 
 func (tdb *TicketDBModel) CreateSla(sla *SLA) error {
-	// Create a new SLA
-	if err := tdb.DB.Create(sla).Error; err != nil {
-		return err
-	}
-
-	return nil
+	return tdb.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(sla).Error; err != nil {
+			return err
+		}
+		return nil
+	})
 }
 
 func (tdb *TicketDBModel) UpdateSla(sla *SLA) error {
@@ -644,12 +675,12 @@ func (as *TicketDBModel) GetSLAByNumber(slaNumber int) (*SLA, error) {
 ///////////////////////////////////////////////////////// PRIORITY
 
 func (tdb *TicketDBModel) CreatePriority(priority *Priority) error {
-	// Create a new priority level
-	if err := tdb.DB.Create(priority).Error; err != nil {
-		return err
-	}
-
-	return nil
+	return tdb.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(priority).Error; err != nil {
+			return err
+		}
+		return nil
+	})
 }
 
 func (tdb *TicketDBModel) UpdatePriority(priority *Priority) error {
@@ -702,45 +733,37 @@ func (as *TicketDBModel) GetPriorityByNumber(priorityNumber int) (*Priority, err
 
 ///////////////////////////////////////////////////////// TAGS
 
-func (tdb *TicketDBModel) AddTagToTicket(ticketID uint, tag string) error {
-	//var t Tag
-	t, _, _ := tdb.CreateTag(ticketID, tag)
-	// Add a tag to a ticket
-	ticket := &Ticket{}
-	if err := tdb.DB.First(&ticket, ticketID).Error; err != nil {
-		return err
-	}
+func (tdb *TicketDBModel) AddTagToTicket(ticketID uint, tagName string) error {
+	return tdb.DB.Transaction(func(tx *gorm.DB) error {
+		var tag Tag
+		// Ensure the tag exists or create a new one
+		if err := tx.FirstOrCreate(&tag, Tag{Name: tagName}).Error; err != nil {
+			return fmt.Errorf("error finding or creating tag: %w", err)
+		}
 
-	// Append the tag to the ticket's Tags field
-	ticket.Tags = append(ticket.Tags, t)
+		// Associate the tag with the ticket
+		if err := tx.Model(&Ticket{Model: gorm.Model{ID: ticketID}}).Association("Tags").Append(&tag); err != nil {
+			return fmt.Errorf("error appending tag to ticket: %w", err)
+		}
 
-	if err := tdb.DB.Save(&ticket).Error; err != nil {
-		return err
-	}
-
-	return nil
+		return nil
+	})
 }
 
-func (tdb *TicketDBModel) RemoveTagFromTicket(ticketID uint, tag string) error {
-	// Remove a tag from a ticket
-	ticket := &Ticket{}
-	if err := tdb.DB.First(&ticket, ticketID).Error; err != nil {
-		return err
-	}
-
-	// Remove the tag from the ticket's Tags field
-	for i, existingTag := range ticket.Tags.Tags {
-		if existingTag == tag {
-			ticket.Tags.Tags = append(ticket.Tags.Tags[:i], ticket.Tags.Tags[i+1:]...)
-			break
+func (tdb *TicketDBModel) RemoveTagFromTicket(ticketID uint, tagName string) error {
+	return tdb.DB.Transaction(func(tx *gorm.DB) error {
+		var tag Tag
+		if err := tx.Where("name = ?", tagName).First(&tag).Error; err != nil {
+			return fmt.Errorf("error finding tag: %w", err)
 		}
-	}
 
-	if err := tdb.DB.Save(&ticket).Error; err != nil {
-		return err
-	}
+		// Remove the association between the tag and the ticket
+		if err := tx.Model(&Ticket{Model: gorm.Model{ID: ticketID}}).Association("Tags").Delete(&tag); err != nil {
+			return fmt.Errorf("error removing tag from ticket: %w", err)
+		}
 
-	return nil
+		return nil
+	})
 }
 
 ///////////////////////////////////////////////////////// STATUS
@@ -865,22 +888,22 @@ func (as *TicketDBModel) GetCategoryByNumber(categoryNumber int) (*Category, err
 
 // backend/models/ticket_db_model.go
 
-func (tdb *TicketDBModel) CreateSubcategory(subcategory *SubCategory) error {
-	// Create a new subcategory
-	if err := tdb.DB.Create(&subcategory).Error; err != nil {
-		return err
-	}
-
-	return nil
+func (tdb *TicketDBModel) CreateSubCategory(subCategory *SubCategory) error {
+	return tdb.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(subCategory).Error; err != nil {
+			return err
+		}
+		return nil
+	})
 }
 
-func (tdb *TicketDBModel) UpdateSubcategory(subcategory *SubCategory) error {
-	// Update an existing subcategory
-	if err := tdb.DB.Save(&subcategory).Error; err != nil {
-		return err
-	}
-
-	return nil
+func (tdb *TicketDBModel) UpdateSubCategory(subCategory *SubCategory) error {
+	return tdb.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Save(subCategory).Error; err != nil {
+			return err
+		}
+		return nil
+	})
 }
 
 func (tdb *TicketDBModel) DeleteSubcategory(subcategoryID uint) error {
@@ -921,3 +944,94 @@ func (as *TicketDBModel) GetSubcategoryByNumber(subcategoryNumber int) (*SubCate
 	}
 	return &subcategory, nil
 }
+
+// //////////////////////////////////////////////////////////////
+func (db *TicketDBModel) GetTicketByIDWithAssociations(ticketID uint) (*Ticket, error) {
+	var ticket Ticket
+	err := db.DB.Preload("Tags").Preload("Comments").Preload("TicketHistory").First(&ticket, ticketID).Error
+	if err != nil {
+		return nil, err
+	}
+	return &ticket, nil
+}
+
+// Soft delete a ticket
+func (db *TicketDBModel) SoftDeleteTicket(ticketID uint) error {
+	return db.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Delete(&Ticket{}, ticketID).Error; err != nil {
+			return err
+		}
+		return nil
+	})
+}
+
+func (db *TicketDBModel) GetOverdueHighPriorityTickets() ([]*Ticket, error) {
+	var tickets []*Ticket
+	err := db.DB.Joins("Priority").Where("DueAt < ? AND priorities.level >= ?", time.Now(), 10).Find(&tickets).Error
+	if err != nil {
+		return nil, err
+	}
+	return tickets, nil
+}
+
+func (db *TicketDBModel) BatchInsertComments(comments []*Comment) error {
+	return db.DB.CreateInBatches(comments, 100).Error // Inserts in batches of 100
+}
+
+func (t *Ticket) BeforeCreate(tx *gorm.DB) (err error) {
+	if t.Status == "" {
+		t.Status = "open" // Default status if not provided
+	}
+	return nil
+}
+
+/*
+func (db *TicketDBModel) GetTicketStatusesCached() ([]*Status, error) {
+	// Attempt to fetch from cache first
+	if cachedStatuses, found := cache.Get("ticket_statuses"); found {
+		return cachedStatuses.([]*Status), nil
+	}
+
+	// Fallback to database and update cache
+	statuses, err := db.GetAllStatuses()
+	if err != nil {
+		return nil, err
+	}
+	cache.Set("ticket_statuses", statuses, cache.DefaultExpiration)
+	return statuses, nil
+}
+
+func (db *TicketDBModel) GetHighPriorityTicketsOptimized() ([]*Ticket, error) {
+	var tickets []*Ticket
+	// Use raw SQL or GORM's advanced features for complex queries
+	err := db.DB.Raw("SELECT * FROM tickets WHERE priority_id IN (SELECT id FROM priorities WHERE level > ?)", 10).Scan(&tickets).Error
+	if err != nil {
+		return nil, err
+	}
+	return tickets, nil
+}
+
+func (db *TicketDBModel) CreateTicketSecure(ticket *Ticket) error {
+	p := bluemonday.UGCPolicy()
+	safeHTML := p.Sanitize(unsafeHTML)
+	// Sanitize input data
+	ticket.Subject = sanitize(ticket.Subject)
+	ticket.Description = sanitize(ticket.Description)
+
+	// Validate data
+	if err := validateTicket(ticket); err != nil {
+		return err
+	}
+
+	return db.CreateTicket(ticket)
+}
+
+func (db *TicketDBModel) UpdateTicketAsUser(ticket *Ticket, userID uint) error {
+	// Check if the user has the right to update the ticket
+	if !db.HasUpdatePermission(ticket.ID, userID) {
+		return fmt.Errorf("unauthorized")
+	}
+
+	return db.UpdateTicket(ticket)
+}
+*/

@@ -5,10 +5,12 @@ package models
 import (
 	"errors"
 	"fmt"
+	"log"
 	"time"
 
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type APIToken struct {
@@ -39,6 +41,19 @@ func (APIRequestLog) TableName() string {
 	return "api_request_logs"
 }
 
+type APIAccessLog struct {
+	gorm.Model
+	UserID      uint      `json:"user_id" gorm:"index"`
+	Endpoint    string    `json:"endpoint" gorm:"type:varchar(255)"`
+	AccessTime  time.Time `json:"access_time"`
+	Status      string    `json:"status" gorm:"type:varchar(50)"` // Success, Failed
+	Description string    `json:"description" gorm:"type:text"`   // Detailed access log
+}
+
+func (APIAccessLog) TableName() string {
+	return "api_access_logs"
+}
+
 type ExternalServiceToken struct {
 	gorm.Model
 	ServiceName string     `json:"service_name" gorm:"type:varchar(255);not null"`
@@ -50,22 +65,88 @@ func (ExternalServiceToken) TableName() string {
 	return "external_service_tokens"
 }
 
-type AgentLoginCredentialsStorage interface {
-	Create(credentials *AgentLoginCredentials) error
-	Delete(id uint) error
-	Update(credentials *AgentLoginCredentials) error
-	FindByID(id uint) (*AgentLoginCredentials, error)
+type AuthSystem interface {
+	// Authentication and Registration
+	AuthenticateUser(email, password string) (*Users, error)
+	AuthenticateAgent(email, password string) (*Agents, error)
+	RegisterUser(user *Users, password string) (*Users, error)
+	RegisterAgent(agent *Agents, password string) (*Agents, error)
+
+	// Credentials and Password Management
+	CreateUserCredentials(credentials *UsersLoginCredentials) error
+	CreateAgentCredentials(credentials *AgentLoginCredentials) error
+	UpdateUserCredentials(userID uint, credentials *UsersLoginCredentials) error
+	UpdateAgentCredentials(agentID uint, credentials *AgentLoginCredentials) error
+	GetUserCredentialsByID(id uint) (*UsersLoginCredentials, error)
+	GetAgentCredentialsByID(id uint) (*AgentLoginCredentials, error)
+	DeleteUserCredentials(id uint) error
+	DeleteAgentCredentials(id uint) error
+	ResetUserPassword(userID uint, newPassword string) error
+	ResetAgentPassword(agentID uint, newPassword string) error
+	GetPasswordHistoryByUserID(userID uint) ([]*PasswordHistory, error)
+	GetPasswordHistoryByAgentID(agentID uint) ([]*PasswordHistory, error)
+
+	// Password Reset Workflow
+	CreatePasswordResetRequest(request *PasswordResetRequest) error
+	ValidatePasswordResetToken(token string) (*PasswordResetRequest, error)
+	DeletePasswordResetRequest(requestID uint) error
+
+	// Auxiliary Services and Data Consent Management
+	CreateExternalServiceIntegration(integration *ExternalServiceIntegration) error
+	UpdateExternalServiceIntegration(integrationID uint, integration *ExternalServiceIntegration) error
+	DeleteExternalServiceIntegration(integrationID uint) error
+	GetExternalServiceIntegrationByID(id uint) (*ExternalServiceIntegration, error)
+	ListExternalServiceIntegrations() ([]*ExternalServiceIntegration, error)
+	RecordDataConsent(consent *DataConsent) error
+	UpdateDataConsent(consentID uint, consent *DataConsent) error
+	GetDataConsentByID(consentID uint) (*DataConsent, error)
+	ListDataConsentsByUserID(userID uint) ([]*DataConsent, error)
+
+	// Encryption Key and 2FA Management
+	CreateEncryptionKey(key *EncryptionKey) error
+	GetEncryptionKeyByID(keyID uint) (*EncryptionKey, error)
+	UpdateEncryptionKey(keyID uint, key *EncryptionKey) error
+	DeleteEncryptionKey(keyID uint) error
+	EnableTwoFactorAuthentication(userID uint) error
+	VerifyTwoFactorCode(userID uint, code string) (bool, error)
+
+	// OAuth2 Integration and Account Lockout Mechanism
+	CreateOAuth2Integration(serviceName string, credentials *OAuth2Credentials) error
+	AuthenticateWithOAuth2(serviceName string, token string) (*Users, error)
+	IncrementFailedLoginAttempts(userID uint) error
+	CheckAccountLockoutStatus(userID uint) (bool, error)
+	ResetFailedLoginAttempts(userID uint) error
+
+	// User Activity and Real-Time Alert
+	LogUserActivity(userID uint, activityType string, details string) error
+	GetUserActivityLog(userID uint) ([]*UserActivityLog, error)
+	SendRealTimeAlert(userID uint, alertType string, message string) error
+
+	// Security Measures and User Segmentation
+	CheckPasswordStrength(password string) (PasswordStrength, error)
+	CheckRateLimit(ipAddress string, endpoint string) (bool, error)
+	SetSecurityQuestions(userID uint, questions []*SecurityQuestion) error
+	VerifySecurityAnswers(userID uint, answers []*SecurityAnswer) (bool, error)
+	UpdateDataSharingConsents(userID uint, consents []*DataConsent) error
+	GetDataSharingConsents(userID uint) ([]*DataConsent, error)
+	GetUserSegments(userID uint) ([]*UserSegment, error)
+	AddUserToSegment(userID uint, segmentID uint) error
+
+	// IP Whitelisting
+	AddIPToWhitelist(userID uint, ipAddress string) error
+	IsIPWhitelisted(userID uint, ipAddress string) (bool, error)
 }
 
 type AgentLoginCredentials struct {
-	ID          uint       `gorm:"primaryKey" json:"id"`
-	AgentID     uint       `json:"agent_id" gorm:"index;not null"`
-	Username    string     `gorm:"type:varchar(255);not null" json:"username"`
-	Password    string     `gorm:"-" json:"-"` // Excluded from JSON responses for security
-	CreatedAt   time.Time  `json:"created_at"`
-	UpdatedAt   time.Time  `json:"updated_at"`
-	DeletedAt   *time.Time `gorm:"index" json:"deleted_at,omitempty"`
-	LastLoginAt *time.Time `json:"last_login_at,omitempty"`
+	ID           uint       `gorm:"primaryKey" json:"id"`
+	AgentID      uint       `json:"agent_id" gorm:"index;not null"`
+	Username     string     `gorm:"type:varchar(255);not null" json:"username"`
+	Password     string     `gorm:"-" json:"-"` // Excluded from JSON responses for security
+	PasswordHash string     `gorm:"-" json:"-"`
+	CreatedAt    time.Time  `json:"created_at"`
+	UpdatedAt    time.Time  `json:"updated_at"`
+	DeletedAt    *time.Time `gorm:"index" json:"deleted_at,omitempty"`
+	LastLoginAt  *time.Time `json:"last_login_at,omitempty"`
 }
 
 // TableName sets the table name for the Agent model.
@@ -76,22 +157,20 @@ func (AgentLoginCredentials) TableName() string {
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 type UsersLoginCredentials struct {
-	gorm.Model
-	Username string `json:"username"`
-	Password string `json:"password"`
-	UserID   uint   `json:"user_id"`
+	ID           uint       `gorm:"primaryKey" json:"id"`
+	UserID       uint       `json:"user_id" gorm:"index;not null"`
+	Username     string     `gorm:"type:varchar(255);not null" json:"username"`
+	Password     string     `gorm:"-" json:"-"` // Excluded from JSON responses for security
+	PasswordHash string     `gorm:"-" json:"-"`
+	CreatedAt    time.Time  `json:"created_at"`
+	UpdatedAt    time.Time  `json:"updated_at"`
+	DeletedAt    *time.Time `gorm:"index" json:"deleted_at,omitempty"`
+	LastLoginAt  *time.Time `json:"last_login_at,omitempty"`
 }
 
 // TableName sets the table name for the UsersLoginCredentials model.
 func (UsersLoginCredentials) TableName() string {
 	return "users_login_credentials"
-}
-
-type UserLoginCredentialsStorage interface {
-	Create(credentials *UsersLoginCredentials) error
-	Delete(id uint) error
-	Update(credentials *UsersLoginCredentials) error
-	FindByID(id uint) (*UsersLoginCredentials, error)
 }
 
 // AuthModel handles database operations for Auth
@@ -146,6 +225,11 @@ type LoginInfo struct {
 	Password string `json:"password"`
 }
 
+// TableName sets the table name for the UsersLoginCredentials model.
+func (LoginInfo) TableName() string {
+	return "login_info_auth"
+}
+
 type RegisterModel struct {
 	a *UserDBModel
 	b *AuthDBModel
@@ -161,8 +245,8 @@ func NewRegisterModel(a *UserDBModel, b *AuthDBModel) *RegisterModel {
 }
 
 // RegisterUser creates a new user account in the system.
-func (db *UserDBModel) RegisterUser(user *Users) error {
-	return db.DB.Transaction(func(tx *gorm.DB) error {
+func (db *RegisterModel) RegisterUser2(user *Users) error {
+	return db.a.DB.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Create(user).Error; err != nil {
 			return err
 		}
@@ -171,110 +255,118 @@ func (db *UserDBModel) RegisterUser(user *Users) error {
 }
 
 // AuthenticateUser checks user credentials and returns the user if they are valid.
-func (db *UserDBModel) AuthenticateUser(email, password string) (*Users, error) {
+func (db *RegisterModel) AuthenticateUser(email, password string) (*Users, error) {
 	var user Users
-	if err := db.DB.Where("email = ?", email).First(&user).Error; err != nil {
+	// Fetch user by email
+	if err := db.a.DB.Where("email = ?", email).First(&user).Error; err != nil {
 		return nil, err
 	}
-	// Assume CheckPassword is a method to verify the password; implement accordingly.
-	if !CheckPassword(user.PasswordHash, password) {
+	// Compare provided password with the hashed password
+	if err := bcrypt.CompareHashAndPassword([]byte(user.Credentials.PasswordHash), []byte(password)); err != nil {
 		return nil, errors.New("invalid credentials")
 	}
 	return &user, nil
 }
 
-// Register New User
-func (ab *RegisterModel) Registration(user *Users) (*Users, error) {
-	// Hash the user's password before storing it in the database
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(user.Credentials.Password), bcrypt.DefaultCost)
-	if err != nil {
-		return nil, fmt.Errorf("failed to hash password")
-	}
-	user.Credentials.Password = string(hashedPassword)
-	newUser, erro := ab.a.CreateUser(user)
-	if erro != nil {
-		return nil, fmt.Errorf("failed to create users")
-	}
-	er := ab.b.CreateUserCredentials(&newUser.Credentials)
-	if er != nil {
-		return nil, fmt.Errorf("failed to create users credentials")
-	}
-	e := ab.a.UpdateUser(newUser)
-	if e != nil {
-		return nil, fmt.Errorf("unable to update new users credentials")
-	}
-
-	return newUser, nil
-}
-
-// Register New User
-func (ab *RegisterModel) AgentRegistration(agent *Agents) (*Agents, error) {
-	// Hash the user's password before storing it in the database
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(agent.Credentials.Password), bcrypt.DefaultCost)
-	if err != nil {
-		return nil, fmt.Errorf("failed to hash password")
-	}
-	agent.Credentials.Password = string(hashedPassword)
-	newAgent, erro := ab.c.CreateAgent(agent)
-	if erro != nil {
-		return nil, fmt.Errorf("failed to create users")
-	}
-	er := ab.b.CreateAgentCredentials(&newAgent.Credentials)
-	if er != nil {
-		return nil, fmt.Errorf("failed to create users credentials")
-	}
-	e := ab.c.UpdateAgent(newAgent)
-	if e != nil {
-		return nil, fmt.Errorf("unable to update new users credentials")
-	}
-
-	return newAgent, nil
-}
-
-// AuthenticateUser checks user credentials and returns the user if they are valid.
-func (db *UserDBModel) AuthenticateUser(email, password string) (*Users, error) {
-	var user Users
-	if err := db.DB.Where("email = ?", email).First(&user).Error; err != nil {
-		return nil, err
-	}
-	// Assume CheckPassword is a method to verify the password; implement accordingly.
-	if !CheckPassword(user.PasswordHash, password) {
-		return nil, errors.New("invalid credentials")
-	}
-	return &user, nil
-}
-
-// Login User
-func (a *AuthDBModel) Login(login *LoginInfo) (*Users, error) {
-	loginInfo := login
-	var user Users
-	if err := a.DB.Where("email = ?", loginInfo.Email).First(&user).Error; err != nil {
-		return nil, err
-	}
-	if err := bcrypt.CompareHashAndPassword([]byte(user.Credentials.Password), []byte(loginInfo.Password)); err != nil {
-		return nil, err
-	}
-	return &user, nil
-}
-
-// Login User
-func (a *AuthDBModel) LoginAgent(login *LoginInfo) (*Agents, error) {
-	loginInfo := login
+// AuthenticateAgent checks agent credentials and returns the agent if they are valid.
+func (db *AuthDBModel) AuthenticateAgent(email, password string) (*Agents, error) {
 	var agent Agents
-	if err := a.DB.Where("email = ?", loginInfo.Email).First(&agent).Error; err != nil {
+	if err := db.DB.Where("email = ?", email).First(&agent).Error; err != nil {
 		return nil, err
 	}
-	if err := bcrypt.CompareHashAndPassword([]byte(agent.Credentials.Password), []byte(loginInfo.Password)); err != nil {
+	if err := bcrypt.CompareHashAndPassword([]byte(agent.Credentials.PasswordHash), []byte(password)); err != nil {
+		return nil, errors.New("invalid credentials")
+	}
+	return &agent, nil
+}
+
+// RegisterUser creates a new user account in the system with hashed password.
+func (db *RegisterModel) RegisterUser(user *Users) error {
+	return db.a.DB.Transaction(func(tx *gorm.DB) error {
+		// Hash the user's password
+		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(user.Credentials.Password), bcrypt.DefaultCost)
+		if err != nil {
+			return fmt.Errorf("failed to hash password: %w", err)
+		}
+		user.Credentials.PasswordHash = string(hashedPassword)
+		user.Credentials.Password = "" // Ensure the plain password is not stored
+
+		// Create the user with hashed password
+		if err := tx.Create(user).Error; err != nil {
+			return fmt.Errorf("failed to create user: %w", err)
+		}
+		return nil
+	})
+}
+
+// AgentRegistration registers a new agent with hashed password.
+func (db *RegisterModel) AgentRegistration(agent *Agents) error {
+	return db.c.DB.Transaction(func(tx *gorm.DB) error {
+		// Hash the agent's password
+		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(agent.Credentials.Password), bcrypt.DefaultCost)
+		if err != nil {
+			return fmt.Errorf("failed to hash password: %w", err)
+		}
+		agent.Credentials.PasswordHash = string(hashedPassword)
+		agent.Credentials.Password = "" // Ensure the plain password is not stored
+
+		// Create the agent with hashed password
+		if err := tx.Create(agent).Error; err != nil {
+			return fmt.Errorf("failed to create agent: %w", err)
+		}
+		return nil
+	})
+}
+
+// Login checks user credentials against stored credentials and returns the user on success.
+func (db *RegisterModel) Login(email, password string) (*Users, error) {
+	var user Users
+	// Fetch user by email
+	if err := db.a.DB.Where("email = ?", email).Preload("Credentials").First(&user).Error; err != nil {
 		return nil, err
+	}
+	// Verify password
+	if err := bcrypt.CompareHashAndPassword([]byte(user.Credentials.PasswordHash), []byte(password)); err != nil {
+		return nil, errors.New("invalid login credentials")
+	}
+	return &user, nil
+}
+
+// Login checks agent credentials against stored credentials and returns the agent on success.
+func (db *RegisterModel) LoginAgent(email, password string) (*Agents, error) {
+	var agent Agents
+	// Fetch agent by email
+	if err := db.c.DB.Where("email = ?", email).Preload("Credentials").First(&agent).Error; err != nil {
+		return nil, err
+	}
+	// Verify password
+	if err := bcrypt.CompareHashAndPassword([]byte(agent.Credentials.PasswordHash), []byte(password)); err != nil {
+		return nil, errors.New("invalid login credentials")
 	}
 	return &agent, nil
 }
 
 // ResetUserPassword retrieves all users from the database.
-func (as *AuthDBModel) ResetUserPassword(uint, string) ([]*UsersLoginCredentials, error) {
-	var usersCredentials []*UsersLoginCredentials
-	err := as.DB.Find(&usersCredentials).Error
-	return usersCredentials, err
+func (as *AuthDBModel) ResetUserPassword(userID uint, newPassword string) error {
+	return as.DB.Transaction(func(tx *gorm.DB) error {
+		var userCredentials UsersLoginCredentials
+		if err := tx.Where("user_id = ?", userID).First(&userCredentials).Error; err != nil {
+			return err // User credentials not found
+		}
+
+		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+		if err != nil {
+			return err // Failed to hash password
+		}
+		userCredentials.PasswordHash = string(hashedPassword)
+
+		if err := tx.Save(&userCredentials).Error; err != nil {
+			return err // Failed to update user credentials
+		}
+
+		// Optionally, log the password change or invalidate sessions/tokens
+		return nil
+	})
 }
 
 /////////////////////////////////////////////// AGENTS //////////////////////////////////////////////////////////
@@ -321,10 +413,10 @@ func (as *AuthDBModel) GetAllAgentCreds() ([]*AgentLoginCredentials, error) {
 // Define a model for storing password reset requests
 type PasswordResetRequest struct {
 	ID        uint            `gorm:"primaryKey" json:"id"`
-	AgentID   uint            `json:"agent_id" gorm:"index;not null"`
+	UserID    uint            `json:"user_id" gorm:"index;not null"`
 	RequestID string          `gorm:"size:255;not null;unique" json:"request_id"`
 	Token     string          `gorm:"size:255;not null;unique" json:"token"`
-	ExpiresAt time.Time       `json:"expires_at"`
+	ExpiresAt float64         `json:"expires_at"`
 	CreatedAt time.Time       `json:"created_at"`
 	UpdatedAt time.Time       `json:"updated_at"`
 	DeletedAt *gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
@@ -334,17 +426,6 @@ func (PasswordResetRequest) TableName() string {
 	return "password_reset_requests"
 }
 
-// CreatePasswordResetRequest creates a new password reset request record.
-func (as *AuthDBModel) CreatePasswordResetRequest(userID uint, requestID uint, token string) error {
-	resetRequest := &PasswordResetRequest{
-		UserID:    userID,
-		RequestID: requestID,
-		Token:     token,
-		// Set other fields as needed, such as expiration time
-	}
-	return as.DB.Create(resetRequest).Error
-}
-
 // GetPasswordResetRequestByToken retrieves a password reset request record by its token.
 func (as *AuthDBModel) GetPasswordResetRequestByToken(token string) (*PasswordResetRequest, error) {
 	var resetRequest PasswordResetRequest
@@ -352,9 +433,21 @@ func (as *AuthDBModel) GetPasswordResetRequestByToken(token string) (*PasswordRe
 	return &resetRequest, err
 }
 
-// DeletePasswordResetRequest deletes a password reset request record by its token.
-func (as *AuthDBModel) DeletePasswordResetRequest(token string) error {
-	return as.DB.Where("token = ?", token).Delete(&PasswordResetRequest{}).Error
+func (as *AuthDBModel) CreatePasswordResetRequest(request *PasswordResetRequest) error {
+	return as.DB.Create(request).Error
+}
+
+func (as *AuthDBModel) ValidatePasswordResetToken(token string) (*PasswordResetRequest, error) {
+	var request PasswordResetRequest
+	err := as.DB.Where("token = ? AND expires_at > ?", token, time.Now()).First(&request).Error
+	if err != nil {
+		return nil, err // Token not valid or expired
+	}
+	return &request, nil
+}
+
+func (as *AuthDBModel) DeletePasswordResetRequest(requestID uint) error {
+	return as.DB.Delete(&PasswordResetRequest{}, requestID).Error
 }
 
 // CreateAgentLoginCredentials creates new agent login credentials.
@@ -421,13 +514,10 @@ func (as *AuthDBModel) DeletePasswordResetToken(token string) error {
 // /////////////////////////////////////////////////////////////////////////////////////
 // Password History
 type PasswordHistory struct {
-	ID           uint            `gorm:"primaryKey" json:"id"`
-	UserID       uint            `json:"user_id" gorm:"index;not null"`
-	PasswordHash string          `gorm:"-" json:"-"` // Excluded from JSON for security
-	DateChanged  time.Time       `json:"date_changed"`
-	CreatedAt    time.Time       `json:"created_at"`
-	UpdatedAt    time.Time       `json:"updated_at"`
-	DeletedAt    *gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+	ID           uint      `gorm:"primaryKey" json:"id"`
+	UserID       uint      `json:"user_id" gorm:"index;not null"`
+	PasswordHash string    `gorm:"-" json:"-"` // Excluded from JSON for security
+	DateChanged  time.Time `json:"date_changed"`
 }
 
 func (PasswordHistory) TableName() string {
@@ -486,19 +576,6 @@ func (as *AuthDBModel) DeleteAgentUserMapping(agentID, userID uint) error {
 	return as.DB.Where("agent_id = ? AND user_id = ?", agentID, userID).Delete(&AgentUserMapping{}).Error
 }
 
-type DataConsent struct {
-	ID          uint       `gorm:"primaryKey"`
-	UserID      uint       `gorm:"index;not null" json:"user_id"`
-	ConsentType string     `gorm:"type:varchar(255);not null" json:"consent_type"` // E.g., "analytics", "personalization"
-	IsGranted   bool       `json:"is_granted"`
-	GrantedAt   time.Time  `json:"granted_at"`
-	RevokedAt   *time.Time `json:"revoked_at,omitempty"`
-}
-
-func (DataConsent) TableName() string {
-	return "data_consents"
-}
-
 type EncryptionKey struct {
 	ID        uint      `gorm:"primaryKey"`
 	OwnerID   uint      `gorm:"index;not null" json:"owner_id"`             // Could be a user or community
@@ -537,13 +614,487 @@ func (ExternalServiceIntegration) TableName() string {
 }
 
 func (as *AuthDBModel) CreateExternalServiceIntegration(integration *ExternalServiceIntegration) error {
-	return as.DB.Create(&integration).Error
+	return as.DB.Create(integration).Error
 }
 
 func (as *AuthDBModel) GetExternalServiceIntegrationByID(id uint) (*ExternalServiceIntegration, error) {
-	var integration *ExternalServiceIntegration
-	result := as.DB.First(&integration, id)
-	return integration, result.Error
+	var integration ExternalServiceIntegration
+	err := as.DB.First(&integration, id).Error
+	return &integration, err
 }
 
-// Implement Update and Delete similarly.
+func (as *AuthDBModel) UpdateExternalServiceIntegration(integrationID uint, integration *ExternalServiceIntegration) error {
+	return as.DB.Transaction(func(tx *gorm.DB) error {
+		var existingIntegration ExternalServiceIntegration
+		if err := tx.Where("id = ?", integrationID).First(&existingIntegration).Error; err != nil {
+			return err // Integration not found
+		}
+
+		// Update fields in existingIntegration from integration
+		// For simplicity, assuming direct assignment is possible
+		// This should be replaced with actual field updates
+		existingIntegration = *integration
+
+		return tx.Save(&existingIntegration).Error
+	})
+}
+
+func (as *AuthDBModel) DeleteExternalServiceIntegration(integrationID uint) error {
+	return as.DB.Delete(&ExternalServiceIntegration{}, integrationID).Error
+}
+
+func (as *AuthDBModel) ListExternalServiceIntegrations() ([]*ExternalServiceIntegration, error) {
+	var integrations []*ExternalServiceIntegration
+	err := as.DB.Find(&integrations).Error
+	return integrations, err
+}
+
+func (db *AuthDBModel) LogAPIAccess(userID uint, endpoint, status, description string) error {
+	return db.DB.Create(&APIAccessLog{
+		UserID:      userID,
+		Endpoint:    endpoint,
+		AccessTime:  time.Now(),
+		Status:      status,
+		Description: description,
+	}).Error
+}
+
+// //// Encryption Key
+func (as *AuthDBModel) CreateEncryptionKey(key *EncryptionKey) error {
+	if err := as.DB.Create(key).Error; err != nil {
+		log.Printf("Failed to create encryption key: %v", err)
+		return fmt.Errorf("could not create encryption key: %w", err)
+	}
+	return nil
+}
+
+func (as *AuthDBModel) GetEncryptionKeyByID(keyID uint) (*EncryptionKey, error) {
+	var key EncryptionKey
+	if err := as.DB.Where("id = ?", keyID).First(&key).Error; err != nil {
+		log.Printf("Encryption key not found: %v", err)
+		return nil, fmt.Errorf("encryption key not found: %w", err)
+	}
+	return &key, nil
+}
+
+func (as *AuthDBModel) UpdateEncryptionKey(keyID uint, key *EncryptionKey) error {
+	return as.DB.Transaction(func(tx *gorm.DB) error {
+		var existingKey EncryptionKey
+		if err := tx.Where("id = ?", keyID).First(&existingKey).Error; err != nil {
+			return fmt.Errorf("encryption key not found: %w", err)
+		}
+
+		existingKey.KeyType = key.KeyType
+		existingKey.KeyData = key.KeyData
+
+		if err := tx.Save(&existingKey).Error; err != nil {
+			return fmt.Errorf("failed to update encryption key: %w", err)
+		}
+		return nil
+	})
+}
+
+func (as *AuthDBModel) DeleteEncryptionKey(keyID uint) error {
+	return as.DB.Delete(&EncryptionKey{}, keyID).Error
+}
+
+func (db *AuthDBModel) UpdateUserConsent(userID uint, consentType string, granted bool) error {
+	return db.DB.Transaction(func(tx *gorm.DB) error {
+		var consent UserConsent
+		err := tx.Where("user_id = ? AND type = ?", userID, consentType).FirstOrCreate(&consent).Error
+		if err != nil {
+			return err // Consent record not found, or failed to create
+		}
+
+		consent.Granted = granted
+		if granted {
+			consent.GrantedAt = time.Now()
+			consent.RevokedAt = time.Time{} // Reset revoke time
+		} else {
+			consent.RevokedAt = time.Now()
+		}
+
+		if err := tx.Save(&consent).Error; err != nil {
+			return err // Failed to update consent
+		}
+		return nil
+	})
+}
+
+// 2FA
+type TwoFactorAuthentication struct {
+	gorm.Model
+	UserID    uint   `json:"user_id" gorm:"index;not null"`
+	SecretKey string `json:"secret_key" gorm:"not null"`
+	IsEnabled bool   `json:"is_enabled" gorm:"default:false"`
+}
+
+func (TwoFactorAuthentication) TableName() string {
+	return "two_factor_authentications"
+}
+
+func (db *AuthDBModel) EnableTwoFactorAuthentication(userID uint, secretKey string) error {
+	return db.DB.Transaction(func(tx *gorm.DB) error {
+		tfa := TwoFactorAuthentication{
+			UserID:    userID,
+			SecretKey: secretKey,
+			IsEnabled: true,
+		}
+		if err := tx.Create(&tfa).Error; err != nil {
+			return fmt.Errorf("failed to enable 2FA: %w", err)
+		}
+		return nil
+	})
+}
+
+// Google OAuth2
+func (db *AuthDBModel) AuthenticateWithOAuth2(serviceName, token string) (*Users, error) {
+	var oauth2Creds OAuth2Credentials
+	if err := db.DB.Where("service_name = ? AND token = ?", serviceName, token).First(&oauth2Creds).Error; err != nil {
+		return nil, fmt.Errorf("OAuth2 credentials not found: %w", err)
+	}
+	user, err := db.UserDBModel.GetUserByID(oauth2Creds.UserID)
+	if err != nil {
+		return nil, fmt.Errorf("user not found: %w", err)
+	}
+	return user, nil
+}
+
+// User Consent
+type UserConsent struct {
+	gorm.Model
+	UserID    uint      `json:"user_id" gorm:"index;not null"`
+	Type      string    `json:"type" gorm:"type:varchar(100);not null"` // e.g., "marketing", "analytics"
+	Granted   bool      `json:"granted"`
+	GrantedAt time.Time `json:"granted_at"`
+	RevokedAt time.Time `json:"revoked_at,omitempty"`
+}
+
+func (UserConsent) TableName() string {
+	return "user_consents"
+}
+
+// Activity
+type UserActivityLog struct {
+	gorm.Model
+	UserID       uint      `json:"user_id" gorm:"index;not null"`
+	ActivityType string    `json:"activity_type" gorm:"type:varchar(255);not null"`
+	Details      string    `json:"details" gorm:"type:text;not null"`
+	Timestamp    time.Time `json:"timestamp"` // Timestamp of when the activity occurred
+}
+
+func (UserActivityLog) TableName() string {
+	return "user_activity_log"
+}
+
+func (db *AuthDBModel) UserActivityLog(userID uint, activityType, details string) error {
+	ua := &UserActivityLog{
+		UserID:       userID,
+		ActivityType: activityType,
+		Details:      details,
+		Timestamp:    time.Now(),
+	}
+	if err := db.DB.Create(&ua).Error; err != nil {
+		// Log the error for debugging purposes
+		log.Printf("Error saving user activity: %v", err)
+		return fmt.Errorf("failed to log user activity: %w", err)
+	}
+	return nil
+}
+
+// LogAction records an action performed by an agent for auditing purposes.
+func (as *AuthDBModel) LogUserActivity(userID uint, activity string, details string) error {
+	actionLog := UserActivityLog{
+		UserID:       userID,
+		ActivityType: activity,
+		Details:      details,
+		Timestamp:    time.Now(),
+	}
+
+	return as.DB.Create(&actionLog).Error
+}
+
+func (as *AuthDBModel) GetUserActivityLog(userID uint) ([]*UserActivityLog, error) {
+	var logs []*UserActivityLog
+	if err := as.DB.Where("user_id = ?", userID).Find(&logs).Error; err != nil {
+		return nil, err
+	}
+	return logs, nil
+}
+
+func (as *AuthDBModel) SendRealTimeAlert(userID uint, alertType string, message string) error {
+	// Placeholder for sending an alert (e.g., email, SMS, push notification)
+	// This would involve calling the respective API of the service provider
+	// For demonstration purposes only, the actual implementation is skipped
+	log.Printf("Sending %s alert to user %d: %s", alertType, userID, message)
+	return nil // Assuming the send operation is successful
+}
+
+type PasswordStrength struct {
+	Level           string   `json:"level"`                     // Example levels: Weak, Moderate, Strong
+	Recommendations []string `json:"recommendations,omitempty"` // Suggestions for improving password strength
+}
+
+func (as *AuthDBModel) CheckPasswordStrength(password string) (PasswordStrength, error) {
+	// Implement logic to analyze the password's strength based on criteria such as length, diversity of characters, etc.
+	// This is a simplified example:
+	if len(password) < 8 {
+		return PasswordStrength{Level: "Weak", Recommendations: []string{"Use at least 8 characters."}}, nil
+	} else if len(password) >= 8 && len(password) <= 12 {
+		return PasswordStrength{Level: "Moderate", Recommendations: []string{"Use special characters and numbers to increase strength."}}, nil
+	} else {
+		return PasswordStrength{Level: "Strong"}, nil
+	}
+}
+
+// Data Consent
+
+type DataConsent struct {
+	ID          uint       `gorm:"primaryKey"`
+	UserID      uint       `gorm:"index;not null" json:"user_id"`
+	ConsentType string     `gorm:"type:varchar(255);not null" json:"consent_type"` // E.g., "analytics", "personalization"
+	IsGranted   bool       `json:"is_granted"`
+	GrantedAt   time.Time  `json:"granted_at"`
+	RevokedAt   *time.Time `json:"revoked_at,omitempty"`
+}
+
+func (DataConsent) TableName() string {
+	return "data_consents"
+}
+
+func (as *AuthDBModel) RecordDataConsent(consent *DataConsent) error {
+	if err := as.DB.Create(consent).Error; err != nil {
+		log.Printf("Failed to record data consent: %v", err)
+		return fmt.Errorf("could not record data consent: %w", err)
+	}
+	return nil
+}
+
+func (as *AuthDBModel) UpdateDataConsent(consentID uint, consent *DataConsent) error {
+	return as.DB.Transaction(func(tx *gorm.DB) error {
+		var existingConsent DataConsent
+		if err := tx.Where("id = ?", consentID).First(&existingConsent).Error; err != nil {
+			return fmt.Errorf("data consent not found: %w", err)
+		}
+
+		existingConsent.IsGranted = consent.IsGranted
+		existingConsent.GrantedAt = consent.GrantedAt
+		existingConsent.RevokedAt = consent.RevokedAt
+
+		if err := tx.Save(&existingConsent).Error; err != nil {
+			return fmt.Errorf("failed to update data consent: %w", err)
+		}
+		return nil
+	})
+}
+
+func (as *AuthDBModel) GetDataConsentByID(consentID uint) (*DataConsent, error) {
+	var consent DataConsent
+	err := as.DB.First(&consent, consentID).Error
+	return &consent, err
+}
+
+func (as *AuthDBModel) ListDataConsentsByUserID(userID uint) ([]*DataConsent, error) {
+	var consents []*DataConsent
+	err := as.DB.Where("user_id = ?", userID).Find(&consents).Error
+	return consents, err
+}
+
+// ////////////////////////USER Segmentation
+
+type UserSegment struct {
+	ID          uint       `gorm:"primaryKey" json:"id"`
+	Name        string     `json:"name" gorm:"type:varchar(255);not null"`
+	Description string     `gorm:"type:varchar(255);not null;unique" json:"description"` // Optional description of the segment
+	IsActive    bool       `json:"is_active" gorm:"default:true"`                        // Whether the segment is currently active
+	CreatedAt   time.Time  `json:"created_at" gorm:"autoCreateTime"`                     // Timestamp of segment creation
+	UpdatedAt   time.Time  `json:"updated_at" gorm:"autoUpdateTime"`                     // Timestamp of last update
+	DeletedAt   *time.Time `json:"deleted_at,omitempty" gorm:"index"`                    // Soft delete timestamp
+	// Additional metadata fields as JSON for flexible data storage
+	Metadata string `json:"metadata,omitempty" gorm:"type:text;null"` // JSON string for storing additional metadata
+}
+
+func (UserSegment) TableName() string {
+	return "user_segments"
+}
+
+type UserSegmentMapping struct {
+	UserID    uint `gorm:"primaryKey;autoIncrement:false" json:"user_id"`
+	SegmentID uint `gorm:"primaryKey;autoIncrement:false" json:"segment_id"`
+}
+
+func (UserSegmentMapping) TableName() string {
+	return "user_segment_mappings"
+}
+
+func (as *AuthDBModel) GetUserSegments(userID uint) ([]*UserSegment, error) {
+	var segments []*UserSegment
+	err := as.DB.Joins("JOIN user_segment_mappings on user_segments.id = user_segment_mappings.segment_id").
+		Where("user_segment_mappings.user_id = ?", userID).Find(&segments).Error
+	return segments, err
+}
+
+func (as *AuthDBModel) AddUserToSegment(userID uint, segmentID uint) error {
+	mapping := UserSegmentMapping{UserID: userID, SegmentID: segmentID}
+	return as.DB.Clauses(clause.OnConflict{DoNothing: true}).Create(&mapping).Error
+}
+
+// /////////////////// RATE LIMITS ///////////////////////////////
+type RateLimit struct {
+	ID           uint      `gorm:"primaryKey" json:"id"`
+	IPAddress    string    `gorm:"type:varchar(255);not null;index:idx_ip_address" json:"ip_address"`
+	Endpoint     string    `gorm:"type:varchar(255);not null;index:idx_endpoint" json:"endpoint"`
+	RequestCount int       `gorm:"default:0" json:"request_count"`
+	ResetAt      time.Time `gorm:"" json:"reset_at"`
+}
+
+func (RateLimit) TableName() string {
+	return "rate_limits"
+}
+
+func (as *AuthDBModel) CheckRateLimit(ipAddress string, endpoint string) (bool, error) {
+	var limit RateLimit
+	now := time.Now()
+
+	err := as.DB.Where("ip_address = ? AND endpoint = ? AND reset_at > ?", ipAddress, endpoint, now).First(&limit).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		// No existing rate limit record or it's expired, create or reset
+		as.DB.Clauses(clause.OnConflict{
+			Columns:   []clause.Column{{Name: "ip_address"}, {Name: "endpoint"}},
+			DoUpdates: clause.AssignmentColumns([]string{"request_count", "reset_at"}),
+		}).Create(&RateLimit{
+			IPAddress:    ipAddress,
+			Endpoint:     endpoint,
+			RequestCount: 1,
+			ResetAt:      now.Add(1 * time.Hour), // Reset in 1 hour
+		})
+		return true, nil // Within limit
+	} else if err != nil {
+		return false, err // Database error
+	}
+
+	if limit.RequestCount >= 100 { // Assuming limit is 100 requests per hour
+		return false, nil // Rate limit exceeded
+	}
+
+	// Increment request count
+	as.DB.Model(&limit).Update("request_count", gorm.Expr("request_count + ?", 1))
+	return true, nil // Within limit
+}
+
+// ////////////////////////
+type SecurityQuestion struct {
+	ID       uint   `gorm:"primaryKey" json:"id"`
+	UserID   uint   `gorm:"index;not null" json:"user_id"`
+	Question string `gorm:"type:text;not null" json:"question"`
+	Answer   string `gorm:"-" json:"-"` // Store hashed answers for security
+}
+
+func (SecurityQuestion) TableName() string {
+	return "security_questions"
+}
+
+type SecurityAnswer struct {
+	QuestionID uint   `json:"question_id"`
+	Answer     string `json:"answer"`
+}
+
+func (as *AuthDBModel) SetSecurityQuestions(userID uint, questions []*SecurityQuestion) error {
+	return as.DB.Transaction(func(tx *gorm.DB) error {
+		for _, question := range questions {
+			hashedAnswer, err := bcrypt.GenerateFromPassword([]byte(question.Answer), bcrypt.DefaultCost)
+			if err != nil {
+				return err
+			}
+			question.Answer = string(hashedAnswer)
+			question.UserID = userID
+			if err := tx.Clauses(clause.OnConflict{
+				UpdateAll: true,
+			}).Create(&question).Error; err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
+func (as *AuthDBModel) VerifySecurityAnswers(userID uint, answers []*SecurityAnswer) (bool, error) {
+	for _, answer := range answers {
+		var question SecurityQuestion
+		if err := as.DB.Where("id = ? AND user_id = ?", answer.QuestionID, userID).First(&question).Error; err != nil {
+			return false, err
+		}
+		if err := bcrypt.CompareHashAndPassword([]byte(question.Answer), []byte(answer.Answer)); err != nil {
+			return false, nil // Answer does not match
+		}
+	}
+	return true, nil // All answers match
+}
+
+type IPWhitelist struct {
+	ID        uint      `gorm:"primaryKey" json:"id"`
+	UserID    uint      `gorm:"index;not null" json:"user_id"`
+	IPAddress string    `gorm:"type:varchar(255);not null" json:"ip_address"`
+	CreatedAt time.Time `gorm:"autoCreateTime" json:"created_at"`
+}
+
+func (IPWhitelist) TableName() string {
+	return "ip_whitelists"
+}
+
+func (as *AuthDBModel) AddIPToWhitelist(userID uint, ipAddress string) error {
+	whitelistEntry := IPWhitelist{UserID: userID, IPAddress: ipAddress}
+	return as.DB.Create(&whitelistEntry).Error
+}
+
+func (as *AuthDBModel) IsIPWhitelisted(userID uint, ipAddress string) (bool, error) {
+	var count int64
+	as.DB.Model(&IPWhitelist{}).Where("user_id = ? AND ip_address = ?", userID, ipAddress).Count(&count)
+	return count > 0, nil
+}
+
+/*
+type AgentLoginCredentialsStorage interface {
+	Create(credentials *AgentLoginCredentials) error
+	Delete(id uint) error
+	Update(credentials *AgentLoginCredentials) error
+	FindByID(id uint) (*AgentLoginCredentials, error)
+	ResetAgentPassword(uint, string) ([]*AgentLoginCredentials, error)
+	CreateAgentCredentials(agentCredentials *AgentLoginCredentials) error
+	GetAgentCredentialsByID(id uint) (*AgentLoginCredentials, error)
+	UpdateAgentCredentials(agentCredentials *AgentLoginCredentials) error
+	DeleteAgentCredentials(id uint) error
+	GetAllAgentCreds() ([]*AgentLoginCredentials, error)
+	CreateAgentLoginCredentials(credentials *AgentLoginCredentials) error
+	GetAgentLoginCredentialsByID(id uint) (*AgentLoginCredentials, error)
+	UpdateAgentLoginCredentials(credentials *AgentLoginCredentials) error
+	DeleteAgentLoginCredentials(id uint) error
+}
+
+type UserLoginCredentialsStorage interface {
+	Create(credentials *UsersLoginCredentials) error
+	Delete(id uint) error
+	Update(credentials *UsersLoginCredentials) error
+	FindByID(id uint) (*UsersLoginCredentials, error)
+	AuthenticateUser(email, password string) (*Users, error)
+	RegisterUser(user *Users) error
+	Login(email, password string) (*Users, error)
+	LoginAgent(email, password string) (*Agents, error)
+	ResetUserPassword(uint, string) ([]*UsersLoginCredentials, error)
+	CreatePasswordResetRequest(userID uint, requestID string, token string) error
+	GetPasswordHistoryByUserID(userID uint) ([]*PasswordHistory, error)
+	CreateUserCredentials(userCredentials *UsersLoginCredentials) error
+	UpdateUserLoginCredentials(credentials *UsersLoginCredentials) error
+	eleteUserLoginCredentials(id uint) error
+	GetUserCredentialsByID(id uint) (*UsersLoginCredentials, error)
+	CreateAgentUserMapping(mapping *AgentUserMapping) error
+	DeleteAgentUserMapping(agentID, userID uint) error
+	CreatePasswordResetToken(token *PasswordResetToken) error
+	GetPasswordResetRequestByToken(token string) (*PasswordResetRequest, error)
+	GetPasswordResetTokenByToken(token string) (*PasswordResetToken, error)
+	DeletePasswordResetToken(token string) error
+}
+*/
+
+/*!------------------------------------------------------------------------------!*/
+////////////////////// Google Credentials ////////////////////////

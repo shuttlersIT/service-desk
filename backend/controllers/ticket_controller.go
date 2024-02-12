@@ -171,7 +171,7 @@ func (tc *TicketController) AddCommentToTicket(c *gin.Context) {
 		return
 	}
 
-	err = tc.TicketService.AddCommentToTicket(uint(ticketID), comment.Description)
+	err = tc.TicketService.AddCommentToTicket(uint(ticketID), comment.Comment)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to add comment to ticket"})
 		return
@@ -200,13 +200,13 @@ func (tc *TicketController) GetTicketHistory(c *gin.Context) {
 // CreateTag handles the HTTP request to create a new ticket tag.
 func (tc *TicketController) CreateTag2(c *gin.Context) {
 	ticketID, _ := strconv.Atoi(c.Param("ticket_id"))
-	var newTag models.Tags
+	var newTag models.Tag
 	if err := c.ShouldBindJSON(&newTag); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request payload"})
 		return
 	}
 
-	tag, err := tc.TicketService.CreateTag(uint(ticketID), newTag.Tags[0])
+	tag, err := tc.TicketService.CreateTag(uint(ticketID), newTag.Name)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create tag"})
 		return
@@ -312,7 +312,7 @@ func (tc *TicketController) IndirectlyRemoveTagFromTicket(c *gin.Context) {
 
 // CreateSLA handles the HTTP request to create a new Service Level Agreement (SLA).
 func (tc *TicketController) CreateSLA(c *gin.Context) {
-	var newSLA models.Sla
+	var newSLA models.SLA
 	if err := c.ShouldBindJSON(&newSLA); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request payload"})
 		return
@@ -335,7 +335,7 @@ func (tc *TicketController) UpdateSLA(c *gin.Context) {
 		return
 	}
 
-	var updatedSLA models.Sla
+	var updatedSLA models.SLA
 	if err := c.ShouldBindJSON(&updatedSLA); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request payload"})
 		return
@@ -400,7 +400,7 @@ func (tc *TicketController) UpdatePriority(c *gin.Context) {
 		return
 	}
 
-	updatedPriority.PriorityID = uint(priorityID)
+	updatedPriority.ID = uint(priorityID)
 
 	err = tc.TicketService.UpdatePriority(&updatedPriority)
 	if err != nil {
@@ -459,7 +459,7 @@ func (tc *TicketController) UpdateStatus(c *gin.Context) {
 		return
 	}
 
-	updatedStatus.StatusID = uint(statusID)
+	updatedStatus.ID = uint(statusID)
 
 	err = tc.TicketService.UpdateStatus(&updatedStatus)
 	if err != nil {
@@ -577,7 +577,7 @@ func (tc *TicketController) UpdateSubcategory(c *gin.Context) {
 		return
 	}
 
-	updatedSubcategory.SubCategoryID = uint(subcategoryID)
+	updatedSubcategory.ID = uint(subcategoryID)
 
 	err = tc.TicketService.UpdateSubcategory(&updatedSubcategory)
 	if err != nil {
@@ -613,14 +613,14 @@ func (tc *TicketController) CreateTag(c *gin.Context) {
 		return
 	}
 
-	var newTag models.Tags
+	var newTag models.Tag
 	if err := c.ShouldBindJSON(&newTag); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request payload"})
 		return
 	}
 
 	// Assuming you have a ticket service method to create a tag for a specific ticket.
-	tag, err := tc.TicketService.CreateTag(uint(ticketID), newTag.Tags[0])
+	tag, err := tc.TicketService.CreateTag(uint(ticketID), newTag.Name)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create tag"})
 		return

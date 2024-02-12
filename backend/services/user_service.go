@@ -53,7 +53,7 @@ func (ps *DefaultUserService) GetAllUsers() ([]*models.Users, error) {
 
 // CreateUser creates a new user.
 func (ps *DefaultUserService) CreateUser(user *models.Users) error {
-	_, err := ps.UserDBModel.CreateUser(user)
+	err := ps.UserDBModel.CreateUser(user)
 	if err != nil {
 		return err
 	}

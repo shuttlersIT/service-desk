@@ -123,7 +123,7 @@ func (idm *IncidentDBModel) CreateIncident(incident *Incident) error {
 }
 
 // ReportIncident records a new incident in the database.
-func (db *IncidentDBModel) ReportIncident(incident *Incidents) error {
+func (db *IncidentDBModel) ReportIncident(incident *Incident) error {
 	return db.DB.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Create(incident).Error; err != nil {
 			return err
@@ -135,7 +135,7 @@ func (db *IncidentDBModel) ReportIncident(incident *Incidents) error {
 // UpdateIncidentStatus updates the status of an existing incident.
 func (db *IncidentDBModel) UpdateIncidentStatus(incidentID uint, status string) error {
 	return db.DB.Transaction(func(tx *gorm.DB) error {
-		var incident Incidents
+		var incident Incident
 		if err := tx.First(&incident, incidentID).Error; err != nil {
 			return err
 		}
@@ -193,11 +193,6 @@ func (idm *IncidentDBModel) NewIncidentHistoryEntry(incidentID uint, status stri
 		UpdatedAt:  time.Now(),
 	}
 	return idm.DB.Create(entry).Error
-}
-
-// UpdateIncidentStatus updates the status of an incident.
-func (idm *IncidentDBModel) UpdateIncidentStatus(incidentID uint, status string) error {
-	return idm.DB.Model(&Incident{}).Where("id = ?", incidentID).Update("Status", status).Error
 }
 
 // GetOpenIncidents retrieves all open incidents.
@@ -331,16 +326,25 @@ func (im *IncidentDBModel) GetIncidentsWithAttachments() ([]*Incident, error) {
 }
 
 // UpdateIncidentCategory updates the category of an incident.
-func (im *IncidentDBModel) UpdateIncidentCategory(incidentID uint, category string) error {
+func (im *IncidentDBModel) UpdateIncidentCategory(incidentID uint, newCategory string) error {
+	// Assuming GetIncidentByID fetches the incident directly
 	incident, err := im.GetIncidentByID(incidentID)
 	if err != nil {
-		return err
+		return err // Handle error if incident is not found
 	}
-	incident.Category = category
+
+	var c Category
+	c.Name = newCategory
+
+	// Update the category directly
+	incident.Category = c
+
+	// Assuming UpdateIncident updates the incident based on the struct's current state
 	if err := im.UpdateIncident(incident); err != nil {
-		return err
+		return err // Handle error if the update fails
 	}
-	return nil
+
+	return nil // Return nil on success
 }
 
 // UpdateIncidentPriority updates the priority of an incident.
@@ -356,18 +360,35 @@ func (im *IncidentDBModel) UpdateIncidentPriority(incidentID uint, priority stri
 	return nil
 }
 
-// UpdateIncidentTags updates the tags of an incident.
-func (im *IncidentDBModel) UpdateIncidentTags(incidentID uint, tags []string) error {
-	t := im.CreateTag(incidentID, tags)
-	incident, err := im.GetIncidentByID(incidentID)
-	if err != nil {
-		return err
-	}
-	incident.Tags = tags
-	if err := im.UpdateIncident(incident); err != nil {
-		return err
-	}
-	return nil
+// UpdateIncidentTags updates the tags of an incident by creating new tags if they do not exist
+// and associating them with the given incident.
+func (im *IncidentDBModel) UpdateIncidentTags(incidentID uint, tagNames []string) error {
+	return im.DB.Transaction(func(tx *gorm.DB) error {
+		// Fetch the incident by ID with its current tags loaded
+		var incident Incident
+		if err := tx.Preload("Tags").First(&incident, incidentID).Error; err != nil {
+			return err // Incident not found or DB error
+		}
+
+		// Process each tagName to ensure the tag exists or create it
+		var tagsToUpdate []*Tag
+		for _, tagName := range tagNames {
+			var tag Tag
+			// Find an existing tag or create a new one if it doesn't exist
+			if err := tx.FirstOrCreate(&tag, Tag{Name: tagName}).Error; err != nil {
+				return err // Error handling tag
+			}
+			tagsToUpdate = append(tagsToUpdate, &tag)
+		}
+
+		// Associate the incident with the new set of tags
+		// This replaces the incident's current tags with the new ones
+		if err := tx.Model(&incident).Association("Tags").Replace(tagsToUpdate); err != nil {
+			return err // Error updating incident tags
+		}
+
+		return nil // Success
+	})
 }
 
 // GetIncidentsByUserAndCategory retrieves incidents with a specific category assigned to a user.
@@ -489,18 +510,6 @@ func (im *IncidentDBModel) GetIncidentsWithoutAttachments() ([]*Incident, error)
 		return nil, err
 	}
 	return incidents, nil
-}
-
-// ResolveIncident marks an incident as resolved.
-func (db *IncidentDBModel) ResolveIncident(id uint, resolution string) error {
-	return db.DB.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Model(&Incident{}).Where("id = ?", id).Updates(map[string]interface{}{
-			"Status": "Resolved", "ResolvedAt": time.Now(), "Description": resolution,
-		}).Error; err != nil {
-			return err
-		}
-		return nil
-	})
 }
 
 func (s *IncidentDBModel) AddIncidentComment(incidentID uint, comment string) error {

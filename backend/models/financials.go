@@ -4,6 +4,7 @@ package models
 
 import (
 	"fmt"
+	"strconv"
 	"time"
 
 	"gorm.io/gorm"
@@ -159,12 +160,13 @@ func (db *UserDBModel) ProcessPayment(paymentDetails PaymentDetails) error {
 			Update("subscription_status", "active").Error; err != nil {
 			return err
 		}
+		p := strconv.Itoa(int(paymentDetails.ID))
 
 		// Step 3: Log the transaction for auditing purposes.
 		transactionLog := TransactionLog{
 			UserID:        paymentDetails.UserID,
 			Amount:        paymentDetails.Amount,
-			TransactionID: paymentDetails.ID,
+			TransactionID: p,
 			Status:        "completed",
 		}
 		if err := tx.Create(&transactionLog).Error; err != nil {
@@ -219,6 +221,7 @@ func (db *UserDBModel) UpdateUserBalanceOptimistically(userID uint, amount float
 	})
 }
 
+/*
 // RefundPurchase handles refund operations, which might involve compensating transactions if external systems are involved.
 func (db *UserDBModel) RefundPurchase(purchaseID uint) error {
 	// Assume initial database update to mark refund as initiated.
@@ -276,7 +279,7 @@ func (db *UserDBModel) ExecuteOrderSaga(order OrderDetails) error {
 		}
 		return nil
 	})
-}
+}*/
 
 /*
 // CompletePurchaseTransaction handles a purchase operation that involves external payment services.

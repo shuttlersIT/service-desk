@@ -226,28 +226,6 @@ func (db *UserDBModel) GenerateUserActivityReport(userID uint, startDate, endDat
 	})
 }
 
-type UserActivityLog struct {
-	ID        uint      `gorm:"primaryKey" json:"id"`
-	UserID    uint      `json:"user_id"`   // ID of the user performing the activity
-	Activity  string    `json:"activity"`  // Description of the activity
-	Timestamp time.Time `json:"timestamp"` // Timestamp of when the activity occurred
-}
-
-func (UserActivityLog) TableName() string {
-	return "user_activity_log"
-}
-
-// LogAction records an action performed by an agent for auditing purposes.
-func (db *UserDBModel) LogUserAction(userID uint, activity string, details string) error {
-	actionLog := UserActivityLog{
-		UserID:    userID,
-		Activity:  activity,
-		Timestamp: time.Now(),
-	}
-
-	return db.DB.Create(&actionLog).Error
-}
-
 // AllocateResources dynamically allocates resources based on current demand.
 func (db *AssetDBModel) AllocateResources(requestID uint, resourcesNeeded int) error {
 	return db.DB.Transaction(func(tx *gorm.DB) error {

@@ -313,7 +313,7 @@ func (s *DefaultServiceRequestService) GetServiceRequestsByStatusAndLocation(sta
 
 	var matchingRequest []*models.ServiceRequest
 	for _, s := range requests {
-		if s.Location.ID == locationID {
+		if s.LocationID == locationID {
 			matchingRequest = append(matchingRequest, s)
 		}
 	}

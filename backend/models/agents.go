@@ -13,22 +13,22 @@ import (
 // Agents represents the schema of the agents table
 type Agents struct {
 	gorm.Model
-	FirstName    string     `gorm:"size:255;not null" json:"first_name" binding:"required"`
-	LastName     string     `gorm:"size:255;not null" json:"last_name" binding:"required"`
-	Email        string     `gorm:"size:255;not null;unique" json:"email" binding:"required,email"`
-	PasswordHash string     `gorm:"size:255;not null" json:"-"` // Excluded from JSON responses
-	Phone        *string    `gorm:"size:20" json:"phone,omitempty" binding:"omitempty,e164"`
-	PositionID   uint       `gorm:"index;type:int unsigned" json:"position_id,omitempty"`
-	DepartmentID uint       `gorm:"index;type:int unsigned" json:"department_id,omitempty"`
-	IsActive     bool       `gorm:"default:true" json:"is_active"`
-	ProfilePic   *string    `gorm:"size:255" json:"profile_pic,omitempty"`
-	LastLoginAt  *time.Time `json:"last_login_at,omitempty"`
-	TeamID       *uint      `gorm:"type:int unsigned" json:"team_id,omitempty"`
-	SupervisorID *uint      `gorm:"type:int unsigned" json:"supervisor_id,omitempty"`
-	Roles        []Role     `gorm:"many2many:agent_roles;" json:"roles"`
-	Biography    string     `json:"biography,omitempty"`
-	UserID       uint       `gorm:"primaryKey" json:"user_id"`
-	AgentDetails Users      `gorm:"foreignKey:UserID" json:"-"`
+	FirstName    string                `gorm:"size:255;not null" json:"first_name" binding:"required"`
+	LastName     string                `gorm:"size:255;not null" json:"last_name" binding:"required"`
+	Email        string                `gorm:"size:255;not null;unique" json:"email" binding:"required,email"`
+	Credentials  AgentLoginCredentials `gorm:"embedded" json:"username,omitempty"` // Excluded from JSON responses
+	Phone        *string               `gorm:"size:20" json:"phone,omitempty" binding:"omitempty,e164"`
+	PositionID   uint                  `gorm:"index;type:int unsigned" json:"position_id,omitempty"`
+	DepartmentID uint                  `gorm:"index;type:int unsigned" json:"department_id,omitempty"`
+	IsActive     bool                  `gorm:"default:true" json:"is_active"`
+	ProfilePic   *string               `gorm:"size:255" json:"profile_pic,omitempty"`
+	LastLoginAt  *time.Time            `json:"last_login_at,omitempty"`
+	TeamID       *uint                 `gorm:"type:int unsigned" json:"team_id,omitempty"`
+	SupervisorID *uint                 `gorm:"type:int unsigned" json:"supervisor_id,omitempty"`
+	Roles        []Role                `gorm:"many2many:agent_roles;" json:"roles"`
+	Biography    string                `json:"biography,omitempty"`
+	UserID       uint                  `gorm:"primaryKey" json:"user_id"`
+	AgentDetails Users                 `gorm:"foreignKey:UserID" json:"-"`
 }
 
 func (Agents) TableName() string {
@@ -237,6 +237,20 @@ type AgentStorage interface {
 	UpdateAgentWithRolesAndPermissions(agent *Agents, roleIDs, permissionIDs []uint) error
 	AssignAgentToMultipleTeams(agentID uint, teamIDs []uint) error
 	UpdateAgentPermissions(agentID uint, newPermissionIDs []uint) error
+	AssignRoleToAgent(agentID uint, roleIDs []uint) error
+
+	// New methods
+	AddAgentSchedule(schedule *AgentSchedule) error
+	UpdateAgentSchedule(schedule *AgentSchedule) error
+	AddAgentSkill(skill *AgentSkill) error
+	UpdateAgentSkill(skill *AgentSkill) error
+	SubmitAgentFeedback(feedback *AgentFeedback) error
+	ReviewAgentFeedback(review *FeedbackReview) error
+	AddAgentCertification(certification *AgentCertification) error
+	UpdateAgentCertification(certification *AgentCertification) error
+	RequestAgentLeave(leaveRequest *AgentLeaveRequest) error
+	UpdateAgentAvailability(availability *AgentAvailability) error
+	RevokeRoleFromAgent2(agentID uint, roleName string) error
 }
 
 type UnitStorage interface {
@@ -331,10 +345,6 @@ type TeamAgentStorage interface {
 	RemoveAgentFromTeam(agentID uint, teamID uint) error
 }
 
-func (db *AgentDBModel) LogAgentActivity(log AgentActivityLog) error {
-	return db.DB.Create(&log).Error
-}
-
 // AgentDBModel handles database operations for Agent
 type AgentDBModel struct {
 	DB *gorm.DB
@@ -345,6 +355,10 @@ func NewAgentDBModel(db *gorm.DB) *AgentDBModel {
 	return &AgentDBModel{
 		DB: db,
 	}
+}
+
+func (db *AgentDBModel) LogAgentActivity(log AgentActivityLog) error {
+	return db.DB.Create(&log).Error
 }
 
 // CreateAgent adds a new agent to the database.
@@ -527,19 +541,60 @@ func (as *AgentDBModel) GetUnitByNumber(unitNumber int) (*Unit, error) {
 	return &unit, err
 }
 
-// CreateTeam creates a new team.
-func (as *AgentDBModel) CreateTeam(team *Teams) error {
-	return as.DB.Create(team).Error
+// CreateTeam adds a new team to the database with comprehensive error handling.
+func (db *AgentDBModel) CreateTeam(team *Teams) error {
+	return db.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(team).Error; err != nil {
+			return err // Rollback on error
+		}
+		return nil // Commit if no error
+	})
+}
+
+// UpdateTeam updates an existing team's details with transactional integrity.
+func (db *AgentDBModel) UpdateTeam(team *Teams) error {
+	return db.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Save(team).Error; err != nil {
+			return err // Rollback on error
+		}
+		return nil // Commit if no error
+	})
+}
+
+// AssignAgentToTeam assigns an agent to a team, ensuring the assignment is unique and handled transactionally.
+func (db *AgentDBModel) AssignAgentToTeam(agentID, teamID uint) error {
+	return db.DB.Transaction(func(tx *gorm.DB) error {
+		var teamAgent TeamAgent
+		// Check if the agent is already assigned to the team to prevent duplicate entries
+		err := tx.Where("agent_id = ? AND team_id = ?", agentID, teamID).First(&teamAgent).Error
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			// The assignment does not exist; proceed to create a new one
+			teamAgent = TeamAgent{AgentID: agentID, TeamID: teamID}
+			if err := tx.Create(&teamAgent).Error; err != nil {
+				return err // Rollback on error
+			}
+		} else if err != nil {
+			// An unexpected error occurred; rollback the transaction
+			return err
+		}
+		// The assignment already exists or has been successfully created
+		return nil
+	})
+}
+
+// RemoveAgentFromTeam removes an agent from a specific team with transactional integrity.
+func (db *AgentDBModel) RemoveAgentFromTeam(agentID, teamID uint) error {
+	return db.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("agent_id = ? AND team_id = ?", agentID, teamID).Delete(&TeamAgent{}).Error; err != nil {
+			return err // Rollback on error
+		}
+		return nil // Commit if no error
+	})
 }
 
 // DeleteTeam deletes a team from the database.
 func (as *AgentDBModel) DeleteTeam(id uint) error {
 	return as.DB.Delete(&Teams{}, id).Error
-}
-
-// UpdateTeam updates the details of an existing team.
-func (as *AgentDBModel) UpdateTeam(team *Teams) error {
-	return as.DB.Save(team).Error
 }
 
 // GetTeams retrieves all teams from the database.
@@ -557,7 +612,7 @@ func (as *AgentDBModel) GetTeamByID(id uint) (*Teams, error) {
 }
 
 // AssignAgentToTeam assigns an agent to a team, ensuring the assignment is unique.
-func (db *AgentDBModel) AssignAgentToTeam(agentID, teamID uint) error {
+func (db *AgentDBModel) AssignAgentToTeam2(agentID, teamID uint) error {
 	return db.DB.Transaction(func(tx *gorm.DB) error {
 		var teamAgent TeamAgent
 		// Check if the agent is already assigned to the team to prevent duplicate entries
@@ -580,7 +635,7 @@ func (db *AgentDBModel) AssignAgentToTeam(agentID, teamID uint) error {
 }
 
 // RemoveAgentFromTeam removes an agent from a specific team.
-func (db *AgentDBModel) RemoveAgentFromTeam(agentID, teamID uint) error {
+func (db *AgentDBModel) RemoveAgentFromTeam2(agentID, teamID uint) error {
 	return db.DB.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Where("agent_id = ? AND team_id = ?", agentID, teamID).Delete(&TeamAgent{}).Error; err != nil {
 			// Error encountered while removing the assignment; rollback the transaction
@@ -916,7 +971,7 @@ func (db *AgentDBModel) UpdateAgentPermissions2(agentID uint, permissionIDs []ui
 }
 
 // contains checks if a slice contains a specific uint value.
-func contains(s []uint, e uint) bool {
+func Contains(s []uint, e uint) bool {
 	for _, a := range s {
 		if a == e {
 			return true
@@ -926,7 +981,7 @@ func contains(s []uint, e uint) bool {
 }
 
 // containsPermission checks if a slice of AgentPermission contains a specific PermissionID.
-func containsPermission(s []AgentPermission, e uint) bool {
+func ContainsPermission(s []AgentPermission, e uint) bool {
 	for _, a := range s {
 		if a.PermissionID == e {
 			return true
@@ -1192,9 +1247,46 @@ func (as *AgentDBModel) GetAssignedPermissions(agentID uint) ([]*Permission, err
 	return assignedPermissions, nil
 }
 
-// CreateRole creates a new role.
-func (as *AgentDBModel) CreateRole(role *Role) error {
-	return as.DB.Create(role).Error
+// CreateRole adds a new role to the database with transactional integrity.
+func (db *AgentDBModel) CreateRole(role *Role) error {
+	return db.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(role).Error; err != nil {
+			return err // Rollback on error
+		}
+		return nil // Commit if no error
+	})
+}
+
+// AssignPermissionsToRole assigns permissions to a role, handling it transactionally to ensure data integrity.
+func (db *AgentDBModel) AssignPermissionsToRole(roleID uint, permissionIDs []uint) error {
+	return db.DB.Transaction(func(tx *gorm.DB) error {
+		var role Role
+		if err := tx.First(&role, roleID).Error; err != nil {
+			return err // Error fetching role, rollback
+		}
+
+		// Assuming `permissionIDs` is a slice of permission IDs to be associated with the role
+		if err := tx.Model(&role).Association("Permissions").Replace(permissionIDs); err != nil {
+			return err // Error assigning permissions, rollback
+		}
+		return nil // Success, commit the transaction
+	})
+}
+
+// UpdateRole updates an existing role's details, including its permissions, within a transaction.
+func (db *AgentDBModel) UpdateRole(role *Role, permissionIDs []uint) error {
+	return db.DB.Transaction(func(tx *gorm.DB) error {
+		// Update role details
+		if err := tx.Save(role).Error; err != nil {
+			return err // Rollback on error
+		}
+
+		// Update permissions associated with the role
+		if err := tx.Model(role).Association("Permissions").Replace(permissionIDs); err != nil {
+			return err // Rollback on error
+		}
+		return nil // Commit if no error
+	})
 }
 
 // GetRoleByID retrieves a role by its ID.
@@ -1209,11 +1301,6 @@ func (as *AgentDBModel) GetRoleByName(name string) (*Role, error) {
 	var role Role
 	err := as.DB.Where("name = ?", name).First(&role).Error
 	return &role, err
-}
-
-// UpdateRole updates the details of an existing role.
-func (as *AgentDBModel) UpdateRole(role *Role) error {
-	return as.DB.Save(role).Error
 }
 
 // DeleteRole deletes a role from the database.
@@ -2043,4 +2130,116 @@ type AgentSkillSet struct {
 	AgentID uint   `json:"agent_id" gorm:"index;not null"`
 	Skill   string `json:"skill" gorm:"type:varchar(255);not null"`
 	Level   string `json:"level" gorm:"type:varchar(100);not null"` // E.g., "Beginner", "Intermediate", "Expert"
+}
+
+// AddAgentSchedule creates a new schedule for an agent with transactional integrity.
+func (db *AgentDBModel) AddAgentSchedule(schedule *AgentSchedule) error {
+	return db.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(schedule).Error; err != nil {
+			return err // Rollback on error
+		}
+		return nil // Commit if no error
+	})
+}
+
+// UpdateAgentSchedule updates an existing agent's schedule within a transaction.
+func (db *AgentDBModel) UpdateAgentSchedule(schedule *AgentSchedule) error {
+	return db.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Save(schedule).Error; err != nil {
+			return err // Rollback on error
+		}
+		return nil // Commit if no error
+	})
+}
+
+// AddAgentSkill assigns a new skill to an agent, ensuring the operation is handled transactionally.
+func (db *AgentDBModel) AddAgentSkill(skill *AgentSkill) error {
+	return db.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(skill).Error; err != nil {
+			return err // Rollback on error
+		}
+		return nil // Commit if no error
+	})
+}
+
+// UpdateAgentSkill updates the details of an existing skill for an agent.
+func (db *AgentDBModel) UpdateAgentSkill(skill *AgentSkill) error {
+	return db.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Save(skill).Error; err != nil {
+			return err // Rollback on error
+		}
+		return nil // Commit if no error
+	})
+}
+
+// SubmitAgentFeedback captures feedback for an agent, wrapped in a transaction for consistency.
+func (db *AgentDBModel) SubmitAgentFeedback(feedback *AgentFeedback) error {
+	return db.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(feedback).Error; err != nil {
+			return err // Rollback on error
+		}
+		return nil // Commit if no error
+	})
+}
+
+// ReviewAgentFeedback processes a feedback review, ensuring transactional integrity.
+func (db *AgentDBModel) ReviewAgentFeedback(review *FeedbackReview) error {
+	return db.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(review).Error; err != nil {
+			return err // Rollback on error
+		}
+		return nil // Commit if no error
+	})
+}
+
+// AddAgentCertification adds a certification to an agent's profile with a transaction.
+func (db *AgentDBModel) AddAgentCertification(certification *AgentCertification) error {
+	return db.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(certification).Error; err != nil {
+			return err // Rollback on error
+		}
+		return nil // Commit if no error
+	})
+}
+
+// UpdateAgentCertification updates an existing certification for an agent.
+func (db *AgentDBModel) UpdateAgentCertification(certification *AgentCertification) error {
+	return db.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Save(certification).Error; err != nil {
+			return err // Rollback on error
+		}
+		return nil // Commit if no error
+	})
+}
+
+// RequestAgentLeave handles leave requests for agents within a transaction for atomicity.
+func (db *AgentDBModel) RequestAgentLeave(leaveRequest *AgentLeaveRequest) error {
+	return db.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(leaveRequest).Error; err != nil {
+			return err // Rollback on error
+		}
+		return nil // Commit if no error
+	})
+}
+
+// UpdateAgentAvailability updates an agent's availability status with a transaction.
+func (db *AgentDBModel) UpdateAgentAvailability(availability *AgentAvailability) error {
+	return db.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Save(availability).Error; err != nil {
+			return err // Rollback on error
+		}
+		return nil // Commit if no error
+	})
+}
+
+// //////////////////////////////////////////////////////////////////////////////////
+func (service *AgentDBModel) LogCustomerInteraction(interaction CustomerInteraction) error {
+	return service.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(&interaction).Error; err != nil {
+			// Transaction will automatically roll back on return with error
+			return err
+		}
+		// If no error, transaction will be committed
+		return nil
+	})
 }

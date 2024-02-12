@@ -3,17 +3,26 @@
 package routes
 
 import (
+	"net/http"
+
 	"github.com/gin-gonic/gin"
 	"github.com/shuttlersit/service-desk/backend/controllers"
+	"github.com/shuttlersit/service-desk/backend/middleware"
 )
 
-func SetupAuthRoutes(r *gin.Engine, auths *controllers.AuthController) {
+func SetupAuthRoutes(router *gin.Engine, auths *controllers.AuthController) {
 
-	//authG := r.Group("/auth")
-	//authG.POST("/auth/register", auths.GoogleRegister)
-	//authG.GET("/auth/login", auths.GoogleLogin)
-	//authG.GET("/auth/callback", auths.GoogleCallback)
-	//auth.PUT("/:id", auth.UpdateAdvertisement)
-	//auth.DELETE("/:id", auth.DeleteAdvertisement)
+	// Public routes
+	router.GET("/auth/google", controllers.GoogleLogin)
+	router.GET("/auth/google/callback", controllers.GoogleAuthCallback)
 
+	// Protected routes
+	api := router.Group("/api")
+	{
+		api.Use(middleware.AuthMiddleware())
+		api.GET("/protected", func(c *gin.Context) {
+			// Example protected route
+			c.JSON(http.StatusOK, gin.H{"message": "You are authenticated"})
+		})
+	}
 }
