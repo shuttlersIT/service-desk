@@ -3,23 +3,49 @@
 package controllers
 
 import (
+	"context"
 	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"github.com/shuttlersit/service-desk/backend/config"
+	"github.com/shuttlersit/service-desk/backend/middleware"
 	"github.com/shuttlersit/service-desk/backend/models"
 	"github.com/shuttlersit/service-desk/backend/services"
+	"golang.org/x/oauth2"
 )
 
+// Initialize configuration globally or pass it to your controller struct
+var cfg = config.LoadConfig()
+
 type AuthController struct {
-	AuthService *services.DefaultAuthService
+	AuthService *services.AuthService
 	AuthDBModel *models.AuthDBModel
 }
 
-func NewAuthController(authService *services.DefaultAuthService) *AuthController {
+func NewAuthController(authService *services.AuthService) *AuthController {
 	return &AuthController{
 		AuthService: authService,
 	}
+}
+
+func GoogleLoginAlt(c *gin.Context) {
+	state := "pseudo-random" // Generate or use a library to create a secure state
+	url := cfg.GoogleOAuthConfig.AuthCodeURL(state, oauth2.AccessTypeOffline)
+	c.Redirect(http.StatusTemporaryRedirect, url)
+}
+
+func GoogleCallbackAlt(c *gin.Context) {
+	// Error handling omitted for brevity
+	code := c.Query("code")
+	token, _ := cfg.GoogleOAuthConfig.Exchange(context.Background(), code)
+	userInfo, _ := fetchGoogleUserInfo(token)
+
+	// Process userInfo (create or find user, generate JWT)
+	jwtToken, _ := middleware.GenerateJWT(userInfo.Email, "User")
+
+	// Redirect or send JWT as needed
+	c.JSON(http.StatusOK, gin.H{"token": jwtToken})
 }
 
 // Register handles user registration
@@ -30,7 +56,7 @@ func (ac *AuthController) Register(c *gin.Context) {
 		return
 	}
 
-	newUser, token, err := ac.AuthService.Registration(&user)
+	newUser, token, err := ac.AuthService.RegisterUser(&user, c.Param("password"))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -41,13 +67,13 @@ func (ac *AuthController) Register(c *gin.Context) {
 
 // Login handles user login
 func (ac *AuthController) Login(c *gin.Context) {
-	var loginInfo models.LoginInfo
+	var loginInfo services.LoginInfo
 	if err := c.ShouldBindJSON(&loginInfo); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	token, err := ac.AuthService.Login(&loginInfo)
+	token, _, err := ac.AuthService.Login(&loginInfo)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 		return
@@ -58,13 +84,13 @@ func (ac *AuthController) Login(c *gin.Context) {
 
 // Login handles user login
 func (ac *AuthController) LoginAgent(c *gin.Context) {
-	var loginInfo models.LoginInfo
+	var loginInfo services.LoginInfo
 	if err := c.ShouldBindJSON(&loginInfo); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	token, err := ac.AuthService.LoginAgent(&loginInfo)
+	token, _, err := ac.AuthService.Login(&loginInfo)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 		return
@@ -81,7 +107,7 @@ func (ac *AuthController) RegisterAgent(c *gin.Context) {
 		return
 	}
 
-	newAgent, token, err := ac.AuthService.AgentRegistration(&agent)
+	newAgent, token, err := ac.AuthService.RegisterAgent(&agent, c.Param("password"))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -201,6 +227,7 @@ func (ac *AuthController) RequestPasswordResetToken(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{"message": "Password reset token sent successfully"})
 }
 
+/*
 // ResetPasswordWithToken handles resetting the user's password using a token
 func (ac *AuthController) ResetPasswordWithToken2(c *gin.Context) {
 	token := c.Param("token")
@@ -242,6 +269,7 @@ func (ac *AuthController) ResetPasswordWithToken(ctx *gin.Context) {
 	}
 	ctx.JSON(http.StatusOK, gin.H{"message": "Password reset successfully"})
 }
+*/
 
 // ChangePassword allows authenticated users to change their password.
 func (ac *AuthController) ChangePassword(ctx *gin.Context) {
@@ -286,6 +314,7 @@ type User struct {
 	c.JSON(http.StatusCreated, gin.H{"message": "User registered successfully"})
 }*/
 
+/*
 // ResetPasswordWithToken handles resetting the user's password using a token
 func (ac *AuthController) ResetPasswordWithToken3(c *gin.Context) {
 	token := c.Param("token")
@@ -305,6 +334,9 @@ func (ac *AuthController) ResetPasswordWithToken3(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"message": "Password reset successfully"})
 }
+*/
+
+/*
 
 func (ac *AuthController) CreateExternalServiceIntegrationHandler(c *gin.Context) {
 	var req models.ExternalServiceIntegration
@@ -321,3 +353,4 @@ func (ac *AuthController) CreateExternalServiceIntegrationHandler(c *gin.Context
 
 	c.JSON(http.StatusCreated, req)
 }
+*/

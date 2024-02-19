@@ -11,6 +11,7 @@ import (
 
 type Users2 struct {
 	gorm.Model
+	ID                     uint                  `gorm:"primaryKey" json:"id"`
 	FirstName              string                `gorm:"size:255;not null" json:"first_name"`
 	LastName               string                `gorm:"size:255;not null" json:"last_name"`
 	Email                  string                `gorm:"size:255;not null;unique" json:"email"`
@@ -30,6 +31,7 @@ type Users2 struct {
 }
 
 type Users struct {
+	gorm.Model
 	ID           uint                  `gorm:"primaryKey" json:"id"`
 	FirstName    string                `gorm:"size:255;not null" json:"first_name" binding:"required"`
 	LastName     string                `gorm:"size:255;not null" json:"last_name" binding:"required"`
@@ -545,6 +547,26 @@ func (db *UserDBModel) GetUsersWithActiveProjects() ([]Users, error) {
 		Distinct("users.*").
 		Find(&users).Error
 	return users, err
+}
+
+// ActivateUsers activates a list of users by their IDs with transactional integrity.
+func (db *UserDBModel) ActivateUsers(userIDs []uint) error {
+	return db.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Model(&Users{}).Where("id IN ?", userIDs).Update("active", true).Error; err != nil {
+			return err
+		}
+		return nil
+	})
+}
+
+// DeactivateUsers deactivates a list of users by their IDs with transactional integrity.
+func (db *UserDBModel) DeactivateUsers(userIDs []uint) error {
+	return db.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Model(&Users{}).Where("id IN ?", userIDs).Update("active", false).Error; err != nil {
+			return err
+		}
+		return nil
+	})
 }
 
 /*

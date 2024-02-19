@@ -3,6 +3,9 @@
 package middleware
 
 import (
+	"crypto/rand"
+	"encoding/base64"
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -95,23 +98,100 @@ func AuthMiddleware() gin.HandlerFunc {
 	}
 }
 
-func GenerateJWT(email string) (string, error) {
-	expirationTime := time.Now().Add(1 * time.Hour)
-	claims := &Claims{
+// CustomClaims includes the authorization claims for the JWT token
+type CustomClaims struct {
+	Email string `json:"email"`
+	Role  string `json:"role"`
+	jwt.StandardClaims
+}
+
+func GenerateJWT(email, role string) (string, error) {
+	claims := CustomClaims{
 		Email: email,
+		Role:  role,
 		StandardClaims: jwt.StandardClaims{
-			ExpiresAt: expirationTime.Unix(),
-			Subject:   email,
+			ExpiresAt: time.Now().Add(time.Hour * 24).Unix(),
+			Issuer:    "Service Desk",
 		},
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	tokenString, err := token.SignedString(JwtKey)
-
+	tokenString, err := token.SignedString([]byte("your_secret_key"))
 	return tokenString, err
 }
 
 type Claims struct {
 	jwt.StandardClaims
 	Email string
+}
+
+// GenerateStateOauthCookie generates a random state value and sets it as a cookie.
+func GenerateStateOauthCookie(c *gin.Context) string {
+	state, _ := GenerateRandomState(32)
+	cookie := http.Cookie{
+		Name:     "oauthstate",
+		Value:    state,
+		Expires:  time.Now().Add(5 * time.Minute),
+		HttpOnly: true, // Prevents JavaScript access to this cookie to enhance security
+		Secure:   true, // Ensure cookie is sent over HTTPS
+		Path:     "/",  // Cookie available throughout the domain
+	}
+	http.SetCookie(c.Writer, &cookie)
+
+	return state
+}
+
+// generateRandomState generates a secure random string.
+func GenerateRandomState(length int) (string, error) {
+	b := make([]byte, length)
+	_, err := rand.Read(b)
+	if err != nil {
+		// Handle error
+		return "", err
+	}
+	return base64.URLEncoding.EncodeToString(b), nil
+}
+
+// ValidateStateOauthCookie checks if the state query parameter matches the state cookie.
+func ValidateStateOauthCookie(c *gin.Context) bool {
+	stateQuery := c.Query("state")
+	stateCookie, err := c.Request.Cookie("oauthstate")
+	if err != nil {
+		// Handle error: Cookie not found
+		return false
+	}
+	// Validate state value
+	return stateQuery == stateCookie.Value
+}
+
+func JWTAuthMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		const BearerSchema = "Bearer "
+		header := c.GetHeader("Authorization")
+		if header == "" {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "No authorization header provided"})
+			return
+		}
+		tokenString := header[len(BearerSchema):]
+
+		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+			// Validate the alg is what you expect:
+			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+				return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+			}
+
+			return []byte("your-secret-key"), nil
+		})
+
+		if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
+			// Set user ID in context
+			userID := claims["userID"].(string)
+			c.Set("userID", userID)
+		} else {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Invalid token", "details": err})
+			return
+		}
+
+		c.Next()
+	}
 }

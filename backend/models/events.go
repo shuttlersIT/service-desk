@@ -309,3 +309,132 @@ type ServiceDeskEvent struct {
 	Severity        string    `json:"severity" gorm:"type:varchar(100);not null"` // E.g., "Low", "Medium", "High"
 	AffectedSystems string    `json:"affected_systems" gorm:"type:text"`          // JSON array of affected systems
 }
+
+// Assuming an EventPublisher interface is defined elsewhere in your application
+type EventPublisher interface {
+	Publish(event interface{}) error
+}
+
+type TicketCommentCreatedEvent struct {
+	CommentID   uint      `gorm:"primaryKey" json:"commentId"`
+	TicketID    uint      `gorm:"not null" json:"ticketId"`
+	CommenterID uint      `gorm:"not null" json:"commenterId"`
+	CommentText string    `gorm:"type:text;not null" json:"commentText"`
+	CreatedAt   time.Time `gorm:"autoCreateTime" json:"createdAt"`
+	UpdatedAt   time.Time `gorm:"autoUpdateTime" json:"updatedAt"`
+}
+
+// UserActivityLog records activities performed by users within the system.
+type UserActivityLog struct {
+	ID           uint           `gorm:"primaryKey" json:"id"`
+	UserID       uint           `gorm:"index;notNull" json:"user_id"`
+	Action       string         `gorm:"type:varchar(255);notNull" json:"action"`
+	Description  string         `gorm:"type:text" json:"description,omitempty"`
+	ActivityType string         `json:"activity_type" gorm:"type:varchar(255);not null"`
+	Details      string         `json:"details" gorm:"type:text;not null"`
+	Timestamp    time.Time      `json:"timestamp"` // Timestamp of when the activity occurred
+	OccurredAt   time.Time      `json:"occurred_at"`
+	CreatedAt    time.Time      `json:"created_at"`
+	UpdatedAt    time.Time      `json:"updated_at"`
+	DeletedAt    gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+}
+
+// AssetLocation defines physical or logical locations where assets are stored or used.
+type AssetLocation struct {
+	ID          uint           `gorm:"primaryKey" json:"id"`
+	Name        string         `gorm:"size:255;notNull;unique" json:"name"`
+	Description string         `gorm:"type:text" json:"description,omitempty"`
+	Address     string         `gorm:"type:text" json:"address,omitempty"`
+	CreatedAt   time.Time      `json:"created_at"`
+	UpdatedAt   time.Time      `json:"updated_at"`
+	DeletedAt   gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+}
+
+// AssetReservation allows users to reserve assets for specific periods.
+type AssetReservation struct {
+	ID        uint           `gorm:"primaryKey" json:"id"`
+	AssetID   uint           `gorm:"index;notNull" json:"asset_id"`
+	UserID    uint           `gorm:"index;notNull" json:"user_id"`
+	StartTime time.Time      `json:"start_time"`
+	EndTime   time.Time      `json:"end_time"`
+	Status    string         `gorm:"size:100;notNull" json:"status"` // e.g., Reserved, Cancelled
+	CreatedAt time.Time      `json:"created_at"`
+	UpdatedAt time.Time      `json:"updated_at"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+}
+
+// AssetCheckInOut records check-in and check-out activities for assets.
+type AssetCheckInOut struct {
+	ID         uint           `gorm:"primaryKey" json:"id"`
+	AssetID    uint           `gorm:"index;notNull" json:"asset_id"`
+	UserID     uint           `gorm:"index;notNull" json:"user_id"`
+	Action     string         `gorm:"type:varchar(100);notNull" json:"action"` // CheckIn, CheckOut
+	OccurredAt time.Time      `json:"occurred_at"`
+	Notes      string         `gorm:"type:text" json:"notes,omitempty"`
+	CreatedAt  time.Time      `json:"created_at"`
+	UpdatedAt  time.Time      `json:"updated_at"`
+	DeletedAt  gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+}
+
+// SystemSetting represents configurable settings within the asset management system.
+type SystemSetting struct {
+	ID        uint           `gorm:"primaryKey" json:"id"`
+	Key       string         `gorm:"size:255;notNull;unique" json:"key"`
+	Value     string         `gorm:"type:text;notNull" json:"value"`
+	CreatedAt time.Time      `json:"created_at"`
+	UpdatedAt time.Time      `json:"updated_at"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+}
+
+// AssetTransferLog records the transfer of assets between different locations or users.
+type AssetTransferLog struct {
+	ID            uint           `gorm:"primaryKey" json:"id"`
+	AssetID       uint           `gorm:"index;notNull" json:"asset_id"`
+	FromLocation  uint           `gorm:"index" json:"from_location"`
+	ToLocation    uint           `gorm:"index" json:"to_location"`
+	TransferDate  time.Time      `json:"transfer_date"`
+	TransferredBy uint           `gorm:"index;notNull" json:"transferred_by"`
+	Notes         string         `gorm:"type:text" json:"notes,omitempty"`
+	CreatedAt     time.Time      `json:"created_at"`
+	UpdatedAt     time.Time      `json:"updated_at"`
+	DeletedAt     gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+}
+
+// UserNotification stores notifications sent to users within the system.
+type UserNotification struct {
+	ID         uint           `gorm:"primaryKey" json:"id"`
+	UserID     uint           `gorm:"index;notNull" json:"user_id"`
+	Message    string         `gorm:"type:text;notNull" json:"message"`
+	Read       bool           `gorm:"notNull;default:false" json:"read"`
+	NotifiedAt time.Time      `json:"notified_at"`
+	CreatedAt  time.Time      `json:"created_at"`
+	UpdatedAt  time.Time      `json:"updated_at"`
+	DeletedAt  gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+}
+
+// MaintenanceRequest captures requests for maintenance of assets, including details of the request and status.
+type MaintenanceRequest struct {
+	ID              uint           `gorm:"primaryKey" json:"id"`
+	AssetID         uint           `gorm:"index;notNull" json:"asset_id"`
+	RequestedBy     uint           `gorm:"index;notNull" json:"requested_by"`
+	Description     string         `gorm:"type:text;notNull" json:"description"`
+	Status          string         `gorm:"size:100;notNull" json:"status"` // e.g., Pending, InProgress, Completed
+	MaintenanceDate *time.Time     `json:"maintenance_date,omitempty"`
+	CompletedDate   *time.Time     `json:"completed_date,omitempty"`
+	CreatedAt       time.Time      `json:"created_at"`
+	UpdatedAt       time.Time      `json:"updated_at"`
+	DeletedAt       gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+}
+
+// AssetWarrantyDetails holds warranty information for assets, including start and end dates.
+type AssetWarrantyDetails struct {
+	ID            uint           `gorm:"primaryKey" json:"id"`
+	AssetID       uint           `gorm:"index;notNull" json:"asset_id"`
+	WarrantyStart time.Time      `json:"warranty_start"`
+	WarrantyEnd   time.Time      `json:"warranty_end"`
+	Provider      string         `gorm:"size:255" json:"provider"`
+	WarrantyTerms string         `gorm:"type:text" json:"warranty_terms"`
+	CreatedAt     time.Time      `json:"created_at"`
+	UpdatedAt     time.Time      `json:"updated_at"`
+	DeletedAt     gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+}

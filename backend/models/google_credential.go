@@ -25,6 +25,11 @@ func (GoogleCredentials) TableName() string {
 	return "googleCredentials"
 }
 
+type Credentials struct {
+	Cid     string `json:"cid"`
+	Csecret string `json:"csecret"`
+}
+
 type OAuth2Credentials struct {
 	gorm.Model
 	UserID      uint      `json:"user_id" gorm:"index;not null"`
@@ -46,18 +51,6 @@ type GoogeAuthStorage interface {
 	GetGoogleCredByNumber(int) (*GoogleCredentials, error)
 }
 
-// UserModel handles database operations for User
-type GoogleCredentialsDBModel struct {
-	DB *gorm.DB
-}
-
-// NewUserModel creates a new instance of UserModel
-func NewGoogleCredentialsDBModel(db *gorm.DB) *GoogleCredentialsDBModel {
-	return &GoogleCredentialsDBModel{
-		DB: db,
-	}
-}
-
 var oauth2Config = &oauth2.Config{
 	ClientID:     "YOUR_CLIENT_ID",
 	ClientSecret: "YOUR_CLIENT_SECRET",
@@ -72,6 +65,23 @@ var googleOauthConfig = &oauth2.Config{
 	ClientSecret: "YOUR_CLIENT_SECRET",
 	Scopes:       []string{"email", "profile"},
 	Endpoint:     google.Endpoint,
+}
+
+// UserModel handles database operations for User
+type GoogleCredentialsDBModel struct {
+	DB                *gorm.DB
+	log               *Logger
+	AuthDBModel       *AuthDBModel
+	googleOauthConfig *GoogleCredentials
+}
+
+// NewUserModel creates a new instance of UserModel
+func NewGoogleCredentialsDBModel(db *gorm.DB, AuthDBModel *AuthDBModel, log *Logger) *GoogleCredentialsDBModel {
+	return &GoogleCredentialsDBModel{
+		DB:          db,
+		AuthDBModel: AuthDBModel,
+		log:         log,
+	}
 }
 
 func googleAuthHandler(c *gin.Context) {
@@ -107,7 +117,7 @@ func googleAuthCallbackHandler(c *gin.Context) {
 
 var jwtKey = []byte("your_secret_key")
 
-func GenerateJWT(email string) (string, error) {
+func generateJWT(email string) (string, error) {
 	expirationTime := time.Now().Add(1 * time.Hour)
 	claims := &Claims{
 		Email: email,

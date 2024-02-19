@@ -33,13 +33,13 @@ func (ctrl *AgentController) CreateAgentHandler(c *gin.Context) {
 		return
 	}
 
-	a, err := ctrl.AgentService.CreateAgent(&agent)
+	err := ctrl.AgentService.CreateAgent(&agent)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusCreated, a)
+	c.JSON(http.StatusCreated, gin.H{"message": "Agent created successfully"})
 }
 
 // UpdateAgentHandler updates an existing agent.
@@ -345,14 +345,14 @@ func (ac *AgentController) CreateAgent2(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	a, err := ac.AgentService.CreateAgent(&agent)
+	erro := ac.AgentService.CreateAgent(&agent)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, erro.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(a)
+	json.NewEncoder(w).Encode(&agent)
 }
 
 func (ac *AgentController) GetAgentByID2(w http.ResponseWriter, r *http.Request) {
@@ -405,13 +405,13 @@ func (ac *AgentController) CreateAgent(c *gin.Context) {
 		return
 	}
 
-	a, err := ac.AgentService.CreateAgent(&agent)
+	err := ac.AgentService.CreateAgent(&agent)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusCreated, a)
+	c.JSON(http.StatusCreated, gin.H{"message": "Agent created successfully"})
 }
 
 func (ac *AgentController) GetAgentByID(c *gin.Context) {
@@ -754,8 +754,13 @@ func (ac *AgentController) RemoveAgentPermissionFromRole(c *gin.Context) {
 
 func (ac *AgentController) GetRolePermissions(c *gin.Context) {
 	roleName := c.Param("roleName")
+	role, e := ac.AgentService.GetRoleByName(roleName)
+	if e != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": e.Error()})
+		return
+	}
 
-	permissions, err := ac.AgentService.GetRolePermissions(roleName)
+	permissions, err := ac.AgentService.GetRolePermissions(role.ID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -771,18 +776,25 @@ func (ac *AgentController) GetRolePermissions(c *gin.Context) {
 
 func (ac *AgentController) AssignPermissionToAgent(c *gin.Context) {
 	agentID, err := strconv.ParseUint(c.Param("agentID"), 10, 32)
+	p := c.PostFormArray("perms")
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-
-	var permission models.Permission
-	if err := c.ShouldBindJSON(&permission); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
+	var newPermission []*models.Permission
+	for _, ps := range p {
+		np := &models.Permission{Name: ps}
+		if err := c.ShouldBindJSON(&newPermission); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		e := ac.AgentService.CreatePermission(np)
+		if e != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": e.Error()})
+			return
+		}
 	}
-
-	err = ac.AgentService.AssignPermissionToAgent(uint(agentID), permission.Name)
+	err = ac.AgentService.AssignPermissionsToAgent(uint(agentID), p)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -835,18 +847,21 @@ func (ac *AgentController) GetAgentPermissions2(c *gin.Context) {
 
 func (ac *AgentController) AssignRoleToAgent(c *gin.Context) {
 	agentID, err := strconv.ParseUint(c.Param("agentID"), 10, 32)
+	y := c.Param("roleName")
+	var yArray []string
+	yArray = append(yArray, y)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	var role models.Role
+	var role *models.Role
 	if err := c.ShouldBindJSON(&role); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	err = ac.AgentService.AssignRoleToAgent(uint(agentID), role.RoleName)
+	err = ac.AgentService.AssignRoleToAgent(uint(agentID), yArray)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

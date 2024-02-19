@@ -8,6 +8,7 @@ import (
 	"log"
 	"time"
 
+	"github.com/dgrijalva/jwt-go"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -410,6 +411,60 @@ func (as *AuthDBModel) GetAllAgentCreds() ([]*AgentLoginCredentials, error) {
 //////////////////////////////////////////////////////////////////////////////////
 //Password Requests
 
+// ResetUserPassword resets the password for a user identified by userID.
+func (as *AuthDBModel) ResetUserPasswordMain(userID uint, newPassword string) error {
+	return as.DB.Transaction(func(tx *gorm.DB) error {
+		var userCredentials UsersLoginCredentials
+		// Fetch user credentials by user ID
+		if err := tx.Where("user_id = ?", userID).First(&userCredentials).Error; err != nil {
+			return err // User credentials not found
+		}
+
+		// Hash the new password
+		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+		if err != nil {
+			return fmt.Errorf("failed to hash password: %w", err)
+		}
+		userCredentials.PasswordHash = string(hashedPassword)
+
+		// Update user credentials with the new hashed password
+		if err := tx.Save(&userCredentials).Error; err != nil {
+			return err // Failed to update user credentials
+		}
+
+		// Optionally, log the password change or invalidate sessions/tokens
+		return nil
+	})
+}
+
+// ResetAgentPassword resets the password for an agent identified by agentID.
+func (as *AuthDBModel) ResetAgentPasswordMain(agentID uint, newPassword string) error {
+	return as.DB.Transaction(func(tx *gorm.DB) error {
+		var agentCredentials AgentLoginCredentials
+		// Fetch agent credentials by agent ID
+		if err := tx.Where("agent_id = ?", agentID).First(&agentCredentials).Error; err != nil {
+			return err // Agent credentials not found
+		}
+
+		// Hash the new password
+		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+		if err != nil {
+			return fmt.Errorf("failed to hash password: %w", err)
+		}
+		agentCredentials.PasswordHash = string(hashedPassword)
+
+		// Update agent credentials with the new hashed password
+		if err := tx.Save(&agentCredentials).Error; err != nil {
+			return err // Failed to update agent credentials
+		}
+
+		// Optionally, log the password change or invalidate sessions/tokens
+		return nil
+	})
+}
+
+//////////////////////////////////////////////////////////////////////////////////
+
 // Define a model for storing password reset requests
 type PasswordResetRequest struct {
 	ID        uint            `gorm:"primaryKey" json:"id"`
@@ -437,7 +492,18 @@ func (as *AuthDBModel) CreatePasswordResetRequest(request *PasswordResetRequest)
 	return as.DB.Create(request).Error
 }
 
+// ValidatePasswordResetToken validates a password reset token and checks if it's valid and not expired.
 func (as *AuthDBModel) ValidatePasswordResetToken(token string) (*PasswordResetRequest, error) {
+	var request PasswordResetRequest
+	// Check if token exists and is not expired
+	err := as.DB.Where("token = ? AND expires_at > ?", token, time.Now()).First(&request).Error
+	if err != nil {
+		return nil, err // Token not valid or expired
+	}
+	return &request, nil
+}
+
+func (as *AuthDBModel) ValidatePasswordResetToken2(token string) (*PasswordResetRequest, error) {
 	var request PasswordResetRequest
 	err := as.DB.Where("token = ? AND expires_at > ?", token, time.Now()).First(&request).Error
 	if err != nil {
@@ -774,15 +840,6 @@ func (UserConsent) TableName() string {
 	return "user_consents"
 }
 
-// Activity
-type UserActivityLog struct {
-	gorm.Model
-	UserID       uint      `json:"user_id" gorm:"index;not null"`
-	ActivityType string    `json:"activity_type" gorm:"type:varchar(255);not null"`
-	Details      string    `json:"details" gorm:"type:text;not null"`
-	Timestamp    time.Time `json:"timestamp"` // Timestamp of when the activity occurred
-}
-
 func (UserActivityLog) TableName() string {
 	return "user_activity_log"
 }
@@ -1051,6 +1108,24 @@ func (as *AuthDBModel) IsIPWhitelisted(userID uint, ipAddress string) (bool, err
 	var count int64
 	as.DB.Model(&IPWhitelist{}).Where("user_id = ? AND ip_address = ?", userID, ipAddress).Count(&count)
 	return count > 0, nil
+}
+
+// GoogleUserInfo represents the information received from Google's UserInfo endpoint.
+type GoogleUserInfo struct {
+	ID            string `json:"id"`             // Google's identifier for the user
+	Email         string `json:"email"`          // User's email address
+	VerifiedEmail bool   `json:"verified_email"` // If the user's email address has been verified
+	Name          string `json:"name"`           // User's full name
+	GivenName     string `json:"given_name"`     // User's given name (first name)
+	FamilyName    string `json:"family_name"`    // User's family name (last name)
+	Picture       string `json:"picture"`        // URL of the user's profile picture
+	Locale        string `json:"locale"`         // Locale of the user
+}
+
+// MyCustomClaims includes standard JWT claims and a Role field
+type MyCustomClaims struct {
+	jwt.StandardClaims
+	Role string `json:"role"`
 }
 
 /*

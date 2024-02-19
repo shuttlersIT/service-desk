@@ -89,7 +89,7 @@ func (ac *AssetController) UpdateAsset(ctx *gin.Context) {
 	currentAsset.Description = updatedAsset.Description
 	// Update other fields accordingly
 
-	if _, err := ac.AssetService.UpdateAsset(currentAsset); err != nil {
+	if _, err := ac.AssetService.UpdateAsset(uint(assetID), currentAsset); err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update asset"})
 		return
 	}
@@ -101,11 +101,8 @@ func (ac *AssetController) UpdateAsset(ctx *gin.Context) {
 func (ac *AssetController) DeleteAsset(ctx *gin.Context) {
 	assetID, _ := strconv.Atoi(ctx.Param("id"))
 
-	if success, err := ac.AssetService.DeleteAsset(uint(assetID)); err != nil {
+	if err := ac.AssetService.DeleteAsset(uint(assetID)); err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete asset"})
-		return
-	} else if !success {
-		ctx.JSON(http.StatusNotFound, gin.H{"error": "Asset not found"})
 		return
 	}
 
@@ -156,7 +153,7 @@ func (ac *AssetController) UpdateAsset2(ctx *gin.Context) {
 
 	asset.ID = uint(id)
 
-	updatedAsset, err := ac.AssetService.UpdateAsset(&asset)
+	updatedAsset, err := ac.AssetService.UpdateAsset(asset.ID, &asset)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -173,13 +170,13 @@ func (pc *AssetController) DeleteAsset2(ctx *gin.Context) {
 		return
 	}
 
-	status, err := pc.AssetService.DeleteAsset(uint(id))
-	if err != nil {
+	erro := pc.AssetService.DeleteAsset(uint(id))
+	if erro != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	ctx.JSON(http.StatusNoContent, status)
+	ctx.JSON(http.StatusNoContent, gin.H{"status": "asset deleted successfully"})
 }
 
 func (ac *AssetController) GetAllAssets2(ctx *gin.Context) {
@@ -203,7 +200,7 @@ func (ac *AssetController) AssignAsset(ctx *gin.Context) {
 	//    return
 	//}
 
-	if err := ac.AssetService.AssignAsset(uint(assetID), uint(userID), uint(agentID)); err != nil {
+	if err := ac.AssetService.AssignAssetToUser(uint(assetID), uint(userID), uint(agentID)); err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to assign asset"})
 		return
 	}
@@ -242,19 +239,20 @@ func (ac *AssetController) AssignAssetToUser(ctx *gin.Context) {
 	//    return
 	//}
 
-	assetAssignment, err := ac.AssetService.AssignAssetToUser(uint(assetID), uint(userID), uint(agentID))
+	err := ac.AssetService.AssignAssetToUser(uint(assetID), uint(userID), uint(agentID))
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to assign asset to user"})
 		return
 	}
 
-	ctx.JSON(http.StatusOK, assetAssignment)
+	ctx.JSON(http.StatusOK, gin.H{"message": "Asset assigned successfully"})
 }
 
 // UnassignAssetFromUser handles POST /assets/unassignFromUser/:id/:agentId
 func (ac *AssetController) UnassignAssetFromUser(ctx *gin.Context) {
 	assetID, _ := strconv.Atoi(ctx.Param("id"))
 	agentID, _ := strconv.Atoi(ctx.Param("agentId"))
+	userID, _ := strconv.Atoi(ctx.Param("userId"))
 	//session := sessions.Default(ctx)
 	//agentID, ok := session.Get("agentID").(uint)
 	//if !ok {
@@ -262,7 +260,7 @@ func (ac *AssetController) UnassignAssetFromUser(ctx *gin.Context) {
 	//    return
 	//}
 
-	if err := ac.AssetService.UnassignAssetFromUser(uint(assetID), uint(agentID)); err != nil {
+	if err := ac.AssetService.UnassignAssetFromUser(uint(assetID), uint(userID), uint(agentID)); err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to unassign asset from user"})
 		return
 	}

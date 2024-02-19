@@ -26,13 +26,13 @@ type TicketingServiceInterface interface {
 	CreateSubcategory(subcategory *models.SubCategory) error
 	UpdateSubcategory(subcategory *models.SubCategory) error
 	DeleteSubcategory(subcategoryID uint) error
-	CreateTag(ticketID uint, tag string) (*models.Tags, error)
+	CreateTag(ticketID uint, tag string) (*models.Tag, error)
 	AddTagToTicket(ticketID uint, tag string) error
 	IndirectlyAddTagToTicket(ticketID uint, tag string) error
 	RemoveTagFromTicket(ticketID uint, tag string) error
 	IndirectlyRemoveTagFromTicket(ticketID uint, tag string) error
-	CreateSLA(sla *models.Sla) error
-	UpdateSLA(sla *models.Sla) error
+	CreateSLA(sla *models.SLA) error
+	UpdateSLA(sla *models.SLA) error
 	DeleteSLA(slaID uint) error
 	CreatePriority(priority *models.Priority) error
 	UpdatePriority(priority *models.Priority) error
@@ -54,9 +54,10 @@ type DefaultTicketingService struct {
 }
 
 // NewDefaultUserService creates a new DefaultUserService.
-func NewDefaultTicketingService(ticketDBModel *models.TicketDBModel) *DefaultTicketingService {
+func NewDefaultTicketingService(ticketDBModel *models.TicketDBModel, ticketComment *models.TicketCommentDBModel) *DefaultTicketingService {
 	return &DefaultTicketingService{
 		TicketDBModel: ticketDBModel,
+		TicketComment: ticketComment,
 	}
 }
 
@@ -117,7 +118,7 @@ func (ts *DefaultTicketingService) AssignTicketToAgent(ticketID, agentID uint) e
 
 	// Update the assigned agent ID
 	a, _ := ts.AgentDBModel.GetAgentByID(agentID)
-	ticket.AgentID = *a
+	ticket.AgentID = &a.ID
 
 	// Save the updated ticket
 	err = ts.TicketDBModel.UpdateTicket(ticket)
@@ -136,7 +137,7 @@ func (ts *DefaultTicketingService) ChangeTicketStatus(ticketID uint, newStatus m
 	}
 
 	// Update the ticket status
-	ticket.Status = newStatus
+	ticket.Status = newStatus.Name
 
 	// Save the updated ticket
 	err = ts.TicketDBModel.UpdateTicket(ticket)
@@ -153,13 +154,16 @@ func (ts *DefaultTicketingService) AddCommentToTicket(ticketID uint, c string) e
 	if err != nil {
 		return err
 	}
-	comment, er := ts.TicketComment.CreateTicketComment(ticketID, c)
+
+	newCommentID, er := ts.TicketComment.CreateTicketComment(ticketID, c)
 	if er != nil {
 		return er
 	}
 
+	newComment, err := ts.TicketComment.GetCommentByID(newCommentID)
+
 	// Add the comment to the ticket
-	ticket.Comments = append(ticket.Comments, *comment)
+	ticket.Comments = append(ticket.Comments, *newComment)
 
 	// Save the updated ticket
 	err = ts.TicketDBModel.UpdateTicket(ticket)
@@ -172,10 +176,12 @@ func (ts *DefaultTicketingService) AddCommentToTicket(ticketID uint, c string) e
 
 func (ts *DefaultTicketingService) GetTicketHistory(ticketID uint) ([]*models.TicketHistoryEntry, error) {
 	// Retrieve the ticket history entries for the given ticketID
-	historyEntries := ts.TicketHistoryEntry.GetHistoryEntriesByTicketID(ticketID)
+	historyEntries, err := ts.TicketHistoryEntry.GetHistoryEntriesByTicketID(ticketID)
 	if historyEntries == nil {
 
 		return nil, fmt.Errorf("could not find ticket history")
+	} else if err != nil {
+		return nil, fmt.Errorf("unable to get ticket history from db")
 	}
 
 	return historyEntries, nil
@@ -216,7 +222,7 @@ func (cs *DefaultTicketingService) DeleteCategory(categoryID uint) error {
 
 func (cs *DefaultTicketingService) CreateSubcategory(subcategory *models.SubCategory) error {
 	// Create a new subcategory
-	err := cs.TicketDBModel.CreateSubcategory(subcategory)
+	err := cs.TicketDBModel.CreateSubCategory(subcategory)
 	if err != nil {
 		return err
 	}
@@ -226,7 +232,7 @@ func (cs *DefaultTicketingService) CreateSubcategory(subcategory *models.SubCate
 
 func (cs *DefaultTicketingService) UpdateSubcategory(subcategory *models.SubCategory) error {
 	// Update an existing subcategory
-	err := cs.TicketDBModel.UpdateSubcategory(subcategory)
+	err := cs.TicketDBModel.UpdateSubCategory(subcategory)
 	if err != nil {
 		return err
 	}
@@ -246,25 +252,25 @@ func (cs *DefaultTicketingService) DeleteSubcategory(subcategoryID uint) error {
 
 // Handle Tags
 
-func (ts *DefaultTicketingService) CreateTag(ticketID uint, tag string) (*models.Tags, error) {
-	status, err := ts.TicketDBModel.CreateTag(ticketID, tag)
+func (ts *DefaultTicketingService) CreateTag(ticketID uint, tag string) (*models.Tag, error) {
+	Newtag, status, err := ts.TicketDBModel.CreateTag(ticketID, tag)
 	if !status {
 		return nil, err
 	}
 
-	ticket, _ := ts.GetTicketByID(ticketID)
-	return &ticket.Tags, nil
+	//ticket, _ := ts.GetTicketByID(ticketID)
+	return Newtag, nil
 }
 
-func (ts *DefaultTicketingService) CreateTag2(ticketID uint, tag *models.Tags) (*models.Tags, error) {
+func (ts *DefaultTicketingService) CreateTag2(ticketID uint, tag *models.Tag) (*models.Tag, error) {
 
-	status, err := ts.TicketDBModel.CreateTag(ticketID, tag.Tags[0])
+	Newtag, status, err := ts.TicketDBModel.CreateTag(ticketID, tag.Name)
 	if !status {
 		return nil, err
 	}
 
-	ticket, _ := ts.GetTicketByID(ticketID)
-	return &ticket.Tags, nil
+	//ticket, _ := ts.GetTicketByID(ticketID)
+	return Newtag, nil
 }
 
 func (ts *DefaultTicketingService) AddTagToTicket(ticketID uint, tag string) error {
@@ -281,9 +287,13 @@ func (ts *DefaultTicketingService) IndirectlyAddTagToTicket(ticketID uint, tag s
 	if err != nil {
 		return err
 	}
+	t, e := ts.CreateTag(ticketID, tag)
+	if e != nil {
+		return e
+	}
 
 	// Add the tag to the ticket's tags
-	ticket.Tags.Tags = append(ticket.Tags.Tags, tag)
+	ticket.Tags = append(ticket.Tags, *t)
 
 	// Save the updated ticket
 	err = ts.TicketDBModel.UpdateTicket(ticket)
@@ -310,9 +320,9 @@ func (ts *DefaultTicketingService) IndirectlyRemoveTagFromTicket(ticketID uint, 
 	}
 
 	// Remove the tag from the ticket's tags
-	for i, t := range ticket.Tags.Tags {
-		if t == tag {
-			ticket.Tags.Tags = append(ticket.Tags.Tags[:i], ticket.Tags.Tags[i+1:]...)
+	for i, t := range ticket.Tags {
+		if t.Name == tag {
+			ticket.Tags = append(ticket.Tags[:i], ticket.Tags[i+1:]...)
 			break
 		}
 	}

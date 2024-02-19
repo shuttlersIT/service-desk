@@ -13,6 +13,7 @@ import (
 // Agents represents the schema of the agents table
 type Agents struct {
 	gorm.Model
+	ID           uint                  `gorm:"primaryKey" json:"id"`
 	FirstName    string                `gorm:"size:255;not null" json:"first_name" binding:"required"`
 	LastName     string                `gorm:"size:255;not null" json:"last_name" binding:"required"`
 	Email        string                `gorm:"size:255;not null;unique" json:"email" binding:"required,email"`
@@ -202,79 +203,101 @@ func (SearchCriteria) TableName() string {
 	return "search_criteria"
 }
 
+// AgentStorage interface consolidates all operations related to agents.
 type AgentStorage interface {
-	LogAgentActivity(log AgentActivityLog) error
 	CreateAgent(agent *Agents) error
+	UpdateAgent(agent *Agents) error
 	DeleteAgent(agentID uint) error
-	UpdateAgent(agentID *Agents) error
 	GetAllAgents() ([]*Agents, error)
 	GetAgentByID(agentID uint) (*Agents, error)
-	GetAgentByNumber(agentNumber int) (*Agents, error)
 	AssignRolesToAgent(agentID uint, roleNames []string) error
 	RevokeRoleFromAgent(agentID uint, roleName string) error
 	GetAgentRoles(agentID uint) ([]*Role, error)
-	GetRolesByAgent(agentID uint) ([]*Role, error)
-	Create(agent *Agents) error
-	Update(agent *Agents) error
-	Delete(agentID uint) error
-	GetAll() ([]*Agents, error)
-	GetByID(agentID uint) (*Agents, error)
-	GetByNumber(agentNumber int) (*Agents, error)
-	AssignRoles(agentID uint, roleNames []string) error
-	RevokeRole(agentID uint, roleName string) error
-	GetPermissions(agentID uint) ([]*Permission, error)
-	AssignPermissions(agentID uint, permissionNames []string) error
-	RevokePermission(agentID uint, permissionName string) error
-	GetAgents() ([]*Agents, error)
-	GetAssignedRoles(agentID uint) ([]*Role, error)
-	GetAssignedPermissions(agentID uint) ([]*Permission, error)
-	AssignPermissionsToAgent(agentID uint, permissionNames []string) error
-	RevokePermissionFromAgent(agentID uint, permissionName string) error
-	GetAgentPermissions(agentID uint) ([]*Permission, error)
-	AssignAgentToTeam(agentID, teamID uint) error
-	RemoveAgentFromTeam(agentID, teamID uint) error
-	GetAgentTeams(agentID uint) ([]*Teams, error)
-	UpdateAgentWithRolesAndPermissions(agent *Agents, roleIDs, permissionIDs []uint) error
-	AssignAgentToMultipleTeams(agentID uint, teamIDs []uint) error
-	UpdateAgentPermissions(agentID uint, newPermissionIDs []uint) error
-	AssignRoleToAgent(agentID uint, roleIDs []uint) error
-
-	// New methods
+	LogAgentActivity(activity *AgentActivityLog) error
 	AddAgentSchedule(schedule *AgentSchedule) error
-	UpdateAgentSchedule(schedule *AgentSchedule) error
+	UpdateAgentSchedule(scheduleID uint, newSchedule *AgentSchedule) error
+	DeleteAgentSchedule(scheduleID uint) error
+	ListAgentSchedules(agentID uint) ([]AgentSchedule, error)
 	AddAgentSkill(skill *AgentSkill) error
-	UpdateAgentSkill(skill *AgentSkill) error
+	UpdateAgentSkill(skillID uint, newSkill *AgentSkill) error
+	DeleteAgentSkill(skillID uint) error
+	ListAgentSkills(agentID uint) ([]AgentSkill, error)
 	SubmitAgentFeedback(feedback *AgentFeedback) error
-	ReviewAgentFeedback(review *FeedbackReview) error
+	ListAgentFeedback(agentID uint) ([]AgentFeedback, error)
+	UpdateAgentFeedback(feedbackID uint, newFeedback *AgentFeedback) error
+	DeleteAgentFeedback(feedbackID uint) error
 	AddAgentCertification(certification *AgentCertification) error
-	UpdateAgentCertification(certification *AgentCertification) error
+	UpdateAgentCertification(certificationID uint, newCertification *AgentCertification) error
+	DeleteAgentCertification(certificationID uint) error
+	ListAgentCertifications(agentID uint) ([]AgentCertification, error)
 	RequestAgentLeave(leaveRequest *AgentLeaveRequest) error
+	UpdateAgentLeaveRequest(leaveRequestID uint, newLeaveRequest *AgentLeaveRequest) error
+	CancelAgentLeaveRequest(leaveRequestID uint) error
+	ListAgentLeaveRequests(agentID uint) ([]AgentLeaveRequest, error)
 	UpdateAgentAvailability(availability *AgentAvailability) error
-	RevokeRoleFromAgent2(agentID uint, roleName string) error
+	ApproveAgentLeaveRequest(leaveRequestID uint) error
+	DenyAgentLeaveRequest(leaveRequestID uint) error
+	ListAgentTrainingRecords(agentID uint) ([]AgentTrainingRecord, error)
+	DeleteAgentTrainingRecord(recordID uint) error
+	SubmitAgentLeaveRequest(leaveRequest *AgentLeaveRequest) error
+	UpdateAgentLeaveRequestStatus(requestID uint, newStatus string) error
+	UpdateAgentCertificationDetails(certificationID uint, newDetails *AgentCertification) error
+	ListAgentActivities(agentID uint) ([]AgentActivityLog, error)
+	CreateAgentTrainingSession(trainingSession *AgentTrainingSession) error
+	UpdateAgentTrainingSession(trainingSessionID uint, newTrainingSession *AgentTrainingSession) error
+	DeleteAgentTrainingSession(trainingSessionID uint) error
+	ListAgentTrainingSessions(agentID uint) ([]AgentTrainingSession, error)
+	EnrollAgentInTrainingSession(agentID, sessionID uint) error
+	RecordAgentPerformanceReview(review *AgentPerformanceReview) error
+	UpdateAgentPerformanceReview(reviewID uint, newReview *AgentPerformanceReview) error
+	ListAgentPerformanceReviews(agentID uint) ([]AgentPerformanceReview, error)
+	DeleteAgentPerformanceReview(reviewID uint) error
+	RecordCustomerInteraction(interaction *CustomerInteraction) error
+	UpdateCustomerInteraction(interactionID uint, newInteraction *CustomerInteraction) error
+	ListCustomerInteractionsByAgent(agentID uint) ([]CustomerInteraction, error)
+	DeleteCustomerInteraction(interactionID uint) error
+	AssignAgentToTrainingModule(agentID, moduleID uint) error
+	UpdateAgentTrainingRecord(recordID uint, newRecord *AgentTrainingRecord) error
+	RecordAgentLoginActivity(activity *AgentLoginActivity) error
+	UpdateAgentProfilePic(agentID uint, profilePicURL string) error
+	AddOrUpdateAgentSkillSet(agentID uint, skills []AgentSkillSet) error
+	LogAction(agentID uint, actionType, details string) error
+	AssignPermissionsToAgent2(agentID uint, permissionNames []string) error
+	AddAgentToTeam(agentID, teamID uint) error
+	AssignMultipleAgentsToTeam(agentIDs []uint, teamID uint) error
+	UnassignAgentsFromTeam(agentIDs []uint, teamID uint) error
+	UpdateTeamPermissions(teamID uint, permissionIDs []uint) error
+	AssignPermissionsToTeamByPermissionName(teamID uint, permissionName string) error
+	RevokePermissionFromTeamByPermissionName(teamID uint, permissionName string) error
+	AddPermissionToRoleByPermissionName(roleName string, permissionName string) error
+	RemovePermissionFromRoleByPermissionName(roleName string, permissionName string) error
 }
 
+// UnitStorage interface outlines operations for managing units.
 type UnitStorage interface {
 	CreateUnit(unit *Unit) error
 	DeleteUnit(unitID uint) error
-	UpdateUnit(unitID *Unit) error
+	UpdateUnit(unit *Unit) error
 	GetUnits() ([]*Unit, error)
 	GetUnitByID(unitID uint) (*Unit, error)
 	GetUnitByNumber(unitNumber int) (*Unit, error)
 }
 
+// TeamStorage interface defines operations for team management.
 type TeamStorage interface {
 	CreateTeam(team *Teams) error
 	UpdateTeam(team *Teams) error
 	DeleteTeam(id uint) error
 	GetTeamByID(id uint) (*Teams, error)
-	GetTeamByNumber(teamNumber int) (*Teams, error)
 	GetTeams() ([]*Teams, error)
+	GetTeamByNumber(teamNumber int) (*Teams, error)
 }
 
+// RoleStorage interface specifies methods for role management.
 type RoleStorage interface {
 	CreateRole(role *Role) error
 	DeleteRole(roleID uint) error
-	UpdateRole(roleID *Role) error
+	UpdateRole(role *Role) error
 	GetRoles() ([]*Role, error)
 	GetRoleByID(roleID uint) (*Role, error)
 	GetRoleByNumber(roleNumber int) (*Role, error)
@@ -288,6 +311,7 @@ type RoleStorage interface {
 	GetPermissionsByRole(roleName string) ([]*Permission, error)
 }
 
+// PermissionStorage interface encapsulates operations related to permissions.
 type PermissionStorage interface {
 	GetAllPermissions() ([]*Permission, error)
 	CreatePermission(permission *Permission) error
@@ -298,70 +322,30 @@ type PermissionStorage interface {
 	GetPermissions() ([]*Permission, error)
 }
 
-type AgentRoleStorage interface {
-	AssignRoleToAgent(agentID, roleID uint) error
-	GetAgentRoles(agentID uint) ([]*Role, error)
-	RevokeRoleFromAgent(agentID uint, roleName string) error
-}
-
-type RolePermissionStorage interface {
-	AssociatePermissionWithRole(roleID uint, permissionName string, permissionID uint) error
-	GetRolePermissionPairs(roleID uint) ([]*RolePermission, error)
-	GetRolePermissions(roleID uint) ([]*Permission, error)
-	AssignPermissionsToRole(roleName string, permissionNames []string) error
-	RevokePermissionFromRole(roleName string, permissionName string) error
-}
-
-type UserAgentStorage interface {
-	CreateUserAgent(agentID uint, userID uint) error
-	GetAgentsByUser(userID uint) ([]*Agents, error)
-	GetUsersByAgent(agentID uint) ([]*Users, error)
-	RemoveUserAgentRelationship(agentID uint, userID uint) error
-}
-
-type RoleAgentStorage interface {
-	AssignRoleToAgent(agentID uint, roleID uint) error
-	GetAgentRoles(agentID uint) ([]*Role, error)
-	RevokeRoleFromAgent(agentID uint, roleName string) error
-}
-
-type RoleUserStorage interface {
-	AssignRoleToUser(userID uint, roleID uint) error
-	GetUserRoles(userID uint) ([]*Role, error)
-	RevokeRoleFromUser(userID uint, roleName string) error
-}
-
-type UserPermissionStorage interface {
-	AssignPermissionToUser(userID uint, permissionID uint) error
-	GetUserPermissions(userID uint) ([]*Permission, error)
-	RevokePermissionFromUser(userID uint, permissionName string) error
-}
-
-type TeamAgentStorage interface {
-	CreateTeamAgent(teamAgent *TeamAgent) error
-	AddAgentToTeam(agentID uint, teamID uint) error
-	GetAgentsByTeam(teamID uint) ([]*Agents, error)
-	GetTeamsByAgent(agentID uint) ([]*Teams, error)
-	RemoveAgentFromTeam(agentID uint, teamID uint) error
-}
-
 // AgentDBModel handles database operations for Agent
 type AgentDBModel struct {
-	DB *gorm.DB
+	DB  *gorm.DB
+	log Logger
 }
 
 // NewAgentDBModel creates a new instance of AgentDBModel
-func NewAgentDBModel(db *gorm.DB) *AgentDBModel {
+func NewAgentDBModel(db *gorm.DB, log Logger) *AgentDBModel {
 	return &AgentDBModel{
-		DB: db,
+		DB:  db,
+		log: log,
 	}
 }
 
-func (db *AgentDBModel) LogAgentActivity(log AgentActivityLog) error {
-	return db.DB.Create(&log).Error
+type Logger interface {
+	Error(args ...interface{})
+	Info(args ...interface{})
 }
 
-// CreateAgent adds a new agent to the database.
+func (repo *AgentDBModel) CreateAgent2(agent *Agents) error {
+	return repo.DB.Create(agent).Error
+}
+
+// CreateAgent adds a new user to the database with transactional integrity.
 func (db *AgentDBModel) CreateAgent(agent *Agents) error {
 	return db.DB.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Create(agent).Error; err != nil {
@@ -371,107 +355,154 @@ func (db *AgentDBModel) CreateAgent(agent *Agents) error {
 	})
 }
 
-// DeleteAgent deletes an agent by their ID.
-func (db *AgentDBModel) DeleteAgent(agentID uint) error {
-	tx := db.DB.Begin()
-	if tx.Error != nil {
-		return tx.Error
-	}
-
-	if err := tx.Delete(&Agents{}, agentID).Error; err != nil {
-		tx.Rollback()
-		return err
-	}
-
-	return tx.Commit().Error
+func (repo *AgentDBModel) UpdateAgent(agent *Agents) error {
+	return repo.DB.Save(agent).Error
 }
 
-// UpdateAgent updates an existing agent's information.
-func (db *AgentDBModel) UpdateAgent(agent *Agents) error {
-	if agent == nil {
-		return errors.New("provided agent is nil")
-	}
-
-	tx := db.DB.Begin()
-	if tx.Error != nil {
-		return tx.Error
-	}
-
-	if err := tx.Save(agent).Error; err != nil {
-		tx.Rollback()
-		return err
-	}
-
-	return tx.Commit().Error
+func (repo *AgentDBModel) DeleteAgent(id uint) error {
+	return repo.DB.Delete(&Agents{}, id).Error
 }
 
-// GetAgentByID retrieves an agent by their ID.
-func (model *AgentDBModel) GetAgentByID(id uint) (*Agents, error) {
+// GetAgentByID retrieves an agent by their ID with related roles preloaded.
+func (repo *AgentDBModel) GetAgentByID(id uint) (*Agents, error) {
 	var agent Agents
-	result := model.DB.Preload("Roles").Where("id = ?", id).First(&agent)
-
-	if result.Error != nil {
-		return nil, result.Error
+	err := repo.DB.Preload("Roles").Where("id = ?", id).First(&agent).Error
+	if err != nil {
+		// Assuming a logging function is available
+		repo.log.Error("Error retrieving agent by ID: %v", err)
+		return nil, err
 	}
 	return &agent, nil
 }
 
-// GetAgentByNumber retrieves an Agent by their agent number.
-func (as *AgentDBModel) GetAgentByNumber(agentNumber int) (*Agents, error) {
-	var agent Agents
-	err := as.DB.Where("agent_id = ?", agentNumber).First(&agent).Error
-	return &agent, err
-}
-
-// GetAllAgents retrieves all agents from the database.
-func (as *AgentDBModel) GetAllAgents() ([]*Agents, error) {
+// GetAllAgents retrieves all agents with enhanced error handling and logging.
+func (repo *AgentDBModel) GetAllAgents() ([]*Agents, error) {
 	var agents []*Agents
-	result := as.DB.Preload("Roles").Find(&agents)
-
-	if result.Error != nil {
-		return nil, result.Error
+	if err := repo.DB.Preload("Roles").Find(&agents).Error; err != nil {
+		repo.log.Error("Failed to retrieve all agents: %v", err)
+		return nil, err
 	}
 	return agents, nil
 }
 
-// AssignRoleToAgent assigns a set of roles to an agent.
-func (db *AgentDBModel) AssignRoleToAgent(agentID uint, roleIDs []uint) error {
-	return db.DB.Transaction(func(tx *gorm.DB) error {
-		var agent Agents
-		if err := tx.First(&agent, agentID).Error; err != nil {
-			return err
-		}
+// GetAgentRoles fetches roles associated with an agent with enhanced error handling.
+func (repo *AgentDBModel) GetAgentRoles(agentID uint) ([]*Role, error) {
+	var roles []*Role
+	if err := repo.DB.Table("agent_roles").Select("roles.*").
+		Joins("join roles on roles.id = agent_roles.role_id").
+		Where("agent_roles.agent_id = ?", agentID).Scan(&roles).Error; err != nil {
+		repo.log.Error("Failed to retrieve agent roles: %v", err)
+		return nil, err
+	}
+	return roles, nil
+}
 
-		if err := tx.Model(&agent).Association("Roles").Replace(roleIDs); err != nil {
+// LogAgentActivity encapsulates the logging of an agent's activity within a transaction.
+func (db *AgentDBModel) LogAgentActivity(activity *AgentActivityLog) error {
+	return db.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(activity).Error; err != nil {
+			db.log.Error("Failed to log agent activity: %v", err)
 			return err
 		}
 		return nil
 	})
 }
 
-// RevokeRoleFromAgent removes a role from an agent.
-func (model *AgentDBModel) RevokeRoleFromAgent(agentID, roleID uint) error {
+// GetAgentByNumber retrieves an Agent by their agent number with proper error handling and logging.
+func (as *AgentDBModel) GetAgentByNumber(agentNumber int) (*Agents, error) {
 	var agent Agents
-	if err := model.DB.First(&agent, agentID).Error; err != nil {
-		return err
-	}
-
-	return model.DB.Model(&agent).Association("Roles").Delete(roleID)
-}
-
-// GetAgentRoles retrieves all roles associated with an agent.
-func (model *AgentDBModel) GetAgentRoles(agentID uint) ([]Role, error) {
-	var roles []Role
-	err := model.DB.Table("roles").
-		Joins("join agent_roles on roles.id = agent_roles.role_id").
-		Where("agent_roles.agent_id = ?", agentID).
-		Scan(&roles).Error
-
+	err := as.DB.Where("agent_number = ?", agentNumber).First(&agent).Error
 	if err != nil {
+		as.log.Error("Error retrieving agent by number: %v", err)
 		return nil, err
 	}
+	return &agent, nil
+}
 
-	return roles, nil
+// AssignRoleToAgent assigns a single role to an agent, ensuring transactional integrity and logging.
+func (db *AgentDBModel) AssignRoleToAgent(agentID uint, roleIDs []uint) error {
+	return db.DB.Transaction(func(tx *gorm.DB) error {
+		var agent Agents
+		if err := tx.First(&agent, agentID).Error; err != nil {
+			db.log.Error("Error finding agent by ID during role assignment: %v", err)
+			return err
+		}
+		if err := tx.Model(&agent).Association("Roles").Replace(roleIDs); err != nil {
+			db.log.Error("Error assigning role to agent: %v", err)
+			return err
+		}
+		return nil
+	})
+}
+
+// AssignRolesToAgent assigns roles to an agent by role names.
+func (repo *AgentDBModel) AssignRolesToAgent(agentID uint, roleNames []string) error {
+	return repo.DB.Transaction(func(tx *gorm.DB) error {
+		var roles []Role
+		if err := tx.Where("name IN ?", roleNames).Find(&roles).Error; err != nil {
+			repo.log.Error("Error finding roles by names: %v", err)
+			return err
+		}
+		if err := tx.Model(&Agents{ID: agentID}).Association("Roles").Replace(roles); err != nil {
+			repo.log.Error("Error assigning roles to agent: %v", err)
+			return err
+		}
+		return nil
+	})
+}
+
+// RevokeRoleFromAgent removes a role from an agent with improved transactional handling and error logging.
+func (repo *AgentDBModel) RevokeRoleFromAgent(agentID uint, roleName string) error {
+	return repo.DB.Transaction(func(tx *gorm.DB) error {
+		var role Role
+		if err := tx.Where("name = ?", roleName).First(&role).Error; err != nil {
+			repo.log.Error("Failed to find role by name: %v", err)
+			return err
+		}
+		if err := tx.Model(&Agents{ID: agentID}).Association("Roles").Delete(&role); err != nil {
+			repo.log.Error("Failed to revoke role from agent: %v", err)
+			return err
+		}
+		return nil
+	})
+}
+
+// AssignRolesToAgentByIDOrName assigns roles to an agent by either ID or name, with full transaction support and logging.
+func (db *AgentDBModel) AssignRolesToAgentByIDOrName(agentID uint, roleIdentifiers []interface{}) error {
+	return db.DB.Transaction(func(tx *gorm.DB) error {
+		var agent Agents
+		if err := tx.First(&agent, agentID).Error; err != nil {
+			db.log.Error("Failed to find agent during role assignment: %v", err)
+			return err
+		}
+		var roles []Role
+		for _, identifier := range roleIdentifiers {
+			switch id := identifier.(type) {
+			case uint:
+				var role Role
+				if err := tx.Where("id = ?", id).First(&role).Error; err != nil {
+					db.log.Error("Failed to find role by ID: %v", err)
+					return err
+				}
+				roles = append(roles, role)
+			case string:
+				var role Role
+				if err := tx.Where("name = ?", id).First(&role).Error; err != nil {
+					db.log.Error("Failed to find role by name: %v", err)
+					return err
+				}
+				roles = append(roles, role)
+			default:
+				db.log.Error("Unsupported role identifier type")
+				return fmt.Errorf("unsupported role identifier type")
+			}
+		}
+		if err := tx.Model(&agent).Association("Roles").Replace(roles); err != nil {
+			db.log.Error("Failed to assign roles to agent: %v", err)
+			return err
+		}
+		return nil
+	})
 }
 
 // GetRolesByAgent retrieves all roles associated with an Agent.
@@ -483,113 +514,140 @@ func (as *AgentDBModel) GetRolesByAgent(agentID uint) ([]Role, error) {
 	return agent.Roles, nil
 }
 
-// RevokePermissionFromRole revokes a permission from a role.
+// RevokePermissionFromRole demonstrates enhanced transactional integrity and error handling when revoking a permission from a role.
 func (as *AgentDBModel) RevokePermissionFromRole(roleName string, permissionName string) error {
-	role, err := as.GetRoleByName(roleName)
-	if err != nil {
-		return err
-	}
-
-	permission, err := as.GetPermissionByName(permissionName)
-	if err != nil {
-		return err
-	}
-
-	// Implement logic to revoke the permission from the role.
-	// Example: Delete the corresponding role-permission relationship record.
-	err = as.DB.Where("role_id = ? AND permission_id = ?", role.ID, permission.ID).Delete(&RolePermission{}).Error
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// CreateUnit creates a new unit.
-func (as *AgentDBModel) CreateUnit(unit *Unit) error {
-	return as.DB.Create(unit).Error
-}
-
-// DeleteUnit deletes a unit from the database.
-func (as *AgentDBModel) DeleteUnit(id uint) error {
-	return as.DB.Delete(&Unit{}, id).Error
-}
-
-// UpdateUnit updates the details of an existing unit.
-func (as *AgentDBModel) UpdateUnit(unit *Unit) error {
-	return as.DB.Save(unit).Error
-}
-
-// GetUnits retrieves all units from the database.
-func (as *AgentDBModel) GetUnits() ([]*Unit, error) {
-	var units []*Unit
-	err := as.DB.Find(&units).Error
-	return units, err
-}
-
-// GetUnitByID retrieves a unit by its ID.
-func (as *AgentDBModel) GetUnitByID(id uint) (*Unit, error) {
-	var unit Unit
-	err := as.DB.Where("id = ?", id).First(&unit).Error
-	return &unit, err
-}
-
-// GetUnitByNumber retrieves a unit by its unit number.
-func (as *AgentDBModel) GetUnitByNumber(unitNumber int) (*Unit, error) {
-	var unit Unit
-	err := as.DB.Where("unit_id = ?", unitNumber).First(&unit).Error
-	return &unit, err
-}
-
-// CreateTeam adds a new team to the database with comprehensive error handling.
-func (db *AgentDBModel) CreateTeam(team *Teams) error {
-	return db.DB.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Create(team).Error; err != nil {
-			return err // Rollback on error
-		}
-		return nil // Commit if no error
-	})
-}
-
-// UpdateTeam updates an existing team's details with transactional integrity.
-func (db *AgentDBModel) UpdateTeam(team *Teams) error {
-	return db.DB.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Save(team).Error; err != nil {
-			return err // Rollback on error
-		}
-		return nil // Commit if no error
-	})
-}
-
-// AssignAgentToTeam assigns an agent to a team, ensuring the assignment is unique and handled transactionally.
-func (db *AgentDBModel) AssignAgentToTeam(agentID, teamID uint) error {
-	return db.DB.Transaction(func(tx *gorm.DB) error {
-		var teamAgent TeamAgent
-		// Check if the agent is already assigned to the team to prevent duplicate entries
-		err := tx.Where("agent_id = ? AND team_id = ?", agentID, teamID).First(&teamAgent).Error
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			// The assignment does not exist; proceed to create a new one
-			teamAgent = TeamAgent{AgentID: agentID, TeamID: teamID}
-			if err := tx.Create(&teamAgent).Error; err != nil {
-				return err // Rollback on error
-			}
-		} else if err != nil {
-			// An unexpected error occurred; rollback the transaction
+	return as.DB.Transaction(func(tx *gorm.DB) error {
+		var role Role
+		var permission Permission
+		if err := tx.Where("name = ?", roleName).First(&role).Error; err != nil {
+			as.log.Error("Error finding role by name: %v", err)
 			return err
 		}
-		// The assignment already exists or has been successfully created
+		if err := tx.Where("name = ?", permissionName).First(&permission).Error; err != nil {
+			as.log.Error("Error finding permission by name: %v", err)
+			return err
+		}
+		if err := tx.Where("role_id = ? AND permission_id = ?", role.ID, permission.ID).Delete(&RolePermission{}).Error; err != nil {
+			as.log.Error("Error revoking permission from role: %v", err)
+			return err
+		}
 		return nil
 	})
 }
 
-// RemoveAgentFromTeam removes an agent from a specific team with transactional integrity.
+// CreateUnit handles the creation of a new unit with transactional integrity and logging.
+func (as *AgentDBModel) CreateUnit(unit *Unit) error {
+	return as.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(unit).Error; err != nil {
+			as.log.Error("Failed to create unit: %v", err)
+			return err
+		}
+		return nil
+	})
+}
+
+// UpdateUnit manages the update of an existing unit within a transaction, including error handling and logging.
+func (as *AgentDBModel) UpdateUnit(unit *Unit) error {
+	return as.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Save(unit).Error; err != nil {
+			as.log.Error("Failed to update unit: %v", err)
+			return err
+		}
+		return nil
+	})
+}
+
+// DeleteUnit removes a unit from the database with robust transactional support and comprehensive logging.
+func (as *AgentDBModel) DeleteUnit(id uint) error {
+	return as.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Delete(&Unit{}, id).Error; err != nil {
+			as.log.Error("Failed to delete unit: %v", err)
+			return err
+		}
+		return nil
+	})
+}
+
+// GetUnits retrieves all units from the database, with improved error handling and logging.
+func (as *AgentDBModel) GetUnits() ([]*Unit, error) {
+	var units []*Unit
+	if err := as.DB.Find(&units).Error; err != nil {
+		as.log.Error("Failed to retrieve units: %v", err)
+		return nil, err
+	}
+	return units, nil
+}
+
+// GetUnitByID fetches a unit by its ID, incorporating error handling and logging for improved robustness.
+func (as *AgentDBModel) GetUnitByID(id uint) (*Unit, error) {
+	var unit Unit
+	if err := as.DB.Where("id = ?", id).First(&unit).Error; err != nil {
+		as.log.Error("Failed to retrieve unit by ID: %v", err)
+		return nil, err
+	}
+	return &unit, nil
+}
+
+// CreateTeam adds a new team to the database, ensuring transactional integrity and logging any errors encountered.
+func (db *AgentDBModel) CreateTeam(team *Teams) error {
+	return db.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(team).Error; err != nil {
+			db.log.Error("Failed to create team: %v", err)
+			return err
+		}
+		return nil
+	})
+}
+
+// UpdateTeam updates an existing team's details, wrapping the operation in a transaction for integrity and logging errors.
+func (db *AgentDBModel) UpdateTeam(team *Teams) error {
+	return db.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Save(team).Error; err != nil {
+			db.log.Error("Failed to update team: %v", err)
+			return err
+		}
+		return nil
+	})
+}
+
+// AssignAgentToTeam manages the assignment of an agent to a team, ensuring the operation is transactional and errors are logged.
+func (db *AgentDBModel) AssignAgentToTeam(agentID, teamID uint) error {
+	return db.DB.Transaction(func(tx *gorm.DB) error {
+		var teamAgent TeamAgent
+		err := tx.Where("agent_id = ? AND team_id = ?", agentID, teamID).First(&teamAgent).Error
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			teamAgent = TeamAgent{AgentID: agentID, TeamID: teamID}
+			if err := tx.Create(&teamAgent).Error; err != nil {
+				db.log.Error("Failed to assign agent to team: %v", err)
+				return err
+			}
+		} else if err != nil {
+			db.log.Error("Unexpected error during agent-team assignment: %v", err)
+			return err
+		}
+		return nil
+	})
+}
+
+// RemoveAgentFromTeam orchestrates the removal of an agent from a team within a transaction, complete with error handling and logging.
 func (db *AgentDBModel) RemoveAgentFromTeam(agentID, teamID uint) error {
 	return db.DB.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Where("agent_id = ? AND team_id = ?", agentID, teamID).Delete(&TeamAgent{}).Error; err != nil {
-			return err // Rollback on error
+			db.log.Error("Failed to remove agent from team: %v", err)
+			return err
 		}
-		return nil // Commit if no error
+		return nil
 	})
+}
+
+// GetTeamByID retrieves a team by its ID, incorporating error checks and logging for improved maintainability.
+func (as *AgentDBModel) GetTeamByID(id uint) (*Teams, error) {
+	var team Teams
+	if err := as.DB.Where("id = ?", id).First(&team).Error; err != nil {
+		as.log.Error("Failed to retrieve team by ID: %v", err)
+		return nil, err
+	}
+	return &team, nil
 }
 
 // DeleteTeam deletes a team from the database.
@@ -605,52 +663,52 @@ func (as *AgentDBModel) GetTeams() ([]*Teams, error) {
 }
 
 // GetTeamByID retrieves a team by its ID.
-func (as *AgentDBModel) GetTeamByID(id uint) (*Teams, error) {
+func (as *AgentDBModel) GetTeamByID2(id uint) (*Teams, error) {
 	var team Teams
 	err := as.DB.Where("id = ?", id).First(&team).Error
 	return &team, err
 }
 
-// AssignAgentToTeam assigns an agent to a team, ensuring the assignment is unique.
+// AssignAgentToTeam2 enhances the assignment of an agent to a team with additional checks and logging.
 func (db *AgentDBModel) AssignAgentToTeam2(agentID, teamID uint) error {
 	return db.DB.Transaction(func(tx *gorm.DB) error {
 		var teamAgent TeamAgent
 		// Check if the agent is already assigned to the team to prevent duplicate entries
-		if err := tx.Where("agent_id = ? AND team_id = ?", agentID, teamID).First(&teamAgent).Error; err != nil {
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				// The assignment does not exist; proceed to create a new one
-				teamAgent = TeamAgent{AgentID: agentID, TeamID: teamID}
-				if err := tx.Create(&teamAgent).Error; err != nil {
-					// Error encountered while creating the assignment; rollback the transaction
-					return err
-				}
-			} else {
-				// An unexpected error occurred; rollback the transaction
-				return err
+		err := tx.Where("agent_id = ? AND team_id = ?", agentID, teamID).First(&teamAgent).Error
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			// The assignment does not exist; proceed to create a new one
+			teamAgent = TeamAgent{AgentID: agentID, TeamID: teamID}
+			if err := tx.Create(&teamAgent).Error; err != nil {
+				db.log.Error("Failed to assign agent to team: %v", err)
+				return err // Error encountered while creating the assignment; rollback the transaction
 			}
+		} else if err != nil {
+			db.log.Error("Unexpected error during agent-team assignment check: %v", err)
+			return err // An unexpected error occurred; rollback the transaction
 		}
 		// The assignment already exists or has been successfully created
 		return nil
 	})
 }
 
-// RemoveAgentFromTeam removes an agent from a specific team.
+// RemoveAgentFromTeam2 refines the process of removing an agent from a specific team, with enhanced error handling and logging.
 func (db *AgentDBModel) RemoveAgentFromTeam2(agentID, teamID uint) error {
 	return db.DB.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Where("agent_id = ? AND team_id = ?", agentID, teamID).Delete(&TeamAgent{}).Error; err != nil {
-			// Error encountered while removing the assignment; rollback the transaction
-			return err
+			db.log.Error("Failed to remove agent from team: %v", err)
+			return err // Error encountered while removing the assignment; rollback the transaction
 		}
 		// Successfully removed the assignment
 		return nil
 	})
 }
 
-// RemoveAgentFromTeams safely removes an agent from multiple teams.
+// RemoveAgentFromTeams facilitates the safe removal of an agent from multiple teams with proper transactional control and logging.
 func (db *AgentDBModel) RemoveAgentFromTeams(agentID uint, teamIDs []uint) error {
 	return db.DB.Transaction(func(tx *gorm.DB) error {
 		for _, teamID := range teamIDs {
 			if err := tx.Where("agent_id = ? AND team_id = ?", agentID, teamID).Delete(&TeamAgent{}).Error; err != nil {
+				db.log.Error("Failed to remove agent from team %d: %v", teamID, err)
 				return err // Rollback transaction on error
 			}
 		}
@@ -658,22 +716,24 @@ func (db *AgentDBModel) RemoveAgentFromTeams(agentID uint, teamIDs []uint) error
 	})
 }
 
-// GetTeamsByAgent retrieves all teams associated with an agent.
+// GetTeamsByAgent enhances the retrieval of all teams associated with an agent, including error handling and logging.
 func (model *AgentDBModel) GetTeamsByAgent(agentID uint) ([]Teams, error) {
 	var teams []Teams
 	err := model.DB.Joins("JOIN team_agents ON teams.id = team_agents.team_id").
 		Where("team_agents.agent_id = ?", agentID).Find(&teams).Error
 	if err != nil {
+		model.log.Error("Failed to retrieve teams by agent: %v", err)
 		return nil, err
 	}
 	return teams, nil
 }
 
-// UpdateAgentPermissions updates an agent's permissions comprehensively, ensuring transactional integrity.
+// UpdateAgentPermissions enhances the update of an agent's permissions, ensuring transactional integrity, error handling, and logging.
 func (db *AgentDBModel) UpdateAgentPermissions(agentID uint, newPermissionIDs []uint) error {
 	return db.DB.Transaction(func(tx *gorm.DB) error {
 		// First, remove any existing permissions that are not in the newPermissionIDs list
 		if err := tx.Where("agent_id = ? AND permission_id NOT IN ?", agentID, newPermissionIDs).Delete(&AgentPermission{}).Error; err != nil {
+			db.log.Error("Failed to update agent permissions: %v", err)
 			return err // Rollback on error
 		}
 
@@ -684,6 +744,7 @@ func (db *AgentDBModel) UpdateAgentPermissions(agentID uint, newPermissionIDs []
 			if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 				// Permission does not exist for this agent; proceed to add it
 				if err := tx.Create(&AgentPermission{AgentID: agentID, PermissionID: permissionID}).Error; err != nil {
+					db.log.Error("Failed to add new permission to agent: %v", err)
 					return err // Rollback on error
 				}
 			} // Ignore any found records, as we do not need to add existing permissions
@@ -693,7 +754,7 @@ func (db *AgentDBModel) UpdateAgentPermissions(agentID uint, newPermissionIDs []
 	})
 }
 
-// AssignRolesToAgent assigns roles to an agent.
+// AssignRolesToAgent2 refines the process of assigning roles to an agent, with comprehensive transaction management, error handling, and logging.
 func (as *AgentDBModel) AssignRolesToAgent2(agentID uint, roleNames []string) error {
 	if len(roleNames) == 0 {
 		return fmt.Errorf("no role names provided")
@@ -701,6 +762,7 @@ func (as *AgentDBModel) AssignRolesToAgent2(agentID uint, roleNames []string) er
 
 	agent, err := as.GetAgentByID(agentID)
 	if err != nil {
+		as.log.Error("Failed to retrieve agent by ID during role assignment: %v", err)
 		return err
 	}
 
@@ -708,6 +770,7 @@ func (as *AgentDBModel) AssignRolesToAgent2(agentID uint, roleNames []string) er
 	for i, roleName := range roleNames {
 		role, err := as.GetRoleByName(roleName)
 		if err != nil {
+			as.log.Error("Failed to retrieve role by name '%s': %v", roleName, err)
 			return err
 		}
 		roles[i] = *role
@@ -718,10 +781,11 @@ func (as *AgentDBModel) AssignRolesToAgent2(agentID uint, roleNames []string) er
 	return as.UpdateAgent(agent)
 }
 
-// RevokeRoleFromAgent revokes a role from an agent.
+// RevokeRoleFromAgent2 enhances the process of revoking a role from an agent, with error handling and logging.
 func (as *AgentDBModel) RevokeRoleFromAgent2(agentID uint, roleName string) error {
 	agent, err := as.GetAgentByID(agentID)
 	if err != nil {
+		as.log.Error("Failed to retrieve agent by ID during role revocation: %v", err)
 		return err
 	}
 
@@ -736,10 +800,11 @@ func (as *AgentDBModel) RevokeRoleFromAgent2(agentID uint, roleName string) erro
 	return as.UpdateAgent(agent)
 }
 
-// GetAgentPermissions retrieves all permissions associated with an agent's roles.
+// GetAgentPermissions enhances the retrieval of all permissions associated with an agent's roles, including error handling and logging.
 func (as *AgentDBModel) GetAgentPermissions(agentID uint) ([]*Permission, error) {
 	agent, err := as.GetAgentByID(agentID)
 	if err != nil {
+		as.log.Error("Failed to retrieve agent by ID during permission retrieval: %v", err)
 		return nil, err
 	}
 
@@ -747,6 +812,7 @@ func (as *AgentDBModel) GetAgentPermissions(agentID uint) ([]*Permission, error)
 	for _, role := range agent.Roles {
 		rolePermissions, err := as.GetPermissionsByRole(role.RoleName)
 		if err != nil {
+			as.log.Error("Failed to retrieve permissions by role during agent permission retrieval: %v", err)
 			return nil, err
 		}
 		permissions = append(permissions, rolePermissions...)
@@ -755,64 +821,141 @@ func (as *AgentDBModel) GetAgentPermissions(agentID uint) ([]*Permission, error)
 	return permissions, nil
 }
 
-// GetPermissionsByAgent retrieves all permissions associated with an agent.
+// GetPermissionsByAgent enhances the retrieval of all permissions associated with an agent, ensuring efficient query handling and error logging.
 func (model *AgentDBModel) GetPermissionsByAgent(agentID uint) ([]Permission, error) {
 	var permissions []Permission
 	err := model.DB.Table("permissions").
 		Joins("JOIN agent_permissions ON permissions.id = agent_permissions.permission_id").
 		Where("agent_permissions.agent_id = ?", agentID).Scan(&permissions).Error
 	if err != nil {
+		model.log.Error("Failed to retrieve permissions for agent %d: %v", agentID, err)
 		return nil, err
 	}
 	return permissions, nil
 }
 
-// CreateRolePermission creates a new role-permission association.
+// CreateRolePermission creates a new role-permission association with proper error handling and transactional integrity.
 func (as *AgentDBModel) CreateRolePermission(roleID uint, permissionID uint) error {
 	rolePermission := RolePermission{RoleID: roleID, PermissionID: permissionID}
-	return as.DB.Create(&rolePermission).Error
+	return as.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(&rolePermission).Error; err != nil {
+			as.log.Error("Failed to create role-permission association: %v", err)
+			return err // Rollback on error
+		}
+		return nil // Commit if no error
+	})
 }
 
-// GrantPermissionToAgent grants a specific permission to an agent.
+// GrantPermissionToAgent grants a specific permission to an agent, ensuring the process is managed within a transaction for data integrity.
 func (model *AgentDBModel) GrantPermissionToAgent(agentID, permissionID uint) error {
-	agentPermission := AgentPermission{AgentID: agentID, PermissionID: permissionID}
-	result := model.DB.Where(&AgentPermission{AgentID: agentID, PermissionID: permissionID}).FirstOrCreate(&agentPermission)
-	return result.Error
+	return model.DB.Transaction(func(tx *gorm.DB) error {
+		agentPermission := AgentPermission{AgentID: agentID, PermissionID: permissionID}
+		if err := tx.FirstOrCreate(&agentPermission, AgentPermission{AgentID: agentID, PermissionID: permissionID}).Error; err != nil {
+			model.log.Error("Failed to grant permission to agent: %v", err)
+			return err // Rollback on error
+		}
+		return nil // Commit if successful
+	})
 }
 
-// RevokePermissionFromAgent revokes a specific permission from an agent.
+// RevokePermissionFromAgent refines the process of revoking a specific permission from an agent, incorporating transactional control and enhanced logging.
 func (model *AgentDBModel) RevokePermissionFromAgent(agentID, permissionID uint) error {
-	return model.DB.Where("agent_id = ? AND permission_id = ?", agentID, permissionID).Delete(&AgentPermission{}).Error
+	return model.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("agent_id = ? AND permission_id = ?", agentID, permissionID).Delete(&AgentPermission{}).Error; err != nil {
+			model.log.Error("Failed to revoke permission from agent: %v", err)
+			return err // Rollback on error
+		}
+		return nil // Commit if successful
+	})
 }
 
-// UpdateAgentRolesAndPermissions updates both roles and permissions for an agent.
+// UpdateAgentRolesAndPermissions updates both roles and permissions for an agent, ensuring that all operations are performed within a single transaction for consistency.
 func (db *AgentDBModel) UpdateAgentRolesAndPermissions(agentID uint, newRoleIDs, newPermissionIDs []uint) error {
 	return db.DB.Transaction(func(tx *gorm.DB) error {
 		// Update roles
-		if err := updateAgentRolesWithinTransaction(tx, agentID, newRoleIDs); err != nil {
+		if err := db.updateAgentRolesWithinTransaction(tx, agentID, newRoleIDs); err != nil {
+			db.log.Error("Failed to update agent roles: %v", err)
 			return err
 		}
 		// Update permissions
-		if err := updateAgentPermissionsWithinTransaction(tx, agentID, newPermissionIDs); err != nil {
+		if err := db.updateAgentPermissionsWithinTransaction(tx, agentID, newPermissionIDs); err != nil {
+			db.log.Error("Failed to update agent permissions: %v", err)
 			return err
 		}
 		return nil // Commit transaction if both updates succeed
 	})
 }
 
-func updateAgentRolesWithinTransaction(tx *gorm.DB, agentID uint, newRoleIDs []uint) error {
+func (db *AgentDBModel) updateAgentRolesWithinTransaction(tx *gorm.DB, agentID uint, newRoleIDs []uint) error {
 	// Logic to update agent's roles based on newRoleIDs
-	// Similar to the UpdateAgentPermissions logic, with appropriate adjustments for roles
+	// This function assumes that roles are directly associated with the agent and updates accordingly.
+	if err := tx.Model(&Agents{ID: agentID}).Association("Roles").Replace(newRoleIDs); err != nil {
+		db.log.Error("Failed to update roles within transaction: %v", err)
+		return err
+	}
 	return nil
 }
 
-func updateAgentPermissionsWithinTransaction(tx *gorm.DB, agentID uint, newPermissionIDs []uint) error {
+func (db *AgentDBModel) updateAgentPermissionsWithinTransaction(tx *gorm.DB, agentID uint, newPermissionIDs []uint) error {
 	// Similar logic to UpdateAgentPermissions example provided earlier
+	// Remove old permissions not in the new list and add new permissions
+	if err := tx.Where("agent_id = ? AND permission_id NOT IN ?", agentID, newPermissionIDs).Delete(&AgentPermission{}).Error; err != nil {
+		db.log.Error("Failed to remove old permissions within transaction: %v", err)
+		return err
+	}
+	for _, permissionID := range newPermissionIDs {
+		if err := tx.FirstOrCreate(&AgentPermission{AgentID: agentID, PermissionID: permissionID}).Error; err != nil {
+			db.log.Error("Failed to add new permission within transaction: %v", err)
+			return err
+		}
+	}
 	return nil
+}
+
+// AssignPermissionsToAgent refines the process of assigning permissions to an agent by ensuring the operation is performed within a transaction.
+func (repo *AgentDBModel) AssignPermissionsToAgent(agentID uint, permissionNames []string, publish func(event interface{}) error) error {
+	return repo.DB.Transaction(func(tx *gorm.DB) error {
+		var permissions []Permission
+		if err := tx.Where("name IN ?", permissionNames).Find(&permissions).Error; err != nil {
+			repo.log.Error("Failed to find permissions during assignment: %v", err)
+			return err
+		}
+
+		for _, perm := range permissions {
+			ap := AgentPermission{
+				AgentID:      agentID,
+				PermissionID: perm.ID,
+			}
+			// Avoid duplicating permissions
+			if err := tx.FirstOrCreate(&ap, AgentPermission{AgentID: agentID, PermissionID: perm.ID}).Error; err != nil {
+				repo.log.Error("Failed to assign permission to agent within transaction: %v", err)
+				return err
+			}
+
+			// Asynchronously publish an event for each permission assignment
+			go func(perm Permission) {
+				event := struct {
+					AgentID      uint
+					PermissionID uint
+					Message      string
+				}{
+					AgentID:      agentID,
+					PermissionID: perm.ID,
+					Message:      "Permission assigned to agent",
+				}
+
+				if err := publish(event); err != nil {
+					// Log error without failing the transaction
+					repo.log.Error("Failed to publish permission assignment event: %v", err)
+				}
+			}(perm)
+		}
+		return nil
+	})
 }
 
 // AssignPermissionsToAgent assigns permissions to an agent's roles.
-func (as *AgentDBModel) AssignPermissionsToAgent2(agentID uint, permissionNames []string) error {
+func (as *AgentDBModel) AssignPermissionsToAgent3(agentID uint, permissionNames []string) error {
 	if len(permissionNames) == 0 {
 		return fmt.Errorf("no permission names provided")
 	}
@@ -1274,7 +1417,7 @@ func (db *AgentDBModel) AssignPermissionsToRole(roleID uint, permissionIDs []uin
 }
 
 // UpdateRole updates an existing role's details, including its permissions, within a transaction.
-func (db *AgentDBModel) UpdateRole(role *Role, permissionIDs []uint) error {
+func (db *AgentDBModel) UpdateRoleWithPermissions(role *Role, permissionIDs []uint) error {
 	return db.DB.Transaction(func(tx *gorm.DB) error {
 		// Update role details
 		if err := tx.Save(role).Error; err != nil {
@@ -1532,6 +1675,20 @@ func (as *AgentDBModel) GetTeamPermission(teamID uint) (*TeamPermission, error) 
 	// You might need to join rolePermissions and permissions tables.
 
 	var teamPermissions *TeamPermission
+	err := as.DB.Where("team_id = ?", teamID).Find(&teamPermissions).Error
+	if err != nil {
+		return nil, err
+	}
+
+	return teamPermissions, nil
+}
+
+// GetTeamPermissionPairs retrieves all role-permission pairs associated with a role.
+func (as *AgentDBModel) GetTeamPermissions(teamID uint) ([]*TeamPermission, error) {
+	// Implement logic to retrieve role-permission pairs associated with the role.
+	// You might need to join rolePermissions and permissions tables.
+
+	var teamPermissions []*TeamPermission
 	err := as.DB.Where("team_id = ?", teamID).Find(&teamPermissions).Error
 	if err != nil {
 		return nil, err
@@ -1866,6 +2023,245 @@ func (db *AgentDBModel) PerformComplexOperationWithTransaction(agentID uint, tea
 	})
 }
 
+//////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// UpdateRole updates an existing role's details.
+func (db *AgentDBModel) UpdateRole(role *Role) error {
+	return db.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Save(role).Error; err != nil {
+			db.log.Error("Failed to update role: %v", err)
+			return err // Error updating role, rollback
+		}
+		return nil // Success, commit the transaction
+	})
+}
+
+// GetUnitByNumber retrieves a unit by its unit number.
+func (db *AgentDBModel) GetUnitByNumber(unitNumber int) (*Unit, error) {
+	var unit Unit
+	err := db.DB.Where("unit_number = ?", unitNumber).First(&unit).Error
+	if err != nil {
+		db.log.Error("Failed to retrieve unit by number: %v", err)
+		return nil, err
+	}
+	return &unit, nil
+}
+
+// AssignRolesToAgentByRoleID assigns roles to an agent by role IDs.
+func (db *AgentDBModel) AssignRolesToAgentByRoleID(agentID uint, roleIDs []uint) error {
+	return db.DB.Transaction(func(tx *gorm.DB) error {
+		var agent Agents
+		if err := tx.First(&agent, agentID).Error; err != nil {
+			db.log.Error("Failed to find agent during role assignment by ID: %v", err)
+			return err
+		}
+		if err := tx.Model(&agent).Association("Roles").Replace(roleIDs); err != nil {
+			db.log.Error("Failed to assign roles to agent by ID: %v", err)
+			return err
+		}
+		return nil
+	})
+}
+
+// RevokeRolesFromAgentByRoleIDs revokes roles from an agent by role IDs.
+func (db *AgentDBModel) RevokeRolesFromAgentByRoleIDs(agentID uint, roleIDs []uint) error {
+	return db.DB.Transaction(func(tx *gorm.DB) error {
+		var agent Agents
+		if err := tx.First(&agent, agentID).Error; err != nil {
+			db.log.Error("Failed to find agent during role revocation by ID: %v", err)
+			return err
+		}
+		if err := tx.Model(&agent).Association("Roles").Delete(roleIDs); err != nil {
+			db.log.Error("Failed to revoke roles from agent by ID: %v", err)
+			return err
+		}
+		return nil
+	})
+}
+
+// RevokeRoleFromAgentByRoleName revokes a role from an agent by role name.
+func (db *AgentDBModel) RevokeRoleFromAgentByRoleName(agentID uint, roleName string) error {
+	return db.DB.Transaction(func(tx *gorm.DB) error {
+		var role Role
+		if err := tx.Where("name = ?", roleName).First(&role).Error; err != nil {
+			db.log.Error("Failed to find role by name during revocation: %v", err)
+			return err
+		}
+		if err := tx.Model(&Agents{ID: agentID}).Association("Roles").Delete(&role); err != nil {
+			db.log.Error("Failed to revoke role from agent by name: %v", err)
+			return err
+		}
+		return nil
+	})
+}
+
+// AssignPermissionsToAgentByPermissionNames assigns permissions to an agent by permission names.
+func (db *AgentDBModel) AssignPermissionsToAgentByPermissionNames(agentID uint, permissionNames []string) error {
+	return db.DB.Transaction(func(tx *gorm.DB) error {
+		var permissions []Permission
+		if err := tx.Where("name IN ?", permissionNames).Find(&permissions).Error; err != nil {
+			db.log.Error("Failed to find permissions by name during assignment to agent: %v", err)
+			return err
+		}
+		for _, perm := range permissions {
+			ap := AgentPermission{
+				AgentID:      agentID,
+				PermissionID: perm.ID,
+			}
+			if err := tx.FirstOrCreate(&ap, AgentPermission{AgentID: agentID, PermissionID: perm.ID}).Error; err != nil {
+				db.log.Error("Failed to assign permission to agent by name within transaction: %v", err)
+				return err
+			}
+		}
+		return nil
+	})
+}
+
+// RevokePermissionFromAgentByPermissionName revokes a permission from an agent by permission name.
+func (db *AgentDBModel) RevokePermissionFromAgentByPermissionName(agentID uint, permissionName string) error {
+	return db.DB.Transaction(func(tx *gorm.DB) error {
+		var permission Permission
+		if err := tx.Where("name = ?", permissionName).First(&permission).Error; err != nil {
+			db.log.Error("Failed to find permission by name during revocation from agent: %v", err)
+			return err
+		}
+		if err := tx.Where("agent_id = ? AND permission_id = ?", agentID, permission.ID).Delete(&AgentPermission{}).Error; err != nil {
+			db.log.Error("Failed to revoke permission from agent by name: %v", err)
+			return err
+		}
+		return nil
+	})
+}
+
+// AssignPermissionsToTeamByPermissionNames assigns permissions to a team by permission names.
+func (db *AgentDBModel) AssignPermissionsToTeamByPermissionNames(teamID uint, permissionNames []string) error {
+	return db.DB.Transaction(func(tx *gorm.DB) error {
+		var permissions []*Permission
+		if err := tx.Where("name IN ?", permissionNames).Find(&permissions).Error; err != nil {
+			db.log.Error("Failed to find permissions by name during assignment to team: %v", err)
+			return err
+		}
+		for _, perm := range permissions {
+			perm := append(permissions, perm)
+			tp := TeamPermission{
+				TeamID:      teamID,
+				Permissions: perm,
+			}
+			if err := tx.FirstOrCreate(&tp, TeamPermission{TeamID: teamID, Permissions: perm}).Error; err != nil {
+				db.log.Error("Failed to assign permission to team by name within transaction: %v", err)
+				return err
+			}
+		}
+		return nil
+	})
+}
+
+// AssignPermissionsToTeamByPermissionName assigns a single permission to a team by the permission's name, ensuring transactional integrity and comprehensive logging.
+func (db *AgentDBModel) AssignPermissionsToTeamByPermissionName(teamID uint, permissionName string) error {
+	return db.DB.Transaction(func(tx *gorm.DB) error {
+		// Find the permission by name
+		var permission Permission
+		if err := tx.Where("name = ?", permissionName).First(&permission).Error; err != nil {
+			db.log.Error(fmt.Sprintf("Failed to find permission by name '%s' during assignment to team: %v", permissionName, err))
+			return err // Error finding permission, rollback
+		}
+
+		// Find the team and preload its permissions
+		var team TeamPermission
+		if err := tx.Preload("Permissions").Where("team_id = ?", teamID).First(&team).Error; err != nil {
+			db.log.Error(fmt.Sprintf("Failed to find team by ID '%d' during permission assignment: %v", teamID, err))
+			return err // Error finding team, rollback
+		}
+
+		// Check if the permission is already assigned to avoid duplicates
+		alreadyAssigned := false
+		for _, p := range team.Permissions {
+			if p.ID == permission.ID {
+				alreadyAssigned = true
+				break
+			}
+		}
+
+		if !alreadyAssigned {
+			// Append the permission to the team's permissions and save
+			team.Permissions = append(team.Permissions, &permission)
+			if err := tx.Save(&team).Error; err != nil {
+				db.log.Error(fmt.Sprintf("Failed to assign permission '%s' to team within transaction: %v", permissionName, err))
+				return err // Error assigning permission to team, rollback
+			}
+		} else {
+			db.log.Info(fmt.Sprintf("Permission '%s' already assigned to team; skipping reassignment.", permissionName))
+		}
+
+		return nil // Success, commit the transaction
+	})
+}
+
+// RevokePermissionFromTeamByName revokes a permission from a team by permission name.
+func (db *AgentDBModel) RevokePermissionFromTeamByPermissionName(teamID uint, permissionName string) error {
+	return db.DB.Transaction(func(tx *gorm.DB) error {
+		var permission Permission
+		if err := tx.Where("name = ?", permissionName).First(&permission).Error; err != nil {
+			db.log.Error("Failed to find permission by name during revocation from team: %v", err)
+			return err
+		}
+		if err := tx.Where("team_id = ? AND permission_id = ?", teamID, permission.ID).Delete(&TeamPermission{}).Error; err != nil {
+			db.log.Error("Failed to revoke permission from team by name: %v", err)
+			return err
+		}
+		return nil
+	})
+}
+
+// AddPermissionToRoleByPermissionName adds a permission to a role by permission name.
+func (db *AgentDBModel) AddPermissionToRoleByPermissionName(roleName string, permissionName string) error {
+	return db.DB.Transaction(func(tx *gorm.DB) error {
+		var role Role
+		if err := tx.Where("name = ?", roleName).First(&role).Error; err != nil {
+			db.log.Error("Failed to find role by name during permission addition: %v", err)
+			return err
+		}
+		var permission Permission
+		if err := tx.Where("name = ?", permissionName).First(&permission).Error; err != nil {
+			db.log.Error("Failed to find permission by name during addition to role: %v", err)
+			return err
+		}
+		rp := RolePermission{
+			RoleID:       role.ID,
+			PermissionID: permission.ID,
+		}
+		if err := tx.Create(&rp).Error; err != nil {
+			db.log.Error("Failed to add permission to role by name: %v", err)
+			return err
+		}
+		return nil
+	})
+}
+
+// RemovePermissionFromRoleByPermissionName removes a permission from a role by permission name.
+func (db *AgentDBModel) RemovePermissionFromRoleByPermissionName(roleName string, permissionName string) error {
+	return db.DB.Transaction(func(tx *gorm.DB) error {
+		var role Role
+		if err := tx.Where("name = ?", roleName).First(&role).Error; err != nil {
+			db.log.Error("Failed to find role by name during permission removal: %v", err)
+			return err
+		}
+		var permission Permission
+		if err := tx.Where("name = ?", permissionName).First(&permission).Error; err != nil {
+			db.log.Error("Failed to find permission by name during removal from role: %v", err)
+			return err
+		}
+		if err := tx.Where("role_id = ? AND permission_id = ?", role.ID, permission.ID).Delete(&RolePermission{}).Error; err != nil {
+			db.log.Error("Failed to remove permission from role by name: %v", err)
+			return err
+		}
+		return nil
+	})
+}
+
+// ////////////////////////////////////////////////////////////////////////////////////////////////////
+// ////////////////////////////////////////////////////////////////////////////////////////////////////
 type AgentEvent struct {
 	gorm.Model
 	Title       *string    `gorm:"size:255;not null" json:"title"` // nullable string
@@ -2132,7 +2528,7 @@ type AgentSkillSet struct {
 	Level   string `json:"level" gorm:"type:varchar(100);not null"` // E.g., "Beginner", "Intermediate", "Expert"
 }
 
-// AddAgentSchedule creates a new schedule for an agent with transactional integrity.
+// AddAgentSchedule adds a new schedule for an agent, ensuring data integrity with transactional support.
 func (db *AgentDBModel) AddAgentSchedule(schedule *AgentSchedule) error {
 	return db.DB.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Create(schedule).Error; err != nil {
@@ -2142,17 +2538,44 @@ func (db *AgentDBModel) AddAgentSchedule(schedule *AgentSchedule) error {
 	})
 }
 
-// UpdateAgentSchedule updates an existing agent's schedule within a transaction.
-func (db *AgentDBModel) UpdateAgentSchedule(schedule *AgentSchedule) error {
+// UpdateAgentSchedule updates an existing schedule for an agent, handling changes within a transaction.
+func (db *AgentDBModel) UpdateAgentSchedule(scheduleID uint, newSchedule *AgentSchedule) error {
 	return db.DB.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Save(schedule).Error; err != nil {
-			return err // Rollback on error
+		var schedule AgentSchedule
+		if err := tx.Where("id = ?", scheduleID).First(&schedule).Error; err != nil {
+			return err // Schedule not found, rollback
+		}
+		schedule.StartDate = newSchedule.StartDate
+		schedule.EndDate = newSchedule.EndDate
+		schedule.ShiftType = newSchedule.ShiftType
+		schedule.IsActive = newSchedule.IsActive
+		if err := tx.Save(&schedule).Error; err != nil {
+			return err // Error updating, rollback
 		}
 		return nil // Commit if no error
 	})
 }
 
-// AddAgentSkill assigns a new skill to an agent, ensuring the operation is handled transactionally.
+// DeleteAgentSchedule removes a specific schedule for an agent, ensuring the operation is transactionally safe.
+func (db *AgentDBModel) DeleteAgentSchedule(scheduleID uint) error {
+	return db.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Delete(&AgentSchedule{}, scheduleID).Error; err != nil {
+			return err // Error during deletion, rollback
+		}
+		return nil // Commit if no error
+	})
+}
+
+// ListAgentSchedules retrieves all schedules for a specific agent, ensuring accurate and up-to-date information.
+func (db *AgentDBModel) ListAgentSchedules(agentID uint) ([]AgentSchedule, error) {
+	var schedules []AgentSchedule
+	if err := db.DB.Where("agent_id = ?", agentID).Find(&schedules).Error; err != nil {
+		return nil, err // Handle potential retrieval errors
+	}
+	return schedules, nil
+}
+
+// AddAgentSkill assigns a new skill to an agent, wrapped in a transaction for data consistency.
 func (db *AgentDBModel) AddAgentSkill(skill *AgentSkill) error {
 	return db.DB.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Create(skill).Error; err != nil {
@@ -2162,17 +2585,42 @@ func (db *AgentDBModel) AddAgentSkill(skill *AgentSkill) error {
 	})
 }
 
-// UpdateAgentSkill updates the details of an existing skill for an agent.
-func (db *AgentDBModel) UpdateAgentSkill(skill *AgentSkill) error {
+// UpdateAgentSkill updates details of an existing skill for an agent within a transaction for safety.
+func (db *AgentDBModel) UpdateAgentSkill(skillID uint, newSkill *AgentSkill) error {
 	return db.DB.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Save(skill).Error; err != nil {
-			return err // Rollback on error
+		var skill AgentSkill
+		if err := tx.Where("id = ?", skillID).First(&skill).Error; err != nil {
+			return err // Skill not found, rollback
+		}
+		skill.SkillName = newSkill.SkillName
+		skill.Level = newSkill.Level
+		if err := tx.Save(&skill).Error; err != nil {
+			return err // Error updating, rollback
 		}
 		return nil // Commit if no error
 	})
 }
 
-// SubmitAgentFeedback captures feedback for an agent, wrapped in a transaction for consistency.
+// DeleteAgentSkill removes a skill from an agent's profile, ensuring the operation's atomicity.
+func (db *AgentDBModel) DeleteAgentSkill(skillID uint) error {
+	return db.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Delete(&AgentSkill{}, skillID).Error; err != nil {
+			return err // Error during deletion, rollback
+		}
+		return nil // Commit if no error
+	})
+}
+
+// ListAgentSkills fetches all skills associated with a specific agent, providing a comprehensive view.
+func (db *AgentDBModel) ListAgentSkills(agentID uint) ([]AgentSkill, error) {
+	var skills []AgentSkill
+	if err := db.DB.Where("agent_id = ?", agentID).Find(&skills).Error; err != nil {
+		return nil, err // Handle potential retrieval errors
+	}
+	return skills, nil
+}
+
+// SubmitAgentFeedback records new feedback for an agent, wrapped in a transaction for consistency and reliability.
 func (db *AgentDBModel) SubmitAgentFeedback(feedback *AgentFeedback) error {
 	return db.DB.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Create(feedback).Error; err != nil {
@@ -2182,17 +2630,42 @@ func (db *AgentDBModel) SubmitAgentFeedback(feedback *AgentFeedback) error {
 	})
 }
 
-// ReviewAgentFeedback processes a feedback review, ensuring transactional integrity.
-func (db *AgentDBModel) ReviewAgentFeedback(review *FeedbackReview) error {
+// ListAgentFeedback retrieves all feedback entries for a specific agent, providing insights into performance and areas for improvement.
+func (db *AgentDBModel) ListAgentFeedback(agentID uint) ([]AgentFeedback, error) {
+	var feedbacks []AgentFeedback
+	if err := db.DB.Where("agent_id = ?", agentID).Find(&feedbacks).Error; err != nil {
+		return nil, err // Handle potential retrieval errors
+	}
+	return feedbacks, nil
+}
+
+// UpdateAgentFeedback allows modifications to an existing feedback record, ensuring data integrity through a transaction.
+func (db *AgentDBModel) UpdateAgentFeedback(feedbackID uint, newFeedback *AgentFeedback) error {
 	return db.DB.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Create(review).Error; err != nil {
-			return err // Rollback on error
+		var feedback AgentFeedback
+		if err := tx.Where("id = ?", feedbackID).First(&feedback).Error; err != nil {
+			return err // Feedback not found, rollback
+		}
+		feedback.Score = newFeedback.Score
+		feedback.Comments = newFeedback.Comments
+		if err := tx.Save(&feedback).Error; err != nil {
+			return err // Error updating, rollback
 		}
 		return nil // Commit if no error
 	})
 }
 
-// AddAgentCertification adds a certification to an agent's profile with a transaction.
+// DeleteAgentFeedback removes a feedback record from an agent's profile, executed within a transaction for safety.
+func (db *AgentDBModel) DeleteAgentFeedback(feedbackID uint) error {
+	return db.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Delete(&AgentFeedback{}, feedbackID).Error; err != nil {
+			return err // Error during deletion, rollback
+		}
+		return nil // Commit if no error
+	})
+}
+
+// AddAgentCertification associates a new certification with an agent.
 func (db *AgentDBModel) AddAgentCertification(certification *AgentCertification) error {
 	return db.DB.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Create(certification).Error; err != nil {
@@ -2202,17 +2675,44 @@ func (db *AgentDBModel) AddAgentCertification(certification *AgentCertification)
 	})
 }
 
-// UpdateAgentCertification updates an existing certification for an agent.
-func (db *AgentDBModel) UpdateAgentCertification(certification *AgentCertification) error {
+// UpdateAgentCertification updates details of an existing certification for an agent, ensuring atomicity with a transaction.
+func (db *AgentDBModel) UpdateAgentCertification(certificationID uint, newCertification *AgentCertification) error {
 	return db.DB.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Save(certification).Error; err != nil {
-			return err // Rollback on error
+		var certification AgentCertification
+		if err := tx.Where("id = ?", certificationID).First(&certification).Error; err != nil {
+			return err // Certification not found, rollback
+		}
+		certification.Certification = newCertification.Certification
+		certification.IssuedBy = newCertification.IssuedBy
+		certification.IssuedDate = newCertification.IssuedDate
+		certification.ExpiryDate = newCertification.ExpiryDate
+		if err := tx.Save(&certification).Error; err != nil {
+			return err // Error updating, rollback
 		}
 		return nil // Commit if no error
 	})
 }
 
-// RequestAgentLeave handles leave requests for agents within a transaction for atomicity.
+// DeleteAgentCertification removes a certification record from an agent's profile.
+func (db *AgentDBModel) DeleteAgentCertification(certificationID uint) error {
+	return db.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Delete(&AgentCertification{}, certificationID).Error; err != nil {
+			return err // Error during deletion, rollback
+		}
+		return nil // Commit if no error
+	})
+}
+
+// ListAgentCertifications retrieves all certifications associated with a specific agent.
+func (db *AgentDBModel) ListAgentCertifications(agentID uint) ([]AgentCertification, error) {
+	var certifications []AgentCertification
+	if err := db.DB.Where("agent_id = ?", agentID).Find(&certifications).Error; err != nil {
+		return nil, err // Handle potential retrieval errors
+	}
+	return certifications, nil
+}
+
+// RequestAgentLeave submits a new leave request for an agent, ensuring transactional integrity for the operation.
 func (db *AgentDBModel) RequestAgentLeave(leaveRequest *AgentLeaveRequest) error {
 	return db.DB.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Create(leaveRequest).Error; err != nil {
@@ -2222,11 +2722,397 @@ func (db *AgentDBModel) RequestAgentLeave(leaveRequest *AgentLeaveRequest) error
 	})
 }
 
+// UpdateAgentLeaveRequest allows modifications to an existing leave request, maintaining data consistency with a transaction.
+func (db *AgentDBModel) UpdateAgentLeaveRequest(leaveRequestID uint, newLeaveRequest *AgentLeaveRequest) error {
+	return db.DB.Transaction(func(tx *gorm.DB) error {
+		var leaveRequest AgentLeaveRequest
+		if err := tx.Where("id = ?", leaveRequestID).First(&leaveRequest).Error; err != nil {
+			return err // Leave request not found, rollback
+		}
+		leaveRequest.Status = newLeaveRequest.Status
+		if err := tx.Save(&leaveRequest).Error; err != nil {
+			return err // Error updating, rollback
+		}
+		return nil // Commit if no error
+	})
+}
+
+// CancelAgentLeaveRequest handles the cancellation of an agent's leave request, executed within a transaction for safety.
+func (db *AgentDBModel) CancelAgentLeaveRequest(leaveRequestID uint) error {
+	return db.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Delete(&AgentLeaveRequest{}, leaveRequestID).Error; err != nil {
+			return err // Error during cancellation, rollback
+		}
+		return nil // Commit if no error
+	})
+}
+
+// ListAgentLeaveRequests retrieves all leave requests submitted by a specific agent.
+func (db *AgentDBModel) ListAgentLeaveRequests(agentID uint) ([]AgentLeaveRequest, error) {
+	var requests []AgentLeaveRequest
+	if err := db.DB.Where("agent_id = ?", agentID).Find(&requests).Error; err != nil {
+		return nil, err // Handle potential retrieval errors
+	}
+	return requests, nil
+}
+
 // UpdateAgentAvailability updates an agent's availability status with a transaction.
 func (db *AgentDBModel) UpdateAgentAvailability(availability *AgentAvailability) error {
 	return db.DB.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Save(availability).Error; err != nil {
 			return err // Rollback on error
+		}
+		return nil // Commit if no error
+	})
+}
+
+// ApproveAgentLeaveRequest updates the status of an agent's leave request to "Approved".
+func (db *AgentDBModel) ApproveAgentLeaveRequest(leaveRequestID uint) error {
+	return db.DB.Transaction(func(tx *gorm.DB) error {
+		var leaveRequest AgentLeaveRequest
+		if err := tx.Where("id = ?", leaveRequestID).First(&leaveRequest).Error; err != nil {
+			return err // If leave request not found, rollback
+		}
+		leaveRequest.Status = "Approved"
+		if err := tx.Save(&leaveRequest).Error; err != nil {
+			return err // Error updating, rollback
+		}
+		return nil // Commit if no error
+	})
+}
+
+// DenyAgentLeaveRequest updates the status of an agent's leave request to "Denied".
+func (db *AgentDBModel) DenyAgentLeaveRequest(leaveRequestID uint) error {
+	return db.DB.Transaction(func(tx *gorm.DB) error {
+		var leaveRequest AgentLeaveRequest
+		if err := tx.Where("id = ?", leaveRequestID).First(&leaveRequest).Error; err != nil {
+			return err // If leave request not found, rollback
+		}
+		leaveRequest.Status = "Denied"
+		if err := tx.Save(&leaveRequest).Error; err != nil {
+			return err // Error updating, rollback
+		}
+		return nil // Commit if no error
+	})
+}
+
+// ListAgentTrainingRecords retrieves all training records for a specific agent.
+func (db *AgentDBModel) ListAgentTrainingRecords(agentID uint) ([]AgentTrainingRecord, error) {
+	var records []AgentTrainingRecord
+	if err := db.DB.Where("agent_id = ?", agentID).Find(&records).Error; err != nil {
+		return nil, err // Handle potential retrieval errors
+	}
+	return records, nil
+}
+
+// DeleteAgentTrainingRecord removes a training record from the database.
+func (db *AgentDBModel) DeleteAgentTrainingRecord(recordID uint) error {
+	return db.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Delete(&AgentTrainingRecord{}, recordID).Error; err != nil {
+			return err // Error during deletion, rollback
+		}
+		return nil // Commit if no error
+	})
+}
+
+// SubmitAgentLeaveRequest allows an agent to submit a request for leave.
+func (db *AgentDBModel) SubmitAgentLeaveRequest(leaveRequest *AgentLeaveRequest) error {
+	return db.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(leaveRequest).Error; err != nil {
+			return err // Rollback on error
+		}
+		return nil // Commit if no error
+	})
+}
+
+// UpdateAgentLeaveRequestStatus updates the status of an existing leave request.
+func (db *AgentDBModel) UpdateAgentLeaveRequestStatus(requestID uint, newStatus string) error {
+	return db.DB.Transaction(func(tx *gorm.DB) error {
+		var request AgentLeaveRequest
+		if err := tx.Where("id = ?", requestID).First(&request).Error; err != nil {
+			return err // If request not found, rollback
+		}
+		request.Status = newStatus
+		if err := tx.Save(&request).Error; err != nil {
+			return err // Error updating, rollback
+		}
+		return nil // Commit if no error
+	})
+}
+
+// UpdateAgentCertificationDetails updates details of an existing certification for an agent.
+func (db *AgentDBModel) UpdateAgentCertificationDetails(certificationID uint, newDetails *AgentCertification) error {
+	return db.DB.Transaction(func(tx *gorm.DB) error {
+		var certification AgentCertification
+		if err := tx.Where("id = ?", certificationID).First(&certification).Error; err != nil {
+			return err // If certification not found, rollback
+		}
+		certification.Certification = newDetails.Certification
+		certification.IssuedBy = newDetails.IssuedBy
+		certification.IssuedDate = newDetails.IssuedDate
+		certification.ExpiryDate = newDetails.ExpiryDate
+		if err := tx.Save(&certification).Error; err != nil {
+			return err // Error updating, rollback
+		}
+		return nil // Commit if no error
+	})
+}
+
+// ListAgentActivities retrieves a list of activities for a specific agent.
+func (db *AgentDBModel) ListAgentActivities(agentID uint) ([]AgentActivityLog, error) {
+	var activities []AgentActivityLog
+	if err := db.DB.Where("agent_id = ?", agentID).Find(&activities).Error; err != nil {
+		return nil, err // Handle potential retrieval errors
+	}
+	return activities, nil
+}
+
+// CreateAgentTrainingSession adds a new training session for agents, ensuring data consistency with a transaction.
+func (db *AgentDBModel) CreateAgentTrainingSession(trainingSession *AgentTrainingSession) error {
+	return db.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(trainingSession).Error; err != nil {
+			return err // Rollback on error
+		}
+		return nil // Commit if no error
+	})
+}
+
+// UpdateAgentTrainingSession updates details of an existing training session.
+func (db *AgentDBModel) UpdateAgentTrainingSession(trainingSessionID uint, newTrainingSession *AgentTrainingSession) error {
+	return db.DB.Transaction(func(tx *gorm.DB) error {
+		var trainingSession AgentTrainingSession
+		if err := tx.Where("id = ?", trainingSessionID).First(&trainingSession).Error; err != nil {
+			return err // If training session not found, rollback
+		}
+		trainingSession.Title = newTrainingSession.Title
+		trainingSession.Description = newTrainingSession.Description
+		trainingSession.StartDate = newTrainingSession.StartDate
+		trainingSession.EndDate = newTrainingSession.EndDate
+		trainingSession.Location = newTrainingSession.Location
+		trainingSession.TrainerID = newTrainingSession.TrainerID
+		if err := tx.Save(&trainingSession).Error; err != nil {
+			return err // Error updating, rollback
+		}
+		return nil // Commit if no error
+	})
+}
+
+// DeleteAgentTrainingSession removes a training session from the database.
+func (db *AgentDBModel) DeleteAgentTrainingSession(trainingSessionID uint) error {
+	return db.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Delete(&AgentTrainingSession{}, trainingSessionID).Error; err != nil {
+			return err // Error during deletion, rollback
+		}
+		return nil // Commit if no error
+	})
+}
+
+// ListAgentTrainingSessions retrieves all training sessions an agent is enrolled in.
+func (db *AgentDBModel) ListAgentTrainingSessions(agentID uint) ([]AgentTrainingSession, error) {
+	var trainingSessions []AgentTrainingSession
+	if err := db.DB.Where("attendees @> ?", []uint{agentID}).Find(&trainingSessions).Error; err != nil {
+		return nil, err // Handle potential retrieval errors
+	}
+	return trainingSessions, nil
+}
+
+// EnrollAgentInTrainingSession adds an agent to a training session's attendee list.
+func (db *AgentDBModel) EnrollAgentInTrainingSession(agentID, sessionID uint) error {
+	return db.DB.Transaction(func(tx *gorm.DB) error {
+		// Retrieve training session
+		var session AgentTrainingSession
+		if err := tx.First(&session, sessionID).Error; err != nil {
+			return err // If session not found, rollback
+		}
+		// Append agent to session's attendees list if not already included
+		if !contains(session.Attendees, agentID) {
+			session.Attendees = append(session.Attendees, Agents{ID: agentID})
+			if err := tx.Save(&session).Error; err != nil {
+				return err // Error adding attendee, rollback
+			}
+		}
+		return nil // Commit if no error
+	})
+}
+
+// RecordAgentPerformanceReview records a new performance review for an agent.
+func (db *AgentDBModel) RecordAgentPerformanceReview(review *AgentPerformanceReview) error {
+	return db.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(review).Error; err != nil {
+			return err // Rollback on error
+		}
+		return nil // Commit if no error
+	})
+}
+
+// UpdateAgentPerformanceReview updates an existing performance review for an agent.
+func (db *AgentDBModel) UpdateAgentPerformanceReview(reviewID uint, newReview *AgentPerformanceReview) error {
+	return db.DB.Transaction(func(tx *gorm.DB) error {
+		var review AgentPerformanceReview
+		if err := tx.Where("id = ?", reviewID).First(&review).Error; err != nil {
+			return err // If review not found, rollback
+		}
+		review.Score = newReview.Score
+		review.Feedback = newReview.Feedback
+		review.ReviewDate = newReview.ReviewDate
+		if err := tx.Save(&review).Error; err != nil {
+			return err // Error updating, rollback
+		}
+		return nil // Commit if no error
+	})
+}
+
+// ListAgentPerformanceReviews retrieves all performance reviews for a specific agent.
+func (db *AgentDBModel) ListAgentPerformanceReviews(agentID uint) ([]AgentPerformanceReview, error) {
+	var reviews []AgentPerformanceReview
+	if err := db.DB.Where("agent_id = ?", agentID).Find(&reviews).Error; err != nil {
+		return nil, err // Handle potential retrieval errors
+	}
+	return reviews, nil
+}
+
+// DeleteAgentPerformanceReview removes a performance review record.
+func (db *AgentDBModel) DeleteAgentPerformanceReview(reviewID uint) error {
+	return db.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Delete(&AgentPerformanceReview{}, reviewID).Error; err != nil {
+			return err // Error during deletion, rollback
+		}
+		return nil // Commit if no error
+	})
+}
+
+// RecordCustomerInteraction logs an interaction between an agent and a customer.
+func (db *AgentDBModel) RecordCustomerInteraction(interaction *CustomerInteraction) error {
+	return db.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(interaction).Error; err != nil {
+			return err // Rollback on error
+		}
+		return nil // Commit if no error
+	})
+}
+
+// UpdateCustomerInteraction updates details of an existing customer interaction.
+func (db *AgentDBModel) UpdateCustomerInteraction(interactionID uint, newInteraction *CustomerInteraction) error {
+	return db.DB.Transaction(func(tx *gorm.DB) error {
+		var interaction CustomerInteraction
+		if err := tx.Where("id = ?", interactionID).First(&interaction).Error; err != nil {
+			return err // If interaction not found, rollback
+		}
+		interaction.Channel = newInteraction.Channel
+		interaction.Content = newInteraction.Content
+		interaction.InteractionTime = newInteraction.InteractionTime
+		if err := tx.Save(&interaction).Error; err != nil {
+			return err // Error updating, rollback
+		}
+		return nil // Commit if no error
+	})
+}
+
+// ListCustomerInteractionsByAgent retrieves all customer interactions associated with a specific agent.
+func (db *AgentDBModel) ListCustomerInteractionsByAgent(agentID uint) ([]CustomerInteraction, error) {
+	var interactions []CustomerInteraction
+	if err := db.DB.Where("agent_id = ?", agentID).Order("interaction_time desc").Find(&interactions).Error; err != nil {
+		return nil, err // Handle potential retrieval errors
+	}
+	return interactions, nil
+}
+
+// DeleteCustomerInteraction removes a customer interaction record from the database.
+func (db *AgentDBModel) DeleteCustomerInteraction(interactionID uint) error {
+	return db.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Delete(&CustomerInteraction{}, interactionID).Error; err != nil {
+			return err // Error during deletion, rollback
+		}
+		return nil // Commit if no error
+	})
+}
+
+// AssignAgentToTrainingModule assigns an agent to a specific training module and records the assignment.
+func (db *AgentDBModel) AssignAgentToTrainingModule(agentID, moduleID uint) error {
+	return db.DB.Transaction(func(tx *gorm.DB) error {
+		var trainingRecord AgentTrainingRecord
+		trainingRecord.AgentID = agentID
+		trainingRecord.TrainingModuleID = moduleID
+		trainingRecord.CompletedAt = time.Now() // Assuming immediate completion for simplicity
+		if err := tx.Create(&trainingRecord).Error; err != nil {
+			return err // Rollback on error
+		}
+		return nil // Commit if no error
+	})
+}
+
+// UpdateAgentTrainingRecord updates a training record for an agent, for example, to record a score or feedback.
+func (db *AgentDBModel) UpdateAgentTrainingRecord(recordID uint, newRecord *AgentTrainingRecord) error {
+	return db.DB.Transaction(func(tx *gorm.DB) error {
+		var record AgentTrainingRecord
+		if err := tx.Where("id = ?", recordID).First(&record).Error; err != nil {
+			return err // If record not found, rollback
+		}
+		record.Score = newRecord.Score
+		record.Feedback = newRecord.Feedback
+		record.CompletedAt = newRecord.CompletedAt
+		if err := tx.Save(&record).Error; err != nil {
+			return err // Error updating, rollback
+		}
+		return nil // Commit if no error
+	})
+}
+
+// contains checks if the slice of Agents contains an agent with the given ID.
+func contains(agents []Agents, agentID uint) bool {
+	for _, agent := range agents {
+		if agent.ID == agentID {
+			return true
+		}
+	}
+	return false
+}
+
+// RecordAgentLoginActivity logs an agent's login activity to the system.
+func (db *AgentDBModel) RecordAgentLoginActivity(activity *AgentLoginActivity) error {
+	return db.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(activity).Error; err != nil {
+			return err // Rollback on error
+		}
+		return nil // Commit if no error
+	})
+}
+
+// UpdateAgentProfilePic updates the profile picture URL of an agent.
+func (db *AgentDBModel) UpdateAgentProfilePic(agentID uint, profilePicURL string) error {
+	return db.DB.Transaction(func(tx *gorm.DB) error {
+		var agent Agents
+		if err := tx.Where("id = ?", agentID).First(&agent).Error; err != nil {
+			return err // If agent not found, rollback
+		}
+		agent.ProfilePic = &profilePicURL
+		if err := tx.Save(&agent).Error; err != nil {
+			return err // Error updating, rollback
+		}
+		return nil // Commit if no error
+	})
+}
+
+// AddAgentSkillSet assigns new skills or updates existing skills for an agent.
+func (db *AgentDBModel) AddOrUpdateAgentSkillSet(agentID uint, skills []AgentSkillSet) error {
+	return db.DB.Transaction(func(tx *gorm.DB) error {
+		for _, skill := range skills {
+			var existingSkill AgentSkillSet
+			// Check if the skill already exists for the agent
+			result := tx.Where("agent_id = ? AND skill = ?", agentID, skill.Skill).First(&existingSkill)
+			if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+				// Skill does not exist, create new
+				skill.AgentID = agentID
+				if err := tx.Create(&skill).Error; err != nil {
+					return err // Rollback on error
+				}
+			} else {
+				// Skill exists, update level
+				existingSkill.Level = skill.Level
+				if err := tx.Save(&existingSkill).Error; err != nil {
+					return err // Rollback on error
+				}
+			}
 		}
 		return nil // Commit if no error
 	})
@@ -2242,4 +3128,49 @@ func (service *AgentDBModel) LogCustomerInteraction(interaction CustomerInteract
 		// If no error, transaction will be committed
 		return nil
 	})
+}
+
+func (repo *AgentDBModel) AssignPermissionsToAgent2(agentID uint, permissionNames []string) error {
+	return repo.DB.Transaction(func(tx *gorm.DB) error {
+		var permissions []Permission
+		if err := tx.Where("name IN ?", permissionNames).Find(&permissions).Error; err != nil {
+			return err
+		}
+
+		for _, perm := range permissions {
+			ap := AgentPermission{
+				AgentID:      agentID,
+				PermissionID: perm.ID,
+			}
+			// Avoid duplicating permissions
+			if err := tx.FirstOrCreate(&ap, AgentPermission{AgentID: agentID, PermissionID: perm.ID}).Error; err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
+func (repo *AgentDBModel) AddAgentToTeam(agentID, teamID uint) error {
+	return repo.DB.Transaction(func(tx *gorm.DB) error {
+		teamAgent := TeamAgent{
+			TeamID:  teamID,
+			AgentID: agentID,
+		}
+		return tx.FirstOrCreate(&teamAgent, TeamAgent{TeamID: teamID, AgentID: agentID}).Error
+	})
+}
+
+// LogAction records an action performed by an agent for auditing purposes with improved logging.
+func (db *AgentDBModel) LogAction(agentID uint, actionType, details string) error {
+	actionLog := AgentActivityLog{
+		AgentID:   agentID,
+		Activity:  actionType,
+		Timestamp: time.Now(),
+	}
+	if err := db.DB.Create(&actionLog).Error; err != nil {
+		db.log.Error("Error logging agent action: %v", err)
+		return err
+	}
+	return nil
 }

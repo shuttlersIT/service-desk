@@ -1,8 +1,7 @@
-// backend/services/auth_service.go
-
 package services
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
@@ -17,226 +16,134 @@ type LoginInfo struct {
 	Password string `json:"password"`
 }
 
-// AuthServiceInterface provides methods for managing auth.
+// AuthServiceInterface defines the contract for authentication services.
 type AuthServiceInterface interface {
-	Registration(user *models.Users) (*models.Users, string, error)
-	Login(login *LoginInfo) (string, error)
+	RegisterUser(user *models.Users, password string) (*models.Users, string, error)
+	Login1(loginInfo *LoginInfo) (string, *models.Users, error)
 	ResetUserPassword(userID uint, newPassword string) error
-	ResetUserPassword2(userID uint, newPassword string) error
+	Login2(credentials *models.UsersLoginCredentials) (*models.UserSession, error)
+	Logout(sessionID string) error
+	ValidateSession(sessionID string) (bool, error)
 }
 
-// DefaultAuthService is the default implementation of AuthService
-type DefaultAuthService struct {
-	DB            *gorm.DB
-	AuthDBModel   *models.AuthDBModel
-	UserDBModel   *models.UserDBModel
-	RegisterModel *models.RegisterModel
-	// Add any dependencies or data needed for the service
+type AuthService struct {
+	DB *gorm.DB
 }
 
-// NewDefaultAuthService creates a new DefaultAuthService.
-func NewDefaultAuthService(authDBModel *models.AuthDBModel) *DefaultAuthService {
-	return &DefaultAuthService{
-		AuthDBModel: authDBModel,
-	}
+// NewAuthService creates a new instance of AuthService with the given DB connection.
+func NewAuthService(db *gorm.DB) *AuthService {
+	return &AuthService{DB: db}
 }
 
-// User registration
-func (a *DefaultAuthService) Registration(user *models.Users) (*models.Users, string, error) {
-
-	u, e := a.RegisterModel.Registration(user)
-	if e != nil {
-		return nil, "", e
-	}
-	// Generate a JWT token for successful login
-	token, err := generateJWTToken(u.ID)
+// RegisterUser handles new user registration.
+func (service *AuthService) RegisterUser(user *models.Users, password string) (*models.Users, string, error) {
+	// Hash password
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		return nil, "", err
 	}
-	return u, token, nil
-}
+	user.Credentials.PasswordHash = string(hashedPassword)
 
-// User registration
-func (a *DefaultAuthService) AgentRegistration(agent *models.Agents) (*models.Agents, string, error) {
-
-	u, e := a.RegisterModel.AgentRegistration(agent)
-	if e != nil {
-		return nil, "", e
-	}
-	// Generate a JWT token for successful login
-	token, err := generateJWTToken(u.ID)
-	if err != nil {
+	// Save user to DB
+	if err := service.DB.Create(user).Error; err != nil {
 		return nil, "", err
 	}
-	return u, token, nil
-}
 
-// User login
-func (a *DefaultAuthService) Login(loginInfo *models.LoginInfo) (string, error) {
-	user, err := a.AuthDBModel.Login(loginInfo)
-	if err != nil {
-		return "", err
-	}
-	// Generate a JWT token for successful login
+	// Generate JWT token for the new user
 	token, err := generateJWTToken(user.ID)
 	if err != nil {
-		return "", err
+		return nil, "", err
 	}
-	return token, nil
+
+	return user, token, nil
 }
 
-// User login
-func (a *DefaultAuthService) LoginAgent(loginInfo *models.LoginInfo) (string, error) {
-	agent, err := a.AuthDBModel.LoginAgent(loginInfo)
-	if err != nil {
-		return "", err
+// Login authenticates a user and returns a JWT token.
+func (service *AuthService) Login(loginInfo *LoginInfo) (string, *models.Users, error) {
+	var user models.Users
+	if err := service.DB.Where("email = ?", loginInfo.Email).First(&user).Error; err != nil {
+		return "", nil, err
 	}
-	// Generate a JWT token for successful login
-	token, err := generateJWTToken(agent.ID)
-	if err != nil {
-		return "", err
+
+	// Compare the provided password with the hashed password
+	if err := bcrypt.CompareHashAndPassword([]byte(user.Credentials.PasswordHash), []byte(loginInfo.Password)); err != nil {
+		return "", nil, errors.New("incorrect password")
 	}
-	return token, nil
+
+	// Generate JWT token for authenticated user
+	token, err := generateJWTToken(user.ID)
+	if err != nil {
+		return "", nil, err
+	}
+
+	return token, &user, nil
 }
 
-// Define a function to generate JWT token
-func generateJWTToken(userID uint) (string, error) {
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"userID": userID,
-		"exp":    time.Now().Add(time.Hour * 24).Unix(), // Token expires in 24 hours
-	})
-	return token.SignedString([]byte("your-secret-key"))
-}
-
-// backend/services/user_service.go
-
-func (us *DefaultAuthService) ResetUserPassword(userID uint, newPassword string) error {
-	// Reset the user's password
-	_, err := us.AuthDBModel.ResetUserPassword(userID, newPassword)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (us *DefaultAuthService) ResetAgentPassword(agentID uint, newPassword string) error {
-	// Reset the agent's password
-	_, err := us.AuthDBModel.ResetAgentPassword(agentID, newPassword)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (us *DefaultUserService) ResetUserPassword2(userID uint, newPassword string) error {
-	// Retrieve the user by userID
-	user, err := us.UserDBModel.GetUserByID(userID)
-	if err != nil {
-		return err
-	}
-
-	// Update the user's password with the new password
-	user.Credentials.Password = newPassword
-
-	// Save the updated user
-	err = us.UserDBModel.UpdateUser(user)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// ResetPasswordWithToken resets the user's password using a valid token.
-func (a *DefaultAuthService) ResetPasswordWithToken(token string, newPassword string) error {
-	// Token validation logic (customize this based on your token handling)
-	claims, err := validatePasswordResetToken(token)
-	if err != nil {
-		return err
-	}
-
-	// Retrieve the user by their email (you should implement this method)
-	user, err := a.UserDBModel.GetUserByEmail(claims["email"].(string))
-	if err != nil {
-		return err
-	}
-
-	// Check if the token has a valid reset password request ID claim
-	requestIDClaim, ok := claims["request_id"].(float64)
-	if !ok {
-		return fmt.Errorf("token missing or invalid request_id claim")
-	}
-	requestID := uint(requestIDClaim)
-
-	// Verify that the user has a pending reset password request with the same request ID
-	if user.ResetPasswordRequestID != requestID {
-		return fmt.Errorf("invalid or expired token")
-	}
-
-	// Update the user's password with the new password
+// ResetUserPassword updates a user's password.
+func (service *AuthService) ResetUserPassword(userID uint, newPassword string) error {
+	// Hash new password
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
 	if err != nil {
 		return err
 	}
-	user.Credentials.Password = string(hashedPassword)
 
-	// Clear the reset password request ID
-	user.ResetPasswordRequestID = 0
-
-	// Save the updated user
-	if err := a.UserDBModel.UpdateUser(user); err != nil {
+	// Update user's password in the DB
+	if err := service.DB.Model(&models.Users{}).Where("id = ?", userID).Update("password_hash", string(hashedPassword)).Error; err != nil {
 		return err
 	}
 
 	return nil
 }
 
-// Helper function to validate the password reset token.
-func validatePasswordResetToken(token string) (jwt.MapClaims, error) {
-	// Parse and validate the JWT token
-	claims := jwt.MapClaims{}
-	tkn, err := jwt.ParseWithClaims(token, claims, func(token *jwt.Token) (interface{}, error) {
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("invalid token signing method")
-		}
-		// Replace "your-secret-key" with your actual secret key used for token signing
-		return []byte("your-secret-key"), nil
-	})
-
-	if err != nil {
-		return nil, fmt.Errorf("invalid token: %v", err)
-	}
-
-	if !tkn.Valid {
-		return nil, fmt.Errorf("token is not valid")
-	}
-
-	// Ensure that the token contains the required claims (customize as needed)
-	if claims["email"] == nil || claims["request_id"] == nil {
-		return nil, fmt.Errorf("token missing required claims")
-	}
-
-	// Add more claim validations as needed
-
-	return claims, nil
-}
-
-func (a *DefaultAuthService) SyncDataFromExternalService(integrationID uint) error {
-	integration, err := a.AuthDBModel.GetExternalServiceIntegrationByID(integrationID)
+// ResetAgentPassword updates a agent's password.
+func (service *AuthService) ResetAgentPassword(agentID uint, newPassword string) error {
+	// Hash new password
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
 	if err != nil {
 		return err
 	}
-	// Use integration.ApiKey to sync data...
+
+	// Update agent's password in the DB
+	if err := service.DB.Model(&models.Agents{}).Where("id = ?", agentID).Update("password_hash", string(hashedPassword)).Error; err != nil {
+		return err
+	}
+
 	return nil
 }
 
-func (a *DefaultAuthService) CreateExternalServiceIntegration(req *models.ExternalServiceIntegration) error {
-	integration, err := a.AuthDBModel.GetExternalServiceIntegrationByID(integrationID)
+// RegisterUser handles new user registration.
+func (service *AuthService) RegisterAgent(agent *models.Agents, password string) (*models.Agents, string, error) {
+	// Hash password
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
-		return err
+		return nil, "", err
 	}
-	// Use integration.ApiKey to sync data...
-	return nil
+	agent.Credentials.PasswordHash = string(hashedPassword)
+
+	// Save user to DB
+	if err := service.DB.Create(agent).Error; err != nil {
+		return nil, "", err
+	}
+
+	// Generate JWT token for the new user
+	token, err := generateJWTToken(agent.ID)
+	if err != nil {
+		return nil, "", err
+	}
+
+	return agent, token, nil
+}
+
+// generateJWTToken creates a JWT token for user identification.
+func generateJWTToken(userID uint) (string, error) {
+	claims := &jwt.StandardClaims{
+		ExpiresAt: time.Now().Add(24 * time.Hour).Unix(),
+		Issuer:    "AuthService",
+		Subject:   fmt.Sprintf("%d", userID),
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	signedToken, err := token.SignedString([]byte("YourSecretKeyHere")) // Use a secure method to store and retrieve your secret key
+
+	return signedToken, err
 }

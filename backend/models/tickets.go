@@ -3,15 +3,20 @@
 package models
 
 import (
+	"errors"
 	"fmt"
+	"log"
 	"sort"
 	"time"
 
+	"github.com/cenkalti/backoff/v4"
+	"github.com/go-sql-driver/mysql"
 	"gorm.io/gorm"
 )
 
 type Ticket struct {
 	gorm.Model
+	ID               uint                    `gorm:"primaryKey" json:"id"`
 	Subject          string                  `gorm:"size:255;not null" json:"subject"`                   // Summary of the ticket issue
 	Description      string                  `gorm:"type:text;not null" json:"description"`              // Detailed description of the issue
 	CategoryID       uint                    `gorm:"index;not null" json:"category_id"`                  // Categorizes the ticket for routing or reporting
@@ -371,25 +376,29 @@ type StatusStorage interface {
 
 // TicketModel handles database operations for Ticket
 type TicketDBModel struct {
-	DB *gorm.DB
+	DB             *gorm.DB
+	EventPublisher EventPublisher
 }
 
 // NewTicketModel creates a new instance of TicketModel
-func NewTicketDBModel(db *gorm.DB) *TicketDBModel {
+func NewTicketDBModel(db *gorm.DB, eventPublisher EventPublisher) *TicketDBModel {
 	return &TicketDBModel{
-		DB: db,
+		DB:             db,
+		EventPublisher: eventPublisher,
 	}
 }
 
 // TicketModel handles database operations for Ticket
 type TicketCommentDBModel struct {
-	DB *gorm.DB
+	DB             *gorm.DB
+	EventPublisher EventPublisher
 }
 
 // NewTicketModel creates a new instance of TicketModel
-func NewTicketCommentDBModel(db *gorm.DB) *TicketCommentDBModel {
+func NewTicketCommentDBModel(db *gorm.DB, eventPublisher EventPublisher) *TicketCommentDBModel {
 	return &TicketCommentDBModel{
-		DB: db,
+		DB:             db,
+		EventPublisher: eventPublisher,
 	}
 }
 
@@ -451,13 +460,41 @@ func (as *TicketDBModel) GetAllTickets() ([]*Ticket, error) {
 
 // ////////////////////////////////////////////////////////////////////////////////////
 // CreateTicketComment creates a new TicketComment.
-func (tm *TicketCommentDBModel) CreateTicketComment(comment *Comment) error {
-	return tm.DB.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Create(comment).Error; err != nil {
+func (repo *TicketCommentDBModel) CreateTicketComment(ticketID uint, commentText string) (uint, error) {
+	if err := validateCommentInput(commentText); err != nil {
+		return 0, err
+	}
+
+	var newCommentID uint
+	operation := func(tx *gorm.DB) error {
+		newComment := Comment{
+			TicketID: ticketID,
+			Comment:  commentText,
+		}
+
+		if err := tx.Create(&newComment).Error; err != nil {
 			return err
 		}
+
+		newCommentID = newComment.ID
 		return nil
-	})
+	}
+
+	retryPolicy := backoff.NewExponentialBackOff()
+	retryPolicy.InitialInterval = 1 * time.Second
+	retryPolicy.MaxElapsedTime = 10 * time.Second
+	err := backoff.Retry(func() error {
+		return repo.DB.Transaction(operation)
+	}, retryPolicy)
+
+	if err != nil {
+		log.Printf("Transaction failed after retries: %v", err)
+		return 0, err
+	}
+
+	go repo.publishEventAsync(TicketCommentCreatedEvent{CommentID: newCommentID, TicketID: ticketID})
+
+	return newCommentID, nil
 }
 
 // GetCommentByID retrieves a Comment by its ID.
@@ -476,8 +513,8 @@ func (as *TicketHistoryEntryDBModel) CreateTicketHistoryEntry(ticketHistory *Tic
 }
 
 // GetCommentByID retrieves a Comment by its ID.
-func (thdm *TicketHistoryEntryDBModel) GetHistoryEntriesByTicketID(ticketID uint) ([]TicketHistoryEntry, error) {
-	var historyEntries []TicketHistoryEntry
+func (thdm *TicketHistoryEntryDBModel) GetHistoryEntriesByTicketID(ticketID uint) ([]*TicketHistoryEntry, error) {
+	var historyEntries []*TicketHistoryEntry
 	err := thdm.DB.Where("ticket_id = ?", ticketID).Find(&historyEntries).Error
 	return historyEntries, err
 }
@@ -1035,3 +1072,41 @@ func (db *TicketDBModel) UpdateTicketAsUser(ticket *Ticket, userID uint) error {
 	return db.UpdateTicket(ticket)
 }
 */
+
+func (repo *TicketCommentDBModel) publishEventAsync(event interface{}) {
+	if err := repo.EventPublisher.Publish(event); err != nil {
+		log.Printf("Failed to publish event: %v", err)
+	}
+}
+
+func validateCommentInput(comment string) error {
+	if comment == "" {
+		return errors.New("comment text cannot be empty")
+	}
+	return nil
+}
+
+func (repo *TicketCommentDBModel) ExecuteWithRetry(operation func(tx *gorm.DB) error) error {
+	retryBackoff := backoff.NewExponentialBackOff()
+	retryBackoff.InitialInterval = 1 * time.Second
+	retryBackoff.MaxElapsedTime = 10 * time.Second
+
+	operationWithBackoff := func() error {
+		return repo.DB.Transaction(operation)
+	}
+
+	err := backoff.Retry(operationWithBackoff, retryBackoff)
+	if err != nil {
+		log.Printf("Transaction failed after retries: %v", err)
+		return err
+	}
+	return nil
+}
+
+func IsTransientError(err error) bool {
+	var mysqlErr *mysql.MySQLError
+	if errors.As(err, &mysqlErr) {
+		return mysqlErr.Number == 1205 || mysqlErr.Number == 1213
+	}
+	return false
+}

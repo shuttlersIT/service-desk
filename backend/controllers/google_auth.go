@@ -1,195 +1,161 @@
-// controllers/authController.go
-
 package controllers
 
 import (
+	"context"
+	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"net/http"
-
-	"context"
+	"os"
+	"strings"
 
 	"github.com/gin-contrib/sessions"
-
-	"github.com/dgrijalva/jwt-go"
-	"github.com/gin-gonic/gin" // adjust the import path based on your project structure
+	"github.com/gin-gonic/gin"
 	"github.com/shuttlersit/service-desk/backend/middleware"
+	"github.com/shuttlersit/service-desk/backend/models"
+	"github.com/shuttlersit/service-desk/backend/services"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 )
 
-// controllers/googleAuthController.go
-
-// Assuming you have the GoogleCredentials struct defined in your project
-var googleOauthConfig = &oauth2.Config{
-	RedirectURL:  "http://localhost:8080/auth/google/callback",
-	ClientID:     "YOUR_CLIENT_ID",     // Replace with your Client ID
-	ClientSecret: "YOUR_CLIENT_SECRET", // Replace with your Client Secret
+// Initialize Google OAuth configuration with environmental variables
+var googleOAuthConfig = &oauth2.Config{
+	RedirectURL:  os.Getenv("GOOGLE_REDIRECT_URL"),
+	ClientID:     os.Getenv("GOOGLE_CLIENT_ID"),
+	ClientSecret: os.Getenv("GOOGLE_CLIENT_SECRET"),
 	Scopes:       []string{"https://www.googleapis.com/auth/userinfo.email", "https://www.googleapis.com/auth/userinfo.profile"},
 	Endpoint:     google.Endpoint,
 }
 
-func GoogleAuthHandler(c *gin.Context) {
-
-	url := googleOauthConfig.AuthCodeURL("state", oauth2.AccessTypeOffline)
-	c.Redirect(http.StatusTemporaryRedirect, url)
+type GoogleAuthController struct {
+	GoogleAuthService *services.GoogleAuthService
 }
 
-// // Google Sign-In route
+func NewAGoogleAuthController(googleAuthService *services.GoogleAuthService) *GoogleAuthController {
+	return &GoogleAuthController{
+		GoogleAuthService: googleAuthService,
+	}
+}
+
+// GoogleLogin initiates the OAuth flow by redirecting the user to Google's OAuth server.
 func GoogleLogin(c *gin.Context) {
-	url := googleOauthConfig.AuthCodeURL("state", oauth2.AccessTypeOffline)
+	state := middleware.GenerateStateOauthCookie(c)
+	url := googleOAuthConfig.AuthCodeURL(state, oauth2.AccessTypeOffline)
 	c.Redirect(http.StatusTemporaryRedirect, url)
 }
 
-func GoogleAuthCallback(c *gin.Context) {
-	session := sessions.Default(c)
-	ctx := context.Background()
+// GoogleAuthCallback handles the callback from Google after user has authenticated.
+func (s *GoogleAuthController) GoogleAuthCallback(c *gin.Context) {
+	// Validate state parameter matches the CSRF token in the cookie
+	if !middleware.ValidateStateOauthCookie(c) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "State validation failed"})
+		return
+	}
 
 	code := c.Query("code")
-	token, err := googleOauthConfig.Exchange(ctx, code)
+	token, err := googleOAuthConfig.Exchange(context.Background(), code)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to exchange token"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to exchange token: " + err.Error()})
 		return
 	}
 
-	client := googleOauthConfig.Client(ctx, token)
-	response, err := client.Get("https://www.googleapis.com/oauth2/v3/userinfo")
+	userInfo, err := fetchGoogleUserInfo(token)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to get user info"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	defer response.Body.Close()
-	// Process userInfo and create/find user in your DB, then generate a JWT token for the user
-	userInfo, err := ioutil.ReadAll(response.Body)
+	// Process the userInfo to create or update the user in your system
+	user, err := s.ProcessUserOAuth(&userInfo)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read user info"})
-		return
-	}
-	// Within GoogleAuthCallbackHandler in googleAuthController.go
-	session.Set("user_info", userInfo) // userInfo being the data retrieved from Google
-	err = session.Save()
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save session"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to process user info"})
 		return
 	}
 
-	// For demonstration, assume we generate a token and user info here
-	jwtToken, _ := middleware.GenerateJWT(string(userInfo))
+	// Generate JWT token for the user
+	jwtToken, err := middleware.GenerateJWT(user.Email, "User")
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate JWT"})
+		return
+	}
 
-	// Store JWT in session or send back to client directly
+	// Set JWT token in session or return it in the response
+	session := sessions.Default(c)
 	session.Set("jwt_token", jwtToken)
-	err = session.Save()
-	if err != nil {
+	if err := session.Save(); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save session"})
 		return
 	}
 
-	// Redirect or respond based on your application needs
-	c.JSON(http.StatusOK, gin.H{"message": "Successfully authenticated", "token": jwtToken})
+	c.JSON(http.StatusOK, gin.H{
+		"message": "User authenticated successfully",
+		"token":   jwtToken,
+		"user":    user,
+	})
 }
 
-func GoogleAuthCallbackHandler(c *gin.Context) {
-
-	code := c.Query("code")
-	if code == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Code not found"})
-		return
-	}
-
-	token, err := googleOauthConfig.Exchange(context.Background(), code)
+// processUserOAuth processes the OAuth user data, either registering a new user or updating an existing one.
+func (s *GoogleAuthController) ProcessUserOAuth(userInfo *models.GoogleUserInfo) (*models.Users, error) {
+	fname, lastname := getFirstAndLastName(userInfo.Name)
+	//var user models.Users
+	user, err := s.GoogleAuthService.AuthDBModel.UserDBModel.GetUserByEmail(userInfo.Email)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to exchange code for token"})
-		return
-	}
-
-	response, err := http.Get("https://www.googleapis.com/oauth2/v2/userinfo?access_token=" + token.AccessToken)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get user info"})
-		return
-	}
-	defer response.Body.Close()
-
-	userInfo, err := ioutil.ReadAll(response.Body)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read user info"})
-		return
-	}
-
-	// Within GoogleAuthCallbackHandler in googleAuthController.go
-	session := sessions.Default(c)
-	session.Set("user_info", userInfo) // userInfo being the data retrieved from Google
-	err = session.Save()
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save session"})
-		return
-	}
-
-	// Here, you would typically find or create a user in your database.
-	// For simplicity, let's generate a JWT token for the user.
-
-	// Assuming the user's email is the subject in your JWT claims
-	jwtToken, err := middleware.GenerateJWT(string(userInfo)) // Adjust this according to your JWT generation logic
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate JWT"})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{"token": jwtToken, "user_info": string(userInfo)})
-}
-
-type Claims struct {
-	Email string `json:"email"`
-	jwt.StandardClaims
-}
-
-// Implement other auth-related controller functions here
-
-/*
-// Google Sign-In callback route
-func GoogleCallback(c *gin.Context) {
-	code := c.DefaultQuery("code", "")
-	if code == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing code parameter"})
-		return
-	}
-
-	token, err := googleOauthConfig.Exchange(c, code)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to exchange token"})
-		return
-	}
-
-	// Fetch user data from Google using the token
-	client := googleOauthConfig.Client(c, token)
-	response, err := client.Get("https://www.googleapis.com/oauth2/v3/userinfo")
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get user info"})
-		return
-	}
-	defer response.Body.Close()
-
-	// Parse user info from the response (you might want to validate and sanitize this data)
-	var googleUser GoogleUserInfo
-	if err := json.NewDecoder(response.Body).Decode(&googleUser); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to parse user info"})
-		return
-	}
-
-	// Check if a user with the same email exists
-	var existingUser User
-	for _, u := range users {
-		if u.Email == googleUser.Email {
-			existingUser = u
-			break
+		// New user registration
+		user = &models.Users{
+			Email:     userInfo.Email,
+			FirstName: fname,
+			LastName:  lastname,
+			// Populate additional fields as necessary
+		}
+		if err := s.GoogleAuthService.AuthDBModel.UserDBModel.CreateUser(user); err != nil {
+			return nil, err
+		}
+	} else {
+		// Existing user - update details
+		user.FirstName = fname
+		user.LastName = lastname
+		if err := s.GoogleAuthService.AuthDBModel.UserDBModel.UpdateUser(user); err != nil {
+			return nil, err
 		}
 	}
 
-	if existingUser.ID != 0 {
-		// Handle user login or session management here
-	} else {
-		// Create a new user account with googleUser data
+	return user, nil
+}
+
+// fetchGoogleUserInfo uses the OAuth token to fetch user information from Google.
+func fetchGoogleUserInfo(token *oauth2.Token) (models.GoogleUserInfo, error) {
+	client := googleOAuthConfig.Client(context.Background(), token)
+	response, err := client.Get("https://www.googleapis.com/oauth2/v3/userinfo")
+	if err != nil {
+		return models.GoogleUserInfo{}, fmt.Errorf("failed to get user info: %v", err)
+	}
+	defer response.Body.Close()
+
+	userInfo, err := ioutil.ReadAll(response.Body)
+	if err != nil {
+		return models.GoogleUserInfo{}, fmt.Errorf("failed to read user info response: %v", err)
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Sign-In with Google Successful", "user": googleUser})
+	var user models.GoogleUserInfo
+	if err := json.Unmarshal(userInfo, &user); err != nil {
+		return models.GoogleUserInfo{}, fmt.Errorf("failed to unmarshal user info: %v", err)
+	}
+
+	return user, nil
 }
-*/
+
+func getFirstAndLastName(fullName string) (string, string) {
+	// Split the full name into first name and last name
+	parts := strings.Fields(fullName)
+	var firstName, lastName string
+
+	if len(parts) > 0 {
+		firstName = parts[0]
+	}
+
+	if len(parts) > 1 {
+		lastName = parts[len(parts)-1]
+	}
+
+	return firstName, lastName
+}
