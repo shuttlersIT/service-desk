@@ -70,13 +70,13 @@ var googleOauthConfig = &oauth2.Config{
 // UserModel handles database operations for User
 type GoogleCredentialsDBModel struct {
 	DB                *gorm.DB
-	log               *Logger
+	log               Logger
 	AuthDBModel       *AuthDBModel
 	googleOauthConfig *GoogleCredentials
 }
 
 // NewUserModel creates a new instance of UserModel
-func NewGoogleCredentialsDBModel(db *gorm.DB, AuthDBModel *AuthDBModel, log *Logger) *GoogleCredentialsDBModel {
+func NewGoogleCredentialsDBModel(db *gorm.DB, AuthDBModel *AuthDBModel, log Logger) *GoogleCredentialsDBModel {
 	return &GoogleCredentialsDBModel{
 		DB:          db,
 		AuthDBModel: AuthDBModel,

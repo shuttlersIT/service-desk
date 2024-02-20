@@ -41,11 +41,16 @@ type IncidentService interface {
 type DefaultIncidentService struct {
 	DB              *gorm.DB
 	IncidentDBModel *models.IncidentDBModel
+	log             models.PrintLogger
+	EventPublisher  *models.EventPublisherImpl
 }
 
-func NewDefaultIncidentService(incidentDBModel *models.IncidentDBModel) *DefaultIncidentService {
+func NewDefaultIncidentService(db *gorm.DB, incidentDBModel *models.IncidentDBModel, log models.PrintLogger, eventPublisher *models.EventPublisherImpl) *DefaultIncidentService {
 	return &DefaultIncidentService{
+		DB:              db,
 		IncidentDBModel: incidentDBModel,
+		log:             log,
+		EventPublisher:  eventPublisher,
 	}
 }
 

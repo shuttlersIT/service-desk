@@ -50,14 +50,22 @@ type DefaultTicketingService struct {
 	TicketHistoryEntry *models.TicketHistoryEntryDBModel
 	UserDBModel        *models.UserDBModel
 	AgentDBModel       *models.AgentDBModel
+	EventPublisher     *models.EventPublisherImpl
+	log                *models.PrintLogger
 	// Add any dependencies or data needed for the service
 }
 
 // NewDefaultUserService creates a new DefaultUserService.
-func NewDefaultTicketingService(ticketDBModel *models.TicketDBModel, ticketComment *models.TicketCommentDBModel) *DefaultTicketingService {
+func NewDefaultTicketingService(db *gorm.DB, ticketDBModel *models.TicketDBModel, ticketComment *models.TicketCommentDBModel, history *models.TicketHistoryEntryDBModel, userDBModel *models.UserDBModel, agentDBModel *models.AgentDBModel, eventPublisher *models.EventPublisherImpl, log *models.PrintLogger) *DefaultTicketingService {
 	return &DefaultTicketingService{
-		TicketDBModel: ticketDBModel,
-		TicketComment: ticketComment,
+		DB:                 db,
+		TicketDBModel:      ticketDBModel,
+		TicketComment:      ticketComment,
+		TicketHistoryEntry: history,
+		UserDBModel:        userDBModel,
+		AgentDBModel:       agentDBModel,
+		EventPublisher:     eventPublisher,
+		log:                log,
 	}
 }
 
@@ -161,6 +169,9 @@ func (ts *DefaultTicketingService) AddCommentToTicket(ticketID uint, c string) e
 	}
 
 	newComment, err := ts.TicketComment.GetCommentByID(newCommentID)
+	if err != nil {
+		return err
+	}
 
 	// Add the comment to the ticket
 	ticket.Comments = append(ticket.Comments, *newComment)

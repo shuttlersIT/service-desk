@@ -377,40 +377,48 @@ type StatusStorage interface {
 // TicketModel handles database operations for Ticket
 type TicketDBModel struct {
 	DB             *gorm.DB
-	EventPublisher EventPublisher
+	EventPublisher *EventPublisherImpl
+	log            Logger
 }
 
 // NewTicketModel creates a new instance of TicketModel
-func NewTicketDBModel(db *gorm.DB, eventPublisher EventPublisher) *TicketDBModel {
+func NewTicketDBModel(db *gorm.DB, log Logger, eventPublisher *EventPublisherImpl) *TicketDBModel {
 	return &TicketDBModel{
 		DB:             db,
 		EventPublisher: eventPublisher,
+		log:            log,
 	}
 }
 
 // TicketModel handles database operations for Ticket
 type TicketCommentDBModel struct {
 	DB             *gorm.DB
-	EventPublisher EventPublisher
+	EventPublisher *EventPublisherImpl
+	log            Logger
 }
 
 // NewTicketModel creates a new instance of TicketModel
-func NewTicketCommentDBModel(db *gorm.DB, eventPublisher EventPublisher) *TicketCommentDBModel {
+func NewTicketCommentDBModel(db *gorm.DB, log Logger, eventPublisher *EventPublisherImpl) *TicketCommentDBModel {
 	return &TicketCommentDBModel{
 		DB:             db,
 		EventPublisher: eventPublisher,
+		log:            log,
 	}
 }
 
 // TicketModel handles database operations for Ticket
 type TicketHistoryEntryDBModel struct {
-	DB *gorm.DB
+	DB             *gorm.DB
+	log            Logger
+	EventPublisher *EventPublisherImpl
 }
 
 // NewTicketModel creates a new instance of TicketModel
-func NewTicketHistoryEntryDBModel(db *gorm.DB) *TicketHistoryEntryDBModel {
+func NewTicketHistoryEntryDBModel(db *gorm.DB, log Logger, eventPublisher *EventPublisherImpl) *TicketHistoryEntryDBModel {
 	return &TicketHistoryEntryDBModel{
-		DB: db,
+		DB:             db,
+		log:            log,
+		EventPublisher: eventPublisher,
 	}
 }
 

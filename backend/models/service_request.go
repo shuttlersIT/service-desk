@@ -150,7 +150,18 @@ type ServiceRequestStorage interface {
 
 // ServiceRequestDBModel is the database model for service requests.
 type ServiceRequestDBModel struct {
-	DB *gorm.DB
+	DB             *gorm.DB
+	log            Logger
+	EventPublisher *EventPublisherImpl
+}
+
+// NewServiceRequestDBModel creates a new ServiceRequestDBModel with the provided GORM database instance.
+func NewServiceRequestDBModel(db *gorm.DB, log Logger, eventPublisher *EventPublisherImpl) *ServiceRequestDBModel {
+	return &ServiceRequestDBModel{
+		DB:             db,
+		log:            log,
+		EventPublisher: eventPublisher,
+	}
 }
 
 // CreateServiceRequest initializes a new service request.
@@ -360,13 +371,6 @@ func (srm *ServiceRequestDBModel) GetServiceRequestCountByLocation() (map[uint]i
 	}
 
 	return result, nil
-}
-
-// NewServiceRequestDBModel creates a new ServiceRequestDBModel with the provided GORM database instance.
-func NewServiceRequestDBModel(db *gorm.DB) *ServiceRequestDBModel {
-	return &ServiceRequestDBModel{
-		DB: db,
-	}
 }
 
 func (s *ServiceRequestDBModel) ReopenServiceRequest(requestID uint) error {

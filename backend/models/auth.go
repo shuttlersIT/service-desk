@@ -176,17 +176,21 @@ func (UsersLoginCredentials) TableName() string {
 
 // AuthModel handles database operations for Auth
 type AuthDBModel struct {
-	DB           *gorm.DB
-	UserDBModel  *UserDBModel
-	AgentDBModel *AgentDBModel
+	DB             *gorm.DB
+	UserDBModel    *UserDBModel
+	AgentDBModel   *AgentDBModel
+	log            Logger
+	EventPublisher *EventPublisherImpl
 }
 
 // NewUserModel creates a new instance of UserModel
-func NewAuthDBModel(db *gorm.DB, userDBModel *UserDBModel, agentDBModel *AgentDBModel) *AuthDBModel {
+func NewAuthDBModel(db *gorm.DB, userDBModel *UserDBModel, agentDBModel *AgentDBModel, log Logger, eventPublisher *EventPublisherImpl) *AuthDBModel {
 	return &AuthDBModel{
-		DB:           db,
-		UserDBModel:  userDBModel,
-		AgentDBModel: agentDBModel,
+		DB:             db,
+		UserDBModel:    userDBModel,
+		AgentDBModel:   agentDBModel,
+		log:            log,
+		EventPublisher: eventPublisher,
 	}
 }
 

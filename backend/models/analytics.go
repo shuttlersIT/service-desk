@@ -31,13 +31,15 @@ func (Analytics) TableName() string {
 
 // EngagementMetrics handles database operations for incidents.
 type AnalyticsDBModel struct {
-	DB *gorm.DB
+	DB  *gorm.DB
+	log Logger
 }
 
 // NewIncidentDBModel creates a new instance of EngagementMetricsDBModel.
-func NewEngagementMetricsDBModel(db *gorm.DB) *AnalyticsDBModel {
+func NewEngagementMetricsDBModel(db *gorm.DB, log Logger) *AnalyticsDBModel {
 	return &AnalyticsDBModel{
-		DB: db,
+		DB:  db,
+		log: log,
 	}
 }
 

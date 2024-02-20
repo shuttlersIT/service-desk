@@ -137,13 +137,16 @@ type TransactionStorage interface {
 
 // UserModel handles database operations for User
 type TransactionDBModel struct {
-	DB *gorm.DB
+	DB             *gorm.DB
+	log            Logger
+	EventPublisher *EventPublisherImpl
 }
 
 // NewUserModel creates a new instance of UserModel
-func NewTransactionDBModel(db *gorm.DB) *TransactionDBModel {
+func NewTransactionDBModel(db *gorm.DB, log Logger) *TransactionDBModel {
 	return &TransactionDBModel{
-		DB: db,
+		DB:  db,
+		log: log,
 	}
 }
 

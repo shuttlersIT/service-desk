@@ -3,8 +3,6 @@
 package main
 
 import (
-	"log"
-
 	"github.com/shuttlersit/service-desk/backend/controllers"
 	"github.com/shuttlersit/service-desk/backend/models"
 	"github.com/shuttlersit/service-desk/backend/routes"
@@ -42,28 +40,34 @@ func main() {
 	)*/
 
 	db := InitDB()
+	log := models.NewLogger()
+	//events := models.NewEventsDBModel(db, log)
+	eventPublisher := models.NewEventPublisher()
 
 	// Public routes
 	r.GET("/auth/google", controllers.GoogleLogin)
-	r.GET("/auth/google/callback", controllers.GoogleAuthCallback)
+	//r.GET("/auth/google/callback", controllers.GoogleAuthCallback)
 
-	agentDBModel := models.NewAgentDBModel(db)
-	userDBModel := models.NewUserDBModel(db)
-	ticketDBModel := models.NewTicketDBModel(db)
-	assetAssignmentDBModel := models.NewAssetAssignmentDBModel(db)
-	assetDBModel := models.NewAssetDBModel(db, assetAssignmentDBModel)
-	authDBModel := models.NewAuthDBModel(db, userDBModel, agentDBModel)
-	serviceRequestDBModel := models.NewServiceRequestDBModel(db)
-	incidentDBModel := models.NewIncidentDBModel(db)
+	agentDBModel := models.NewAgentDBModel(db, log, eventPublisher)
+	userDBModel := models.NewUserDBModel(db, log, eventPublisher)
+	ticketDBModel := models.NewTicketDBModel(db, log, eventPublisher)
+	ticketCommentDBModel := models.NewTicketCommentDBModel(db, log, eventPublisher)
+	ticketHistoryDBModel := models.NewTicketHistoryEntryDBModel(db, log, eventPublisher)
+	assetAssignmentDBModel := models.NewAssetAssignmentDBModel(db, log)
+	assetDBModel := models.NewAssetDBModel(db, assetAssignmentDBModel, log, eventPublisher)
+	authDBModel := models.NewAuthDBModel(db, userDBModel, agentDBModel, log, eventPublisher)
+	//googleAuth := models.NewGoogleCredentialsDBModel(db, authDBModel, log)
+	serviceRequestDBModel := models.NewServiceRequestDBModel(db, log, eventPublisher)
+	incidentDBModel := models.NewIncidentDBModel(db, log, eventPublisher)
 
 	// Initialize Services
-	userService := services.NewDefaultUserService(userDBModel)
-	agentService := services.NewDefaultAgentService(agentDBModel)
-	ticketService := services.NewDefaultTicketingService(ticketDBModel)
-	assetService := services.NewDefaultAssetService(assetDBModel, assetAssignmentDBModel)
-	authService := services.NewDefaultAuthService(authDBModel)
-	serviceRequestService := services.NewDefaultServiceRequestService(serviceRequestDBModel)
-	incidentService := services.NewDefaultIncidentService(incidentDBModel)
+	userService := services.NewDefaultUserService(userDBModel, log, eventPublisher)
+	agentService := services.NewDefaultAgentService(db, eventPublisher, log, agentDBModel)
+	ticketService := services.NewDefaultTicketingService(db, ticketDBModel, ticketCommentDBModel, ticketHistoryDBModel, userDBModel, agentDBModel, eventPublisher, log)
+	assetService := services.NewDefaultAssetService(assetDBModel, assetAssignmentDBModel, *log, eventPublisher)
+	authService := services.NewAuthService(db, authDBModel, *log, eventPublisher)
+	serviceRequestService := services.NewDefaultServiceRequestService(db, serviceRequestDBModel, *log, eventPublisher)
+	incidentService := services.NewDefaultIncidentService(db, incidentDBModel, *log, eventPublisher)
 
 	// Initialize Controllers
 	agentsController := controllers.NewAgentController(agentService)

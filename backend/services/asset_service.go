@@ -30,16 +30,18 @@ type DefaultAssetService struct {
 	DB                     *gorm.DB
 	AssetDBModel           *models.AssetDBModel
 	AssetAssignmentDBModel *models.AssetAssignmentDBModel
-	log                    Logger
+	log                    models.PrintLogger
+	EventPublisher         *models.EventPublisherImpl
 	// Add any dependencies or data needed for the service
 }
 
 // NewDefaultAssetService creates a new DefaultAssetService.
-func NewDefaultAssetService(assetDBModel *models.AssetDBModel, assetAssignmentDBModel *models.AssetAssignmentDBModel, log Logger) *DefaultAssetService {
+func NewDefaultAssetService(assetDBModel *models.AssetDBModel, assetAssignmentDBModel *models.AssetAssignmentDBModel, log models.PrintLogger, eventPublisher *models.EventPublisherImpl) *DefaultAssetService {
 	return &DefaultAssetService{
 		AssetDBModel:           assetDBModel,
 		AssetAssignmentDBModel: assetAssignmentDBModel,
 		log:                    log,
+		EventPublisher:         eventPublisher,
 	}
 }
 

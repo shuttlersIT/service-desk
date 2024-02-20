@@ -27,12 +27,20 @@ type AuthServiceInterface interface {
 }
 
 type AuthService struct {
-	DB *gorm.DB
+	DB             *gorm.DB
+	AuthDBModel    *models.AuthDBModel
+	log            models.PrintLogger
+	EventPublisher *models.EventPublisherImpl
 }
 
 // NewAuthService creates a new instance of AuthService with the given DB connection.
-func NewAuthService(db *gorm.DB) *AuthService {
-	return &AuthService{DB: db}
+func NewAuthService(db *gorm.DB, authDBModel *models.AuthDBModel, log models.PrintLogger, eventPublisher *models.EventPublisherImpl) *AuthService {
+	return &AuthService{
+		DB:             db,
+		AuthDBModel:    authDBModel,
+		log:            log,
+		EventPublisher: eventPublisher,
+	}
 }
 
 // RegisterUser handles new user registration.

@@ -162,13 +162,17 @@ type DepartmentStorage interface {
 
 // UserModel handles database operations for User
 type UserDBModel struct {
-	DB *gorm.DB
+	DB             *gorm.DB
+	log            Logger
+	EventPublisher *EventPublisherImpl
 }
 
 // NewUserModel creates a new instance of UserModel
-func NewUserDBModel(db *gorm.DB) *UserDBModel {
+func NewUserDBModel(db *gorm.DB, log Logger, eventPublisher *EventPublisherImpl) *UserDBModel {
 	return &UserDBModel{
-		DB: db,
+		DB:             db,
+		log:            log,
+		EventPublisher: eventPublisher,
 	}
 }
 

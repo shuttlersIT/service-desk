@@ -324,21 +324,18 @@ type PermissionStorage interface {
 
 // AgentDBModel handles database operations for Agent
 type AgentDBModel struct {
-	DB  *gorm.DB
-	log Logger
+	DB             *gorm.DB
+	log            Logger
+	EventPublisher *EventPublisherImpl
 }
 
 // NewAgentDBModel creates a new instance of AgentDBModel
-func NewAgentDBModel(db *gorm.DB, log Logger) *AgentDBModel {
+func NewAgentDBModel(db *gorm.DB, log Logger, eventPublisher *EventPublisherImpl) *AgentDBModel {
 	return &AgentDBModel{
-		DB:  db,
-		log: log,
+		DB:             db,
+		log:            log,
+		EventPublisher: eventPublisher,
 	}
-}
-
-type Logger interface {
-	Error(args ...interface{})
-	Info(args ...interface{})
 }
 
 func (repo *AgentDBModel) CreateAgent2(agent *Agents) error {

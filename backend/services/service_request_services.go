@@ -52,11 +52,16 @@ type ServiceRequestService interface {
 type DefaultServiceRequestService struct {
 	DB                    *gorm.DB
 	ServiceRequestDBModel *models.ServiceRequestDBModel
+	log                   models.PrintLogger
+	EventPublisher        *models.EventPublisherImpl
 }
 
-func NewDefaultServiceRequestService(serviceRequestDBModel *models.ServiceRequestDBModel) *DefaultServiceRequestService {
+func NewDefaultServiceRequestService(db *gorm.DB, serviceRequestDBModel *models.ServiceRequestDBModel, log models.PrintLogger, eventPublisher *models.EventPublisherImpl) *DefaultServiceRequestService {
 	return &DefaultServiceRequestService{
+		DB:                    db,
 		ServiceRequestDBModel: serviceRequestDBModel,
+		log:                   log,
+		EventPublisher:        eventPublisher,
 	}
 }
 

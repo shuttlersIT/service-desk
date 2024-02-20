@@ -310,9 +310,16 @@ type ServiceDeskEvent struct {
 	AffectedSystems string    `json:"affected_systems" gorm:"type:text"`          // JSON array of affected systems
 }
 
-// Assuming an EventPublisher interface is defined elsewhere in your application
-type EventPublisher interface {
-	Publish(event interface{}) error
+type EventsDBModel struct {
+	DB  *gorm.DB
+	log Logger
+}
+
+func NewEventsDBModel(db *gorm.DB, log Logger) *EventsDBModel {
+	return &EventsDBModel{
+		DB:  db,
+		log: log,
+	}
 }
 
 type TicketCommentCreatedEvent struct {

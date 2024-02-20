@@ -90,14 +90,14 @@ type AgentServiceInterface interface {
 }
 
 // Logger interface for logging
-type Logger interface {
+type loggerService interface {
 	Info(message string)
 	Error(message string)
 }
 
 // EventPublisher interface for publishing events
-type EventPublisher interface {
-	Publish(event interface{}) error
+type EventPublisherService interface {
+	Publish(event *models.EventLog) error
 }
 
 // AgentServiceInterface - unchanged for brevity
@@ -105,15 +105,15 @@ type EventPublisher interface {
 type DefaultAgentService struct {
 	DB             *gorm.DB
 	AgentDBModel   *models.AgentDBModel
-	Logger         Logger
-	EventPublisher EventPublisher
+	Logger         *models.PrintLogger
+	EventPublisher *models.EventPublisherImpl
 }
 
-func NewDefaultAgentService(db *gorm.DB, logger Logger, eventPublisher EventPublisher, agentDBModel *models.AgentDBModel) *DefaultAgentService {
+func NewDefaultAgentService(db *gorm.DB, eventPublisher *models.EventPublisherImpl, log *models.PrintLogger, agentDBModel *models.AgentDBModel) *DefaultAgentService {
 	return &DefaultAgentService{
 		DB:             db,
 		AgentDBModel:   agentDBModel,
-		Logger:         logger,
+		Logger:         log,
 		EventPublisher: eventPublisher,
 	}
 }
