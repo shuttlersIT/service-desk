@@ -3,10 +3,13 @@
 package main
 
 import (
-	"github.com/shuttlersit/service-desk/backend/controllers"
-	"github.com/shuttlersit/service-desk/backend/models"
-	"github.com/shuttlersit/service-desk/backend/routes"
-	"github.com/shuttlersit/service-desk/backend/services"
+	"log"
+
+	"github.com/shuttlersit/service-desk/controllers"
+	"github.com/shuttlersit/service-desk/database"
+	"github.com/shuttlersit/service-desk/models"
+	"github.com/shuttlersit/service-desk/routes"
+	"github.com/shuttlersit/service-desk/services"
 
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
@@ -19,27 +22,66 @@ func main() {
 	store := cookie.NewStore([]byte("secret"))
 	r.Use(sessions.Sessions("mysession", store))
 
+	// Auto Migrate Database Models (if not already migrated)
 	// Initialize Database
-	/*db, err := database.ConnectDB()
+	db, err := database.ConnectDB()
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	// Auto Migrate Database Models (if not already migrated)
 	db.AutoMigrate(
-		&models.ServiceRequest{},
-		&models.ServiceRequestHistoryEntry{},
-		&models.ServiceRequestComment{},
-		&models.Incident{},
-		&models.Agents{},
 		&models.Users{},
+		&models.Agents{},
+		&models.Unit{},
+		&models.Permission{},
+		&models.Teams{},
+		&models.Role{},
+		&models.TeamPermission{},
+		&models.RoleBase{},
+		&models.RolePermission{},
+		&models.AgentRole{},
+		&models.UserRole{},
+		&models.UserAgent{},
+		&models.TeamAgent{},
+		&models.AgentPermission{},
+		&models.Position{},
+		&models.Department{},
 		&models.Ticket{},
-		&models.Assets{},
-		&models.GoogleCredentials{},
+		&models.Comment{},
+		&models.TicketHistoryEntry{},
+		&models.RelatedTicket{},
+		&models.Tag{},
+		&models.SLA{},
+		&models.Priority{},
+		&models.Satisfaction{},
+		&models.Category{},
+		&models.SubCategory{},
+		&models.Status{},
+		&models.Policies{},
+		&models.TicketMediaAttachment{},
 		&models.Session{},
-	)*/
+		&models.UserAgentMapping{},
+		&models.UserAgentAccess{},
+		&models.UserAgentGroup{},
+		&models.GroupMember{},
+		&models.Location{},
+		&models.ServiceRequestComment{},
+		&models.ServiceRequestHistoryEntry{},
+		&models.Incident{},
+		&models.IncidentHistoryEntry{},
+		&models.IncidentComment{},
+		&models.GoogleCredentials{},
+		&models.AgentLoginCredentials{},
+		&models.UsersLoginCredentials{},
+		&models.PasswordHistory{},
+		&models.AgentUserMapping{},
+		&models.Assets{},
+		&models.AssetTag{},
+		&models.AssetType{},
+		&models.AssetAssignment{},
+		&models.ServiceRequest{},
+	)
 
-	db := InitDB()
 	log := models.NewLogger()
 	//events := models.NewEventsDBModel(db, log)
 	eventPublisher := models.NewEventPublisher()

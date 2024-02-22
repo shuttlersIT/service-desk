@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt"
-	"github.com/shuttlersit/service-desk/backend/models"
+	"github.com/shuttlersit/service-desk/models"
 	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"

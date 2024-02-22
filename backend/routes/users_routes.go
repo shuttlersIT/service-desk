@@ -4,7 +4,7 @@ package routes
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/shuttlersit/service-desk/backend/controllers"
+	"github.com/shuttlersit/service-desk/controllers"
 )
 
 func SetupUserRoutes(router *gin.Engine, userController *controllers.UserController) {

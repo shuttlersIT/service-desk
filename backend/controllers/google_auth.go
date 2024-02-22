@@ -11,9 +11,9 @@ import (
 
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
-	"github.com/shuttlersit/service-desk/backend/middleware"
-	"github.com/shuttlersit/service-desk/backend/models"
-	"github.com/shuttlersit/service-desk/backend/services"
+	"github.com/shuttlersit/service-desk/middleware"
+	"github.com/shuttlersit/service-desk/models"
+	"github.com/shuttlersit/service-desk/services"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 )

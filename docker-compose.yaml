@@ -1,0 +1,35 @@
+version: '3.6'
+services:
+  intel:
+    restart: always
+    container_name: intel
+    build:
+      dockerfile: Dockerfile
+      context: .
+    ports:
+      - '127.0.0.1:9193:9193'
+    environment:
+      - VIRTUAL_HOST=intel.shuttlers.africa
+      - LETSENCRYPT_HOST=intel.shuttlers.africa
+    volumes:
+      - .:/src
+      - .:/var/www
+      - GIN_MODE=release
+    depends_on:
+      - redisDB
+
+  redisDB:
+    image: redis:7.0.5-alpine
+    container_name: redisDB
+    restart: always
+    volumes:
+      - /root/redis/intel/data:/data
+    ports:
+      - '127.0.0.1:6379:6379'
+    environment:
+     - REDIS_REPLICATION_MODE=master
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10    

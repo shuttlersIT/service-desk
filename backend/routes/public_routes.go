@@ -4,7 +4,7 @@ package routes
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/shuttlersit/service-desk/backend/controllers"
+	"github.com/shuttlersit/service-desk/controllers"
 )
 
 func SetupOpenRoutes(r *gin.Engine, public *controllers.AuthController) {

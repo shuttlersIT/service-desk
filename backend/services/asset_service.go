@@ -7,7 +7,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/shuttlersit/service-desk/backend/models"
+	"github.com/shuttlersit/service-desk/models"
 	"gorm.io/gorm"
 )
 
@@ -202,7 +202,7 @@ func (s *DefaultAssetService) DeleteAssetType(typeID uint) error {
 func (s *DefaultAssetService) ListAssetTypes() ([]*models.AssetType, error) {
 	var assetTypes []*models.AssetType
 	if err := s.DB.Find(&assetTypes).Error; err != nil {
-		s.log.Error(fmt.Sprintf("Failed to retrieve asset types: ", err))
+		s.log.Error(fmt.Errorf("failed to retrieve asset types: ", err))
 		return nil, err
 	}
 	return assetTypes, nil
@@ -268,7 +268,7 @@ func (service *DefaultAssetService) UnassignAssetFromUser(assetID uint, userID u
 func (s *DefaultAssetService) RetrieveAssetMaintenanceRecords(assetID uint) ([]*models.AssetMaintenance, error) {
 	var records []*models.AssetMaintenance
 	if err := s.DB.Where("asset_id = ?", assetID).Find(&records).Error; err != nil {
-		s.log.Error(fmt.Sprintf("Failed to retrieve maintenance records: ", err))
+		s.log.Error(fmt.Sprintf("failed to retrieve maintenance records: ", err))
 		return nil, err
 	}
 	return records, nil
@@ -634,7 +634,7 @@ func (s *DefaultAssetService) ListAssetsByStatus(status string) ([]*models.Asset
 func (s *DefaultAssetService) ListAssetsByLocation(location string) ([]*models.Assets, error) {
 	var assets []*models.Assets
 	if err := s.DB.Where("location = ?", location).Find(&assets).Error; err != nil {
-		s.log.Error(fmt.Sprintf("Failed to retrieve assets by location: ", err))
+		s.log.Error(fmt.Sprintf("failed to retrieve assets by location: ", err))
 		return nil, err
 	}
 	return assets, nil
@@ -664,7 +664,7 @@ func (s *DefaultAssetService) AssetDecommission(assetID uint) error {
 func (s *DefaultAssetService) ListAssetsForAudit(criteria map[string]interface{}) ([]*models.Assets, error) {
 	var assets []*models.Assets
 	if err := s.DB.Where(criteria).Find(&assets).Error; err != nil {
-		s.log.Error(fmt.Sprintf("Failed to list assets for audit: ", err))
+		s.log.Error(fmt.Errorf("failed to list assets for audit: ", err))
 		return nil, err
 	}
 	return assets, nil
@@ -700,7 +700,7 @@ func (s *DefaultAssetService) ListAssetByCondition(condition string) ([]*models.
 func (s *DefaultAssetService) UpdateAssetCondition(assetID uint, newCondition string) error {
 	return s.DB.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Model(&models.Assets{}).Where("id = ?", assetID).Update("condition", newCondition).Error; err != nil {
-			s.log.Error(fmt.Sprintf("Failed to update condition for asset %d: %v", assetID, err))
+			s.log.Error(fmt.Errorf("failed to update condition for asset %d: %v", assetID, err))
 			return err
 		}
 		s.log.Info(fmt.Sprintf("Asset %d condition updated to '%s'", assetID, newCondition))

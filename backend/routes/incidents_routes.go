@@ -2,7 +2,7 @@ package routes
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/shuttlersit/service-desk/backend/controllers"
+	"github.com/shuttlersit/service-desk/controllers"
 )
 
 func SetupIncidentRoutes(router *gin.Engine, incidentController *controllers.IncidentController) {

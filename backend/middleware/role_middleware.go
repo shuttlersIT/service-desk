@@ -6,7 +6,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/shuttlersit/service-desk/backend/models"
+	"github.com/shuttlersit/service-desk/models"
 )
 
 // RequireRole checks if the user has the required role to access the route
