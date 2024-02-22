@@ -1,0 +1,36 @@
+version: '3.6'
+services:
+  servicedesk:
+    restart: always
+    container_name: servicedesk
+    build:
+      dockerfile: Dockerfile
+      context: .
+    ports:
+      - '127.0.0.1:7788:7788'
+    environment:
+      - VIRTUAL_HOST=servicedesk.shuttlers.africa
+      - LETSENCRYPT_HOST=servicedesk.shuttlers.africa
+    volumes:
+      - .:/service-desk/backend
+      - .:/src
+      - .:/var/www
+#      - GIN_MODE=release
+    depends_on:
+      - redisDB
+
+  redisDB:
+    image: redis:7.0.5-alpine
+    container_name: redisDB
+    restart: always
+    #volumes:
+    #  - /root/redis/servicedesk/data:/data
+    ports:
+      - '127.0.0.1:6369:6369'
+    environment:
+     - REDIS_REPLICATION_MODE=master
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10    
