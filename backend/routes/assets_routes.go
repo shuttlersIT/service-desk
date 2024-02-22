@@ -4,7 +4,7 @@ package routes
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/shuttlersit/service-desk/controllers"
+	"github.com/shuttlersit/service-desk/backend/controllers"
 )
 
 func SetupAssetsRoutes(router *gin.Engine, assetController *controllers.AssetController) {

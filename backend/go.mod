@@ -1,6 +1,6 @@
-module github.com/shuttlersit/service-desk
+module github.com/shuttlersit/service-desk/backend
 
-go 1.21.0
+go 1.22.0
 
 require (
 	github.com/cenkalti/backoff/v4 v4.2.1

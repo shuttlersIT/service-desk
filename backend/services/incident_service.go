@@ -3,7 +3,7 @@
 package services
 
 import (
-	"github.com/shuttlersit/service-desk/models"
+	"github.com/shuttlersit/service-desk/backend/models"
 	"gorm.io/gorm"
 )
 

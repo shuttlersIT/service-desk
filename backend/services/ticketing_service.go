@@ -5,7 +5,7 @@ package services
 import (
 	"fmt"
 
-	"github.com/shuttlersit/service-desk/models"
+	"github.com/shuttlersit/service-desk/backend/models"
 	"gorm.io/gorm"
 )
 

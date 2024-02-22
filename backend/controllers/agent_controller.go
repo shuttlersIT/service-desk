@@ -9,8 +9,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/mux"
-	"github.com/shuttlersit/service-desk/models"
-	"github.com/shuttlersit/service-desk/services"
+	"github.com/shuttlersit/service-desk/backend/models"
+	"github.com/shuttlersit/service-desk/backend/services"
 )
 
 type AgentController struct {

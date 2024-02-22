@@ -5,11 +5,11 @@ package main
 import (
 	"log"
 
-	"github.com/shuttlersit/service-desk/controllers"
-	"github.com/shuttlersit/service-desk/database"
-	"github.com/shuttlersit/service-desk/models"
-	"github.com/shuttlersit/service-desk/routes"
-	"github.com/shuttlersit/service-desk/services"
+	"github.com/shuttlersit/service-desk/backend/controllers"
+	"github.com/shuttlersit/service-desk/backend/database"
+	"github.com/shuttlersit/service-desk/backend/models"
+	"github.com/shuttlersit/service-desk/backend/routes"
+	"github.com/shuttlersit/service-desk/backend/services"
 
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
@@ -21,6 +21,8 @@ func main() {
 	r := gin.Default()
 	store := cookie.NewStore([]byte("secret"))
 	r.Use(sessions.Sessions("mysession", store))
+
+	gin.SetMode(gin.ReleaseMode)
 
 	// Auto Migrate Database Models (if not already migrated)
 	// Initialize Database

@@ -5,7 +5,7 @@ package services
 import (
 	"fmt"
 
-	"github.com/shuttlersit/service-desk/models"
+	"github.com/shuttlersit/service-desk/backend/models"
 	"gorm.io/gorm"
 )
 
@@ -192,7 +192,7 @@ func (ps *DefaultAgentService) CreateAgent3(agent *models.Agents) (*models.Agent
 func (s *DefaultAgentService) GetAgentByID(agentID uint) (*models.Agents, error) {
 	agent, err := s.AgentDBModel.GetAgentByID(agentID)
 	if err != nil {
-		s.Logger.Error(fmt.Sprintf("Failed to retrieve agent by ID:", "agentID", agentID, "error", err))
+		s.Logger.Error(fmt.Sprintf("failed to retrieve agent by ID:", "agentID", agentID, "error", err))
 		return nil, err
 	}
 	return agent, nil
@@ -203,7 +203,7 @@ func (s *DefaultAgentService) GetAgentByID(agentID uint) (*models.Agents, error)
 func (s *DefaultAgentService) UpdateAgent(agent *models.Agents) error {
 	err := s.DB.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Save(agent).Error; err != nil {
-			s.Logger.Error(fmt.Sprintf("Failed to update agent:", err))
+			s.Logger.Error(fmt.Sprintf("failed to update agent:", err))
 			return err // Returning error will rollback the transaction
 		}
 

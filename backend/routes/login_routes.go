@@ -6,8 +6,8 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/shuttlersit/service-desk/controllers"
-	"github.com/shuttlersit/service-desk/middleware"
+	"github.com/shuttlersit/service-desk/backend/controllers"
+	"github.com/shuttlersit/service-desk/backend/middleware"
 )
 
 func SetupAuthRoutes(router *gin.Engine, auths *controllers.AuthController) {

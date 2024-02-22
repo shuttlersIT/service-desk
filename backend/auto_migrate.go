@@ -3,8 +3,8 @@ package main
 import (
 	"log"
 
-	"github.com/shuttlersit/service-desk/database"
-	"github.com/shuttlersit/service-desk/models"
+	"github.com/shuttlersit/service-desk/backend/database"
+	"github.com/shuttlersit/service-desk/backend/models"
 	"gorm.io/gorm"
 )
 

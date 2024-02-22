@@ -7,8 +7,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/shuttlersit/service-desk/models"
-	"github.com/shuttlersit/service-desk/services"
+	"github.com/shuttlersit/service-desk/backend/models"
+	"github.com/shuttlersit/service-desk/backend/services"
 
 	"github.com/gin-gonic/gin"
 )
