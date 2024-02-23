@@ -17,7 +17,7 @@ var status string
 
 func ConnectDB() (*gorm.DB, error) {
 	// Initialize Database
-	db, err := gorm.Open(sqlite.Open("root:1T$hutt!ers@tcp(mysqlDB:3306)/itsm"), &gorm.Config{})
+	db, err := gorm.Open(sqlite.Open("root:1T$hutt!ers@tcp(db:3307)/itsm"), &gorm.Config{})
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
@@ -27,7 +27,7 @@ func ConnectDB() (*gorm.DB, error) {
 func ConnectMysql() (string, *sql.DB) {
 
 	// Replace with your database credentials
-	db, err := sql.Open("mysql", "root:1T$hutt!ers@tcp(mysqlDB:3306)/itsm")
+	db, err := sql.Open("mysql", "root:1T$hutt!ers@tcp(db:3307)/itsm")
 	if err != nil {
 		log.Fatal(err)
 		status = "Unable to connect to mysql database"

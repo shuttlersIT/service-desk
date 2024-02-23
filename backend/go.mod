@@ -14,8 +14,9 @@ require (
 	github.com/mattn/go-sqlite3 v2.0.3+incompatible
 	golang.org/x/crypto v0.19.0
 	golang.org/x/oauth2 v0.17.0
+	gorm.io/driver/mysql v1.5.4
 	gorm.io/driver/sqlite v1.5.4
-	gorm.io/gorm v1.25.6
+	gorm.io/gorm v1.25.7
 )
 
 require (

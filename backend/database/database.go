@@ -3,20 +3,56 @@
 package database
 
 import (
-	"database/sql"
 	"fmt"
 	"log"
 
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/mattn/go-sqlite3"
+	"gorm.io/driver/mysql"
+	"gorm.io/gorm"
 )
 
-var db *sql.DB
+var db *gorm.DB
 
+func InitializeMySQLConnection() (*gorm.DB, error) {
+	// Connect to the MySQL database
+	dsn := "root:1T$hutt!ers@tcp(db:3307)/itsm" // Modify with your actual MySQL connection details
+	var err error
+	db, err = gorm.Open(mysql.Open(dsn), &gorm.Config{})
+	if err != nil {
+		log.Fatal(err)
+		return nil, err
+	}
+
+	// Check if the connection is successful
+	sqlDB, err := db.DB()
+	if err != nil {
+		log.Fatal(err)
+		return nil, err
+	}
+	defer sqlDB.Close()
+
+	err = sqlDB.Ping()
+	if err != nil {
+		log.Fatal(err)
+		return nil, err
+	}
+
+	fmt.Println("Connected to the MySQL database")
+
+	return db, nil
+}
+
+// GetDB returns the database instance
+func GetDB() *gorm.DB {
+	return db
+}
+
+/*
 // InitDatabase initializes the database connection
 func InitDatabase() error {
 	// Connect to the database (you can modify the DSN)
-	dsn := "username:password@tcp(your-mysql-server:3306)/database-name"
+	dsn := "root:1T$hutt!ers@tcp(db:3307)/itsm"
 	var err error
 	db, err = sql.Open("mysql", dsn) // Change the driver and DSN as needed
 	if err != nil {
@@ -54,12 +90,13 @@ func CloseDatabase() {
 		fmt.Println("Database connection closed")
 	}
 }
+*/
 
 // Check if a table exists in the database
-func tableExists(db *sql.DB, tableName string) bool {
+func tableExists(db *gorm.DB, tableName string) bool {
 	query := "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = ?"
 	var count int
-	err := db.QueryRow(query, tableName).Scan(&count)
+	err := db.Exec(query, tableName).Scan(&count)
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -26,7 +26,7 @@ func main() {
 
 	// Auto Migrate Database Models (if not already migrated)
 	// Initialize Database
-	db, err := database.ConnectDB()
+	db, err := database.InitializeMySQLConnection()
 	if err != nil {
 		log.Fatal(err)
 	}

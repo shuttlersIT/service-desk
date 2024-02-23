@@ -1,53 +1,46 @@
-# FROM golang:1.19.0-alpine AS builder
+# Build Stage
+FROM golang:alpine AS builder
 
-FROM golang:latest AS builder
+WORKDIR /Users/itplatforms/Dev/Projects/service-desk/backend
 
-# ENV GOLANG_VERSION 1.21.7
-
-# Support CGO and SSL (if needed)
-RUN apk --no-cache add gcc g++ make
-RUN apk add git
-
-WORKDIR /backend  # Adjust to match your Go module path
-
-# ENV GO111MODULE=on
+ENV GO111MODULE=off
 ENV GIN_MODE=release
 
 # Copy go.mod and go.sum first for efficient caching
 COPY go.mod go.sum ./
-RUN go mod tidy
-#RUN go mod download
-#RUN go mod vendor
-#RUN go mod verify
+# RUN go mod tidy
 
 COPY . ./
-RUN ls -la ./*
 
-# Build the binary (adjust path if needed)
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o /backend .
+# Install necessary dependencies
+RUN apk --no-cache add gcc g++ make
 
+# Build the binary
+RUN GOOS=linux go build -o /backend .
+
+# Final Stage
 FROM alpine:latest
 
 RUN apk --no-cache add ca-certificates
 
-#ENV GO111MODULE=on
-
-# Adjust WORKDIR to match build output
-WORKDIR /service-desk
-
+ENV GO111MODULE=on
 ENV GIN_MODE=release
 
-COPY --from=builder /service-desk .
+WORKDIR /backend
+
+COPY --from=builder /backend .
+
+RUN go mod tidy
 
 # Create non-root user
 RUN addgroup -g 1001 docker && \
     adduser -S -u 1001 -G docker docker
 
-RUN chown -R docker:docker /service-desk && \
-    chmod 755 /service-desk
+RUN chown -R docker:docker /backend && \
+    chmod 755 /backend
 
 USER docker:docker
 
 EXPOSE 7788
 
-ENTRYPOINT ["./service-desk"]
+ENTRYPOINT ["./backend"]
