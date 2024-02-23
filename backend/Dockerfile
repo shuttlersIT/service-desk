@@ -8,7 +8,7 @@ ENV GIN_MODE=release
 
 # Copy go.mod and go.sum first for efficient caching
 COPY go.mod go.sum ./
-# RUN go mod tidy
+RUN go mod tidy
 
 COPY . ./
 
@@ -16,7 +16,7 @@ COPY . ./
 RUN apk --no-cache add gcc g++ make
 
 # Build the binary
-RUN GOOS=linux go build -o /backend .
+RUN CGO_ENABLED=0 GOOS=linux go build -o /backend .
 
 # Final Stage
 FROM alpine:latest
@@ -29,8 +29,6 @@ ENV GIN_MODE=release
 WORKDIR /backend
 
 COPY --from=builder /backend .
-
-RUN go mod tidy
 
 # Create non-root user
 RUN addgroup -g 1001 docker && \

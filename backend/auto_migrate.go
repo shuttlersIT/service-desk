@@ -11,7 +11,7 @@ import (
 func InitDB() *gorm.DB {
 
 	// Initialize Database
-	db, err := database.ConnectDB()
+	db, err := database.InitializeMySQLConnection()
 	if err != nil {
 		log.Fatal(err)
 	}
