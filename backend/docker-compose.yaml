@@ -1,5 +1,9 @@
 version: '3.8'
 
+networks:
+  backend_default:
+    driver: bridge
+
 services:
   servicedesk:
     restart: always
@@ -9,9 +13,6 @@ services:
       context: .
     ports:
       - '127.0.0.1:7788:7788'
-      - '127.0.0.1:7799:7799'
-      - '127.0.0.1:6677:6677'
-      - '127.0.0.1:6688:6688'
     environment:
       - VIRTUAL_HOST=servicedesk.shuttlers.africa
       - LETSENCRYPT_HOST=servicedesk.shuttlers.africa
@@ -20,6 +21,8 @@ services:
     depends_on:
       - redisDB
       - db
+    networks:
+      - backend_default
 
   redisDB:
     image: redis:7.0.5-alpine
@@ -29,6 +32,8 @@ services:
       - '127.0.0.1:6369:6369'
     environment:
       - REDIS_REPLICATION_MODE=master
+    networks:
+      - backend_default
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -50,6 +55,9 @@ services:
       - '3306'
     volumes:
       - itsm:/var/lib/mysql
+    #command: --bind-address=0.0.0.0  
+    networks:
+      - backend_default
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "it", "-p1T$hutt!ers"]
       interval: 5s
