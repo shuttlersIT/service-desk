@@ -3,12 +3,12 @@ FROM golang:alpine AS builder
 
 WORKDIR /Users/itplatforms/Dev/Projects/service-desk/backend
 
-ENV GO111MODULE=off
+ENV GO111MODULE=on
 ENV GIN_MODE=release
 
 # Copy go.mod and go.sum first for efficient caching
 COPY go.mod go.sum ./
-RUN go mod tidy
+# RUN go mod tidy
 
 COPY . ./
 

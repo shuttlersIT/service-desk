@@ -1,4 +1,5 @@
-version: '3.6'
+version: '3.8'
+
 services:
   servicedesk:
     restart: always
@@ -8,14 +9,12 @@ services:
       context: .
     ports:
       - '127.0.0.1:7788:7788'
+      - '127.0.0.1:4306:3306'  # Map host port 4306 to container port 3306
     environment:
       - VIRTUAL_HOST=servicedesk.shuttlers.africa
       - LETSENCRYPT_HOST=servicedesk.shuttlers.africa
     volumes:
-      - .:/Users/itplatforms/Dev/Projects/service-desk/backend
-#      - .:/src
-#      - .:/var/www
-#      - GIN_MODE=release
+      - .:/app  # Mount your code into the container, adjust path accordingly
     depends_on:
       - redisDB
       - db
@@ -24,17 +23,15 @@ services:
     image: redis:7.0.5-alpine
     container_name: redisDB
     restart: always
-    #volumes:
-    #  - /root/redis/servicedesk/data:/data
     ports:
       - '127.0.0.1:6369:6369'
     environment:
-     - REDIS_REPLICATION_MODE=master
+      - REDIS_REPLICATION_MODE=master
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       timeout: 5s
-      retries: 10    
+      retries: 10
 
   db:
     image: mysql:5.7
@@ -42,21 +39,23 @@ services:
     container_name: db
     environment:
       MYSQL_DATABASE: 'itsm'
-      # So you don't have to use root, but you can if you like
       MYSQL_USER: 'it'
-      # You can use whatever password you like
       MYSQL_PASSWORD: '1T$hutt!ers'
-      # Password for root access
       MYSQL_ROOT_PASSWORD: '1T$hutt!ers'
     ports:
-      # <Port exposed> : <MySQL Port running inside container>
-      - '127.0.0.1:3307:3306'
+      - '127.0.0.1:4306:3306'  # Map host port 3308 to container port 3307
     expose:
-      # Opens port 3306 on the container
-      - '3307'
-      # Where our data will be persisted
+      - '3306'
     volumes:
       - itsm:/var/lib/mysql
-# Names our volume
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "it", "-p1T$hutt!ers"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+# Define a named volume for MySQL data
 volumes:
-  itsm:    
+  itsm:
+
+# Add any additional services or configurations as needed
