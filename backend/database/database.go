@@ -16,7 +16,7 @@ var db *gorm.DB
 
 func InitializeMySQLConnection() (*gorm.DB, error) {
 	// Connect to the MySQL database
-	dsn := "root:1T$hutt!ers@tcp(localhost:4306)/itsm" // MySQL connection details
+	dsn := "root:1T$hutt!ers@tcp(db:4306)/itsm" // MySQL connection details
 	var err error
 	db, err = gorm.Open(mysql.Open(dsn), &gorm.Config{})
 	if err != nil {

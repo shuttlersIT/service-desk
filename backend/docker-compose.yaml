@@ -9,7 +9,9 @@ services:
       context: .
     ports:
       - '127.0.0.1:7788:7788'
-      - '127.0.0.1:4306:3306'  # Map host port 4306 to container port 3306
+      - '127.0.0.1:7799:7799'
+      - '127.0.0.1:6677:6677'
+      - '127.0.0.1:6688:6688'
     environment:
       - VIRTUAL_HOST=servicedesk.shuttlers.africa
       - LETSENCRYPT_HOST=servicedesk.shuttlers.africa
