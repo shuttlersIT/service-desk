@@ -50,13 +50,13 @@ type DefaultTicketingService struct {
 	TicketHistoryEntry *models.TicketHistoryEntryDBModel
 	UserDBModel        *models.UserDBModel
 	AgentDBModel       *models.AgentDBModel
-	EventPublisher     *models.EventPublisherImpl
-	log                *models.PrintLogger
+	EventPublisher     models.EventPublisherImpl
+	log                models.Logger
 	// Add any dependencies or data needed for the service
 }
 
 // NewDefaultUserService creates a new DefaultUserService.
-func NewDefaultTicketingService(db *gorm.DB, ticketDBModel *models.TicketDBModel, ticketComment *models.TicketCommentDBModel, history *models.TicketHistoryEntryDBModel, userDBModel *models.UserDBModel, agentDBModel *models.AgentDBModel, eventPublisher *models.EventPublisherImpl, log *models.PrintLogger) *DefaultTicketingService {
+func NewDefaultTicketingService(db *gorm.DB, ticketDBModel *models.TicketDBModel, ticketComment *models.TicketCommentDBModel, history *models.TicketHistoryEntryDBModel, userDBModel *models.UserDBModel, agentDBModel *models.AgentDBModel, eventPublisher models.EventPublisherImpl, log models.Logger) *DefaultTicketingService {
 	return &DefaultTicketingService{
 		DB:                 db,
 		TicketDBModel:      ticketDBModel,

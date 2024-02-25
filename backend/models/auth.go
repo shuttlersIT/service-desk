@@ -180,11 +180,11 @@ type AuthDBModel struct {
 	UserDBModel    *UserDBModel
 	AgentDBModel   *AgentDBModel
 	log            Logger
-	EventPublisher *EventPublisherImpl
+	EventPublisher EventPublisherImpl
 }
 
 // NewUserModel creates a new instance of UserModel
-func NewAuthDBModel(db *gorm.DB, userDBModel *UserDBModel, agentDBModel *AgentDBModel, log Logger, eventPublisher *EventPublisherImpl) *AuthDBModel {
+func NewAuthDBModel(db *gorm.DB, userDBModel *UserDBModel, agentDBModel *AgentDBModel, log Logger, eventPublisher EventPublisherImpl) *AuthDBModel {
 	return &AuthDBModel{
 		DB:             db,
 		UserDBModel:    userDBModel,

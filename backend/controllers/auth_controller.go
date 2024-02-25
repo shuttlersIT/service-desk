@@ -16,7 +16,7 @@ import (
 )
 
 // Initialize configuration globally or pass it to your controller struct
-var cfg = config.LoadConfig()
+var cfg = config.LoadGoogleConfig()
 
 type AuthController struct {
 	AuthService *services.AuthService

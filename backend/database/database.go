@@ -3,22 +3,30 @@
 package database
 
 import (
+	"errors"
 	"fmt"
-	"log"
+	_ "log"
 
-	_ "github.com/go-sql-driver/mysql"
-	_ "github.com/mattn/go-sqlite3"
+	"github.com/shuttlersit/service-desk/backend/config"
+	"github.com/shuttlersit/service-desk/backend/models"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 )
 
+// createGormConnection creates a Gorm database connection
+func createGormConnection(config *config.Config) (*gorm.DB, error) {
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?parseTime=true", config.DBUsername, config.DBPassword, config.DBHost, config.DBPort, config.DBName)
+	return gorm.Open(mysql.Open(dsn), &gorm.Config{})
+}
+
 var db *gorm.DB
 
-func InitializeMySQLConnection() (*gorm.DB, error) {
+func InitializeMySQLConnection(config *config.Config, log models.Logger) (*gorm.DB, error) {
 	// Connect to the MySQL database
-	dsn := "root:1T$hutt!ers@tcp(db:4306)/itsm" // MySQL connection details
+	//dsn := "docker:itrootpassword@tcp(db:3306)/itsm" // MySQL connection details
 	var err error
-	db, err = gorm.Open(mysql.Open(dsn), &gorm.Config{})
+	//db, err = gorm.Open(mysql.Open(dsn), &gorm.Config{})
+	db, err = createGormConnection(config)
 	if err != nil {
 		log.Fatal(err)
 		return nil, err
@@ -40,12 +48,28 @@ func InitializeMySQLConnection() (*gorm.DB, error) {
 
 	fmt.Println("Connected to the MySQL database")
 
+	if !tableExists(db, "your_table_name", log) {
+		log.Error(fmt.Sprintf("Table %s not found in the database", "your_table_name"))
+		return nil, errors.New("database schema incomplete")
+	}
+
 	return db, nil
 }
 
 // GetDB returns the database instance
 func GetDB() *gorm.DB {
 	return db
+}
+
+// Check if a table exists in the database
+func tableExists(db *gorm.DB, tableName string, log models.Logger) bool {
+	query := "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = ?"
+	var count int
+	err := db.Exec(query, tableName).Scan(&count)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return count > 0
 }
 
 /*
@@ -91,14 +115,3 @@ func CloseDatabase() {
 	}
 }
 */
-
-// Check if a table exists in the database
-func tableExists(db *gorm.DB, tableName string) bool {
-	query := "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = ?"
-	var count int
-	err := db.Exec(query, tableName).Scan(&count)
-	if err != nil {
-		log.Fatal(err)
-	}
-	return count > 0
-}

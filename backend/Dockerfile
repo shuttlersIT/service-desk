@@ -16,7 +16,8 @@ COPY . ./
 RUN apk --no-cache add gcc g++ make
 
 # Build the binary
-RUN CGO_ENABLED=0 GOOS=linux go build -o /backend .
+# RUN CGO_ENABLED=0 GOOS=linux go build -o /backend .
+RUN CGO_ENABLED=0 go build -o /backend .
 
 # Final Stage
 FROM alpine:latest
@@ -39,6 +40,13 @@ RUN chown -R docker:docker /backend && \
 
 USER docker:docker
 
+EXPOSE 4306
+
+EXPOSE 3306
+
 EXPOSE 7788
+
+# Test the MySQL connection
+# RUN mysql --host=localhost --user=docker --password=itrootpassword --execute="SELECT 1"
 
 ENTRYPOINT ["./backend"]

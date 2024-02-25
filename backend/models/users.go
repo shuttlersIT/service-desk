@@ -164,11 +164,11 @@ type DepartmentStorage interface {
 type UserDBModel struct {
 	DB             *gorm.DB
 	log            Logger
-	EventPublisher *EventPublisherImpl
+	EventPublisher EventPublisherImpl
 }
 
 // NewUserModel creates a new instance of UserModel
-func NewUserDBModel(db *gorm.DB, log Logger, eventPublisher *EventPublisherImpl) *UserDBModel {
+func NewUserDBModel(db *gorm.DB, log Logger, eventPublisher EventPublisherImpl) *UserDBModel {
 	return &UserDBModel{
 		DB:             db,
 		log:            log,

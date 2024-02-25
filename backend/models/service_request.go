@@ -152,11 +152,11 @@ type ServiceRequestStorage interface {
 type ServiceRequestDBModel struct {
 	DB             *gorm.DB
 	log            Logger
-	EventPublisher *EventPublisherImpl
+	EventPublisher EventPublisherImpl
 }
 
 // NewServiceRequestDBModel creates a new ServiceRequestDBModel with the provided GORM database instance.
-func NewServiceRequestDBModel(db *gorm.DB, log Logger, eventPublisher *EventPublisherImpl) *ServiceRequestDBModel {
+func NewServiceRequestDBModel(db *gorm.DB, log Logger, eventPublisher EventPublisherImpl) *ServiceRequestDBModel {
 	return &ServiceRequestDBModel{
 		DB:             db,
 		log:            log,

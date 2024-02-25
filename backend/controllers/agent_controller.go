@@ -7,11 +7,15 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/joho/godotenv"
+
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/mux"
 	"github.com/shuttlersit/service-desk/backend/models"
 	"github.com/shuttlersit/service-desk/backend/services"
 )
+
+var d = godotenv.Load()
 
 type AgentController struct {
 	AgentService *services.DefaultAgentService

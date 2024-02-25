@@ -139,7 +139,7 @@ type TransactionStorage interface {
 type TransactionDBModel struct {
 	DB             *gorm.DB
 	log            Logger
-	EventPublisher *EventPublisherImpl
+	EventPublisher EventPublisherImpl
 }
 
 // NewUserModel creates a new instance of UserModel

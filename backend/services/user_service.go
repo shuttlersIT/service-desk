@@ -32,13 +32,13 @@ type UserServiceInterface interface {
 type DefaultUserService struct {
 	DB             *gorm.DB
 	UserDBModel    *models.UserDBModel
-	log            *models.PrintLogger
-	EventPublisher *models.EventPublisherImpl
+	log            models.Logger
+	EventPublisher models.EventPublisherImpl
 	// Add any dependencies or data needed for the service
 }
 
 // NewDefaultUserService creates a new DefaultUserService.
-func NewDefaultUserService(users *models.UserDBModel, log *models.PrintLogger, eventPublisher *models.EventPublisherImpl) *DefaultUserService {
+func NewDefaultUserService(users *models.UserDBModel, log models.Logger, eventPublisher models.EventPublisherImpl) *DefaultUserService {
 	return &DefaultUserService{
 		UserDBModel:    users,
 		EventPublisher: eventPublisher,

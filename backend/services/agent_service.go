@@ -105,11 +105,11 @@ type EventPublisherService interface {
 type DefaultAgentService struct {
 	DB             *gorm.DB
 	AgentDBModel   *models.AgentDBModel
-	Logger         *models.PrintLogger
-	EventPublisher *models.EventPublisherImpl
+	Logger         models.Logger
+	EventPublisher models.EventPublisherImpl
 }
 
-func NewDefaultAgentService(db *gorm.DB, eventPublisher *models.EventPublisherImpl, log *models.PrintLogger, agentDBModel *models.AgentDBModel) *DefaultAgentService {
+func NewDefaultAgentService(db *gorm.DB, eventPublisher models.EventPublisherImpl, log models.Logger, agentDBModel *models.AgentDBModel) *DefaultAgentService {
 	return &DefaultAgentService{
 		DB:             db,
 		AgentDBModel:   agentDBModel,
@@ -131,7 +131,7 @@ func (ps *DefaultAgentService) GetAllAgents() ([]*models.Agents, error) {
 func (s *DefaultAgentService) CreateAgent(agent *models.Agents) error {
 	return s.DB.Transaction(func(tx *gorm.DB) error {
 		if err := s.AgentDBModel.CreateAgent(agent); err != nil {
-			s.Logger.Error(fmt.Sprintf("Failed to create agent:", "error", err))
+			s.Logger.Error("Failed to create agent:", "error", err)
 			return err
 		}
 
@@ -145,7 +145,7 @@ func (s *DefaultAgentService) CreateAgent(agent *models.Agents) error {
 				Action:  "created",
 			}
 			if err := s.EventPublisher.Publish(event); err != nil {
-				s.Logger.Error(fmt.Sprintf("Failed to publish agent creation event:", "error", err))
+				s.Logger.Error("Failed to publish agent creation event:", "error", err)
 			}
 		}(agent)
 		return nil

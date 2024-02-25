@@ -549,11 +549,11 @@ type AssetDBModel struct {
 	DB              *gorm.DB
 	AssetAssignment *AssetAssignmentDBModel
 	log             Logger
-	EventPublisher  *EventPublisherImpl
+	EventPublisher  EventPublisherImpl
 }
 
 // NewAssetModel creates a new instance of TicketModel
-func NewAssetDBModel(db *gorm.DB, assetAssignment *AssetAssignmentDBModel, log Logger, eventPublisher *EventPublisherImpl) *AssetDBModel {
+func NewAssetDBModel(db *gorm.DB, assetAssignment *AssetAssignmentDBModel, log Logger, eventPublisher EventPublisherImpl) *AssetDBModel {
 	return &AssetDBModel{
 		DB:              db,
 		AssetAssignment: assetAssignment,

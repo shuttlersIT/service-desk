@@ -102,11 +102,11 @@ type IncidentStorage interface {
 type IncidentDBModel struct {
 	DB             *gorm.DB
 	log            Logger
-	EventPublisher *EventPublisherImpl
+	EventPublisher EventPublisherImpl
 }
 
 // NewIncidentDBModel creates a new instance of IncidentDBModel.
-func NewIncidentDBModel(db *gorm.DB, log Logger, eventPublisher *EventPublisherImpl) *IncidentDBModel {
+func NewIncidentDBModel(db *gorm.DB, log Logger, eventPublisher EventPublisherImpl) *IncidentDBModel {
 	return &IncidentDBModel{
 		DB:             db,
 		log:            log,

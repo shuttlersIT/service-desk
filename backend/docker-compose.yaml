@@ -1,9 +1,5 @@
 version: '3.8'
 
-networks:
-  backend_default:
-    driver: bridge
-
 services:
   servicedesk:
     restart: always
@@ -12,60 +8,65 @@ services:
       dockerfile: Dockerfile
       context: .
     ports:
-      - '127.0.0.1:7788:7788'
+      - "7788:7788"
+#     - "4307:3306"
     environment:
-      - VIRTUAL_HOST=servicedesk.shuttlers.africa
-      - LETSENCRYPT_HOST=servicedesk.shuttlers.africa
+      VIRTUAL_HOST: 'servicedesk.shuttlers.africa'
+      LETSENCRYPT_HOST: 'servicedesk.shuttlers.africa'
+      MYSQL_USER: 'docker'
+      MYSQL_PASSWORD: 'itrootpassword'
     volumes:
-      - .:/app  # Mount your code into the container, adjust path accordingly
+      - ./backend:/Users/itplatforms/Dev/Projects/service-desk/backend # IN DEV: Mount code into the container
     depends_on:
       - redisDB
       - db
     networks:
-      - backend_default
+      - backend_network
 
   redisDB:
     image: redis:7.0.5-alpine
     container_name: redisDB
     restart: always
     ports:
-      - '127.0.0.1:6369:6369'
+      - "6369:6369"
     environment:
       - REDIS_REPLICATION_MODE=master
-    networks:
-      - backend_default
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       timeout: 5s
       retries: 10
+    networks:
+      - backend_network
 
   db:
     image: mysql:5.7
     restart: always
     container_name: db
     environment:
-      MYSQL_DATABASE: 'itsm'
-      MYSQL_USER: 'it'
-      MYSQL_PASSWORD: '1T$hutt!ers'
-      MYSQL_ROOT_PASSWORD: '1T$hutt!ers'
+      MYSQL_DATABASE: "itsm"
+      MYSQL_USER: "docker"
+      MYSQL_PASSWORD: "itrootpassword"
+      MYSQL_ROOT_PASSWORD: "itrootpassword"
     ports:
-      - '127.0.0.1:4306:3306'  # Map host port 3308 to container port 3307
+      - "4306:3306"  # Map host port 3308 to container port 3307
     expose:
       - '3306'
     volumes:
       - itsm:/var/lib/mysql
-    #command: --bind-address=0.0.0.0  
-    networks:
-      - backend_default
+#   command: --bind-address=0.0.0.0
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "it", "-p1T$hutt!ers"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "docker", "-pitrootpassword"]
       interval: 5s
       timeout: 5s
       retries: 10
+    networks:
+      - backend_network
 
 # Define a named volume for MySQL data
 volumes:
   itsm:
 
-# Add any additional services or configurations as needed
+# Define a custom network
+networks:
+  backend_network:

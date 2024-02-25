@@ -30,13 +30,13 @@ type DefaultAssetService struct {
 	DB                     *gorm.DB
 	AssetDBModel           *models.AssetDBModel
 	AssetAssignmentDBModel *models.AssetAssignmentDBModel
-	log                    models.PrintLogger
-	EventPublisher         *models.EventPublisherImpl
+	log                    models.Logger
+	EventPublisher         models.EventPublisherImpl
 	// Add any dependencies or data needed for the service
 }
 
 // NewDefaultAssetService creates a new DefaultAssetService.
-func NewDefaultAssetService(assetDBModel *models.AssetDBModel, assetAssignmentDBModel *models.AssetAssignmentDBModel, log models.PrintLogger, eventPublisher *models.EventPublisherImpl) *DefaultAssetService {
+func NewDefaultAssetService(assetDBModel *models.AssetDBModel, assetAssignmentDBModel *models.AssetAssignmentDBModel, log models.Logger, eventPublisher models.EventPublisherImpl) *DefaultAssetService {
 	return &DefaultAssetService{
 		AssetDBModel:           assetDBModel,
 		AssetAssignmentDBModel: assetAssignmentDBModel,
@@ -202,7 +202,7 @@ func (s *DefaultAssetService) DeleteAssetType(typeID uint) error {
 func (s *DefaultAssetService) ListAssetTypes() ([]*models.AssetType, error) {
 	var assetTypes []*models.AssetType
 	if err := s.DB.Find(&assetTypes).Error; err != nil {
-		s.log.Error(fmt.Errorf("failed to retrieve asset types: ", err))
+		s.log.Error("failed to retrieve asset types: ", err)
 		return nil, err
 	}
 	return assetTypes, nil
@@ -268,7 +268,7 @@ func (service *DefaultAssetService) UnassignAssetFromUser(assetID uint, userID u
 func (s *DefaultAssetService) RetrieveAssetMaintenanceRecords(assetID uint) ([]*models.AssetMaintenance, error) {
 	var records []*models.AssetMaintenance
 	if err := s.DB.Where("asset_id = ?", assetID).Find(&records).Error; err != nil {
-		s.log.Error(fmt.Sprintf("failed to retrieve maintenance records: ", err))
+		s.log.Error("failed to retrieve maintenance records: ", err)
 		return nil, err
 	}
 	return records, nil
@@ -634,7 +634,7 @@ func (s *DefaultAssetService) ListAssetsByStatus(status string) ([]*models.Asset
 func (s *DefaultAssetService) ListAssetsByLocation(location string) ([]*models.Assets, error) {
 	var assets []*models.Assets
 	if err := s.DB.Where("location = ?", location).Find(&assets).Error; err != nil {
-		s.log.Error(fmt.Sprintf("failed to retrieve assets by location: ", err))
+		s.log.Error("failed to retrieve assets by location: ", err)
 		return nil, err
 	}
 	return assets, nil
@@ -664,7 +664,7 @@ func (s *DefaultAssetService) AssetDecommission(assetID uint) error {
 func (s *DefaultAssetService) ListAssetsForAudit(criteria map[string]interface{}) ([]*models.Assets, error) {
 	var assets []*models.Assets
 	if err := s.DB.Where(criteria).Find(&assets).Error; err != nil {
-		s.log.Error(fmt.Errorf("failed to list assets for audit: ", err))
+		s.log.Error("failed to list assets for audit: ", err)
 		return nil, err
 	}
 	return assets, nil

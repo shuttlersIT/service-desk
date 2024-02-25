@@ -326,11 +326,11 @@ type PermissionStorage interface {
 type AgentDBModel struct {
 	DB             *gorm.DB
 	log            Logger
-	EventPublisher *EventPublisherImpl
+	EventPublisher EventPublisherImpl
 }
 
 // NewAgentDBModel creates a new instance of AgentDBModel
-func NewAgentDBModel(db *gorm.DB, log Logger, eventPublisher *EventPublisherImpl) *AgentDBModel {
+func NewAgentDBModel(db *gorm.DB, log Logger, eventPublisher EventPublisherImpl) *AgentDBModel {
 	return &AgentDBModel{
 		DB:             db,
 		log:            log,
