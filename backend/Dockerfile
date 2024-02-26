@@ -18,6 +18,12 @@ RUN apk --no-cache add gcc g++ make
 # Copy the .env file into the image
 COPY .env ./
 
+# Copy the MySQL Deployment Script
+COPY service-desk.mysql ./
+
+# App Config
+COPY config/app.conf ./
+
 # Build the binary
 RUN CGO_ENABLED=0 go build -o /backend .
 

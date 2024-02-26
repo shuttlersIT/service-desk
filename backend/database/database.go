@@ -32,6 +32,7 @@ func InitializeMySQLConnection(config *config.Config, log models.Logger) (*gorm.
 		log.Error(err)
 		return nil, err
 	}
+	log.Info(fmt.Sprintf(("%v : success\n"), dsn))
 	db, err = gorm.Open(mysql.Open(dsn), &gorm.Config{})
 	if err != nil {
 		log.Error(err)
@@ -51,11 +52,11 @@ func InitializeMySQLConnection(config *config.Config, log models.Logger) (*gorm.
 		log.Error(err)
 		return nil, err
 	}
-
+	table := "users"
 	fmt.Println("Connected to the MySQL database")
 	log.Info(fmt.Sprintf("Connecting to MySQL with DSN: %s\n", dsn))
-	if !tableExists(db, "users", log) {
-		log.Error(fmt.Sprintf("Table %s not found in the database", "your_table_name"))
+	if !tableExists(db, table, log) {
+		log.Error(fmt.Sprintf("Table %s not found in the database", table))
 		return nil, errors.New("database schema incomplete")
 	}
 
