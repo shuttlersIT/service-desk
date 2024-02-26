@@ -8,7 +8,11 @@ ENV GIN_MODE=release
 
 # Copy go.mod and go.sum first for efficient caching
 COPY go.mod go.sum ./
-# RUN go mod tidy
+
+RUN go mod tidy
+
+# Copy the .env file into the image
+COPY .env ./
 
 COPY . ./
 

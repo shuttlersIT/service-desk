@@ -7,6 +7,8 @@ services:
     build:
       dockerfile: Dockerfile
       context: .
+    env_file:
+      - .env
     ports:
       - "7788:7788"
 #     - "4307:3306"
@@ -16,7 +18,7 @@ services:
       MYSQL_USER: 'docker'
       MYSQL_PASSWORD: 'itrootpassword'
     volumes:
-      - ./backend:/Users/itplatforms/Dev/Projects/service-desk/backend # IN DEV: Mount code into the container
+      - .:/Users/itplatforms/Dev/Projects/service-desk/backend # IN DEV: Mount code into the container
     depends_on:
       - redisDB
       - db

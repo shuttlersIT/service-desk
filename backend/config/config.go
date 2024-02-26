@@ -31,7 +31,7 @@ type Dependency struct {
 // os.Getenv()
 // readConfig reads configuration from environment variables
 func ReadConfig() (*Config, error) {
-	err := godotenv.Load()
+	err := godotenv.Load(".env")
 	if err != nil {
 		fmt.Println("Error loading .env file:", err)
 		return nil, err
