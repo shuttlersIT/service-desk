@@ -1,26 +1,24 @@
 # Build Stage
 FROM golang:alpine AS builder
 
-WORKDIR /Users/itplatforms/Dev/Projects/service-desk/backend
+WORKDIR /app
 
 ENV GO111MODULE=on
 ENV GIN_MODE=release
 
 # Copy go.mod and go.sum first for efficient caching
 COPY go.mod go.sum ./
-
 RUN go mod tidy
-
-# Copy the .env file into the image
-COPY .env ./
 
 COPY . ./
 
 # Install necessary dependencies
 RUN apk --no-cache add gcc g++ make
 
+# Copy the .env file into the image
+COPY .env ./
+
 # Build the binary
-# RUN CGO_ENABLED=0 GOOS=linux go build -o /backend .
 RUN CGO_ENABLED=0 go build -o /backend .
 
 # Final Stage
@@ -45,12 +43,7 @@ RUN chown -R docker:docker /backend && \
 USER docker:docker
 
 EXPOSE 4306
-
 EXPOSE 3306
-
 EXPOSE 7788
-
-# Test the MySQL connection
-# RUN mysql --host=localhost --user=docker --password=itrootpassword --execute="SELECT 1"
 
 ENTRYPOINT ["./backend"]

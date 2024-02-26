@@ -14,9 +14,11 @@ import (
 )
 
 // createGormConnection creates a Gorm database connection
-func createGormConnection(config *config.Config) (*gorm.DB, error) {
+func CreateGormDsn(config *config.Config) (string, error) {
+	//dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?parseTime=true", config.DBUsername, config.DBPassword, config.DBHost, config.DBPort, config.DBName)
 	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?parseTime=true", config.DBUsername, config.DBPassword, config.DBHost, config.DBPort, config.DBName)
-	return gorm.Open(mysql.Open(dsn), &gorm.Config{})
+	fmt.Printf(("%v : success\n"), dsn)
+	return dsn, nil
 }
 
 var db *gorm.DB
@@ -24,31 +26,35 @@ var db *gorm.DB
 func InitializeMySQLConnection(config *config.Config, log models.Logger) (*gorm.DB, error) {
 	// Connect to the MySQL database
 	//dsn := "docker:itrootpassword@tcp(db:3306)/itsm" // MySQL connection details
-	var err error
-	//db, err = gorm.Open(mysql.Open(dsn), &gorm.Config{})
-	db, err = createGormConnection(config)
+	//var err error
+	dsn, err := CreateGormDsn(config)
 	if err != nil {
-		log.Fatal(err)
+		log.Error(err)
+		return nil, err
+	}
+	db, err = gorm.Open(mysql.Open(dsn), &gorm.Config{})
+	if err != nil {
+		log.Error(err)
 		return nil, err
 	}
 
 	// Check if the connection is successful
 	sqlDB, err := db.DB()
 	if err != nil {
-		log.Fatal(err)
+		log.Error(err)
 		return nil, err
 	}
 	defer sqlDB.Close()
 
 	err = sqlDB.Ping()
 	if err != nil {
-		log.Fatal(err)
+		log.Error(err)
 		return nil, err
 	}
 
 	fmt.Println("Connected to the MySQL database")
-
-	if !tableExists(db, "your_table_name", log) {
+	log.Info(fmt.Sprintf("Connecting to MySQL with DSN: %s\n", dsn))
+	if !tableExists(db, "users", log) {
 		log.Error(fmt.Sprintf("Table %s not found in the database", "your_table_name"))
 		return nil, errors.New("database schema incomplete")
 	}

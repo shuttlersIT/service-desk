@@ -20,6 +20,8 @@ type Config struct {
 	DBPort        string
 	DBName        string
 	DBSetupStatus string
+	DBDSN         string
+	DBScript      string
 }
 
 // Dependency represents a table dependency
@@ -31,11 +33,11 @@ type Dependency struct {
 // os.Getenv()
 // readConfig reads configuration from environment variables
 func ReadConfig() (*Config, error) {
-	err := godotenv.Load(".env")
+	err := godotenv.Load("/app/.env")
 	if err != nil {
-		fmt.Println("Error loading .env file:", err)
-		return nil, err
+		return nil, fmt.Errorf("error loading .env file: %w", err)
 	}
+
 	config := &Config{
 		DBUsername:    os.Getenv("DB_USERNAME"),
 		DBPassword:    os.Getenv("DB_PASSWORD"),
@@ -43,10 +45,13 @@ func ReadConfig() (*Config, error) {
 		DBPort:        os.Getenv("DB_PORT"),
 		DBName:        os.Getenv("DB_NAME"),
 		DBSetupStatus: os.Getenv("DB_SETUP_STATUS"),
+		DBDSN:         os.Getenv("DSN"),
+		DBScript:      os.Getenv("DB_SCRIPT"),
 	}
 
 	// Check if required config fields are set
 	if config.DBUsername == "" || config.DBPassword == "" || config.DBHost == "" || config.DBPort == "" || config.DBName == "" {
+		log.Fatal(fmt.Errorf("missing required configuration values: %w", err))
 		return nil, fmt.Errorf("missing required configuration values")
 	}
 
@@ -55,10 +60,9 @@ func ReadConfig() (*Config, error) {
 
 // DBStatusUpdate updates the DB setup status in the environment
 func DBStatusUpdate(config *Config) error {
-	err := os.Setenv("DB_SETUP_STATUS", config.DBSetupStatus)
-	if err != nil {
-		log.Fatal(fmt.Sprintln("Error updating DB setup status:", err))
-		return err
+	if err := os.Setenv("DB_SETUP_STATUS", config.DBSetupStatus); err != nil {
+		log.Fatal(fmt.Errorf("error updating DB setup status: %w", err))
+		return fmt.Errorf("error updating DB setup status: %w", err)
 	}
 	return nil
 }
@@ -68,14 +72,23 @@ type GoogleConfig struct {
 	// Other configurations
 }
 
-func LoadGoogleConfig() *GoogleConfig {
+// LoadGoogleConfig loads Google OAuth configuration
+func LoadGoogleConfig() (*GoogleConfig, error) {
+	redirectURL := os.Getenv("GOOGLE_REDIRECT_URL")
+	clientID := os.Getenv("GOOGLE_CLIENT_ID")
+	clientSecret := os.Getenv("GOOGLE_CLIENT_SECRET")
+
+	if redirectURL == "" || clientID == "" || clientSecret == "" {
+		return nil, fmt.Errorf("missing required Google OAuth configuration values")
+	}
+
 	return &GoogleConfig{
 		GoogleOAuthConfig: &oauth2.Config{
-			RedirectURL:  os.Getenv("GOOGLE_REDIRECT_URL"),
-			ClientID:     os.Getenv("GOOGLE_CLIENT_ID"),
-			ClientSecret: os.Getenv("GOOGLE_CLIENT_SECRET"),
+			RedirectURL:  redirectURL,
+			ClientID:     clientID,
+			ClientSecret: clientSecret,
 			Scopes:       []string{"https://www.googleapis.com/auth/userinfo.email", "https://www.googleapis.com/auth/userinfo.profile"},
 			Endpoint:     google.Endpoint,
 		},
-	}
+	}, nil
 }

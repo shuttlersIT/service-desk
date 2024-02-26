@@ -11,14 +11,13 @@ services:
       - .env
     ports:
       - "7788:7788"
-#     - "4307:3306"
     environment:
       VIRTUAL_HOST: 'servicedesk.shuttlers.africa'
       LETSENCRYPT_HOST: 'servicedesk.shuttlers.africa'
-      MYSQL_USER: 'docker'
-      MYSQL_PASSWORD: 'itrootpassword'
+      MYSQLUSER: 'docker'
+      MYSQLPASSWORD: 'itrootpassword'
     volumes:
-      - .:/Users/itplatforms/Dev/Projects/service-desk/backend # IN DEV: Mount code into the container
+      - .:/app  # Mount code into the container
     depends_on:
       - redisDB
       - db
@@ -51,12 +50,11 @@ services:
       MYSQL_PASSWORD: "itrootpassword"
       MYSQL_ROOT_PASSWORD: "itrootpassword"
     ports:
-      - "4306:3306"  # Map host port 3308 to container port 3307
+      - "4306:3306"
     expose:
       - '3306'
     volumes:
       - itsm:/var/lib/mysql
-#   command: --bind-address=0.0.0.0
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "docker", "-pitrootpassword"]
       interval: 5s
