@@ -17,7 +17,7 @@ type Agents struct {
 	FirstName    string                `gorm:"size:255;not null" json:"first_name" binding:"required"`
 	LastName     string                `gorm:"size:255;not null" json:"last_name" binding:"required"`
 	Email        string                `gorm:"size:255;not null;unique" json:"email" binding:"required,email"`
-	Credentials  AgentLoginCredentials `gorm:"embedded" json:"username,omitempty"` // Excluded from JSON responses
+	Credentials  AgentLoginCredentials `gorm:"embedded" json:"credentials,omitempty"`
 	Phone        *string               `gorm:"size:20" json:"phone,omitempty" binding:"omitempty,e164"`
 	PositionID   uint                  `gorm:"index;type:int unsigned" json:"position_id,omitempty"`
 	DepartmentID uint                  `gorm:"index;type:int unsigned" json:"department_id,omitempty"`
@@ -41,8 +41,8 @@ type AgentProfile struct {
 	AgentID         uint   `gorm:"primaryKey;autoIncrement:false" json:"agent_id"`
 	Bio             string `gorm:"type:text" json:"bio,omitempty"`
 	AvatarURL       string `gorm:"type:text" json:"avatar_url,omitempty"`
-	Preferences     string `gorm:"type:text" json:"preferences,omitempty"`      // Assuming JSON format
-	PrivacySettings string `gorm:"type:text" json:"privacy_settings,omitempty"` // Assuming JSON format
+	Preferences     string `gorm:"type:text" json:"preferences,omitempty"`
+	PrivacySettings string `gorm:"type:text" json:"privacy_settings,omitempty"`
 }
 
 func (AgentProfile) TableName() string {
@@ -2261,14 +2261,14 @@ func (db *AgentDBModel) RemovePermissionFromRoleByPermissionName(roleName string
 // ////////////////////////////////////////////////////////////////////////////////////////////////////
 type AgentEvent struct {
 	gorm.Model
-	Title       *string    `gorm:"size:255;not null" json:"title"` // nullable string
-	Description *string    `gorm:"type:text" json:"description"`   // nullable string
+	Title       *string    `gorm:"size:255;not null" json:"title"`
+	Description *string    `gorm:"type:text" json:"description"`
 	ActionType  *string    `json:"action_type"`
-	StartTime   *time.Time `json:"start_time"`               // nullable time.Time
-	Details     *string    `gorm:"type:text" json:"details"` // nullable string
-	Timestamp   time.Time  `json:"time_stamp"`               // nullable time.Time
+	StartTime   *time.Time `json:"start_time"`
+	Details     *string    `gorm:"type:text" json:"details"`
+	Timestamp   time.Time  `json:"time_stamp"`
 	AllDay      bool       `json:"all_day"`
-	Location    *string    `gorm:"size:255" json:"location"` // nullable string
+	Location    *string    `gorm:"size:255" json:"location"`
 	AgentID     uint       `gorm:"not null;index" json:"user_id"`
 	Agents      Agents     `gorm:"foreignKey:UserID" json:"-"`
 }
@@ -2358,7 +2358,7 @@ type AgentSchedule struct {
 	AgentID   uint      `json:"agent_id" gorm:"index;not null"`
 	StartDate time.Time `json:"start_date"`
 	EndDate   time.Time `json:"end_date"`
-	ShiftType string    `json:"shift_type" gorm:"type:varchar(100);not null"` // E.g., "morning", "night"
+	ShiftType string    `json:"shift_type" gorm:"type:varchar(100);not null"`
 	IsActive  bool      `json:"is_active" gorm:"default:true"`
 }
 type AgentShift struct {
@@ -2367,21 +2367,21 @@ type AgentShift struct {
 	ShiftDate time.Time `json:"shift_date"`
 	StartTime time.Time `json:"start_time"`
 	EndTime   time.Time `json:"end_time"`
-	ShiftType string    `json:"shift_type" gorm:"type:varchar(100);not null"` // E.g., "Morning", "Evening", "Night"
+	ShiftType string    `json:"shift_type" gorm:"type:varchar(100);not null"`
 }
 
 type AgentSkill struct {
 	gorm.Model
 	AgentID   uint   `json:"agent_id" gorm:"index;not null"`
 	SkillName string `json:"skill_name" gorm:"type:varchar(255);not null"`
-	Level     int    `json:"level" gorm:"not null"` // E.g., 1 to 5, where 5 is expert level
+	Level     int    `json:"level" gorm:"not null"`
 }
 
 type AgentFeedback struct {
 	gorm.Model
 	AgentID      uint      `json:"agent_id" gorm:"index;not null"`
-	FeedbackType string    `json:"feedback_type" gorm:"type:varchar(100);not null"` // E.g., "Customer", "Supervisor"
-	Score        int       `json:"score" gorm:"type:int;not null"`                  // Typically a numerical score, e.g., 1-10
+	FeedbackType string    `json:"feedback_type" gorm:"type:varchar(100);not null"`
+	Score        int       `json:"score" gorm:"type:int;not null"`
 	Comments     string    `json:"comments" gorm:"type:text"`
 	SubmittedAt  time.Time `json:"submitted_at"`
 }
@@ -2390,16 +2390,16 @@ type AgentKPI struct {
 	gorm.Model
 	AgentID     uint    `json:"agent_id" gorm:"index;not null"`
 	KPIName     string  `json:"kpi_name" gorm:"type:varchar(255);not null"`
-	Value       float64 `json:"value" gorm:"type:decimal(10,2);not null"` // Example: Average resolution time, Customer satisfaction score
+	Value       float64 `json:"value" gorm:"type:decimal(10,2);not null"`
 	TargetValue float64 `json:"target_value" gorm:"type:decimal(10,2)"`
-	Period      string  `json:"period" gorm:"type:varchar(100);not null"` // E.g., "Monthly", "Quarterly"
+	Period      string  `json:"period" gorm:"type:varchar(100);not null"`
 }
 
 type AgentOnboarding struct {
 	gorm.Model
 	AgentID        uint       `json:"agent_id" gorm:"index;not null"`
-	OnboardingStep string     `json:"onboarding_step" gorm:"type:varchar(255);not null"` // E.g., "Documentation", "Training", "Mentoring"
-	Status         string     `json:"status" gorm:"type:varchar(100);not null"`          // E.g., "Pending", "Completed"
+	OnboardingStep string     `json:"onboarding_step" gorm:"type:varchar(255);not null"`
+	Status         string     `json:"status" gorm:"type:varchar(100);not null"`
 	CompletedAt    *time.Time `json:"completed_at,omitempty"`
 }
 
@@ -2407,7 +2407,7 @@ type AgentTeam struct {
 	gorm.Model
 	TeamName    string   `json:"team_name" gorm:"type:varchar(255);not null;unique"`
 	Description string   `json:"description" gorm:"type:text"`
-	LeaderID    uint     `json:"leader_id" gorm:"index"` // Optional: ID of the team leader
+	LeaderID    uint     `json:"leader_id" gorm:"index"`
 	Members     []Agents `gorm:"many2many:agent_teams_members;"`
 }
 
@@ -2423,7 +2423,7 @@ type AgentTrainingRecord struct {
 type AgentAvailability struct {
 	gorm.Model
 	AgentID       uint       `json:"agent_id" gorm:"index;not null"`
-	Availability  string     `json:"availability" gorm:"type:varchar(100);not null"` // E.g., "Available", "Busy", "Offline"
+	Availability  string     `json:"availability" gorm:"type:varchar(100);not null"`
 	LastUpdated   time.Time  `json:"last_updated"`
 	NextAvailable *time.Time `json:"next_available,omitempty"`
 }
@@ -2431,7 +2431,7 @@ type AgentAvailability struct {
 type AgentContactInfo struct {
 	gorm.Model
 	AgentID      uint   `json:"agent_id" gorm:"index;not null"`
-	ContactType  string `json:"contact_type" gorm:"type:varchar(100);not null"` // E.g., "Phone", "Email", "Skype"
+	ContactType  string `json:"contact_type" gorm:"type:varchar(100);not null"`
 	ContactValue string `json:"contact_value" gorm:"type:varchar(255);not null"`
 }
 
@@ -2449,13 +2449,13 @@ type AgentVacation struct {
 	StartDate  time.Time `json:"start_date"`
 	EndDate    time.Time `json:"end_date"`
 	Reason     string    `json:"reason" gorm:"type:text"`
-	ApprovedBy uint      `json:"approved_by"` // Optional: Manager or supervisor who approved the vacation
+	ApprovedBy uint      `json:"approved_by"`
 }
 type CustomerInteraction struct {
 	gorm.Model
 	CustomerID      uint      `json:"customer_id" gorm:"index;not null"`
 	AgentID         uint      `json:"agent_id" gorm:"index;not null"`
-	Channel         string    `json:"channel" gorm:"type:varchar(100);not null"` // E.g., "Email", "Phone", "Chat"
+	Channel         string    `json:"channel" gorm:"type:varchar(100);not null"`
 	Content         string    `json:"content" gorm:"type:text;not null"`
 	InteractionTime time.Time `json:"interaction_time"`
 }
@@ -2463,7 +2463,7 @@ type CustomerInteraction struct {
 type FeedbackReview struct {
 	gorm.Model
 	FeedbackID uint      `json:"feedback_id" gorm:"index;not null"`
-	ReviewerID uint      `json:"reviewer_id" gorm:"index;not null"` // Manager or QA specialist
+	ReviewerID uint      `json:"reviewer_id" gorm:"index;not null"`
 	Review     string    `json:"review" gorm:"type:text"`
 	ReviewedAt time.Time `json:"reviewed_at"`
 }
@@ -2479,8 +2479,8 @@ type AgentTrainingModule struct {
 	gorm.Model
 	Title       string `json:"title" gorm:"type:varchar(255);not null"`
 	Description string `json:"description" gorm:"type:text"`
-	ModuleType  string `json:"module_type" gorm:"type:varchar(100);not null"` // E.g., "Online", "In-Person"
-	Duration    int    `json:"duration"`                                      // Duration in minutes
+	ModuleType  string `json:"module_type" gorm:"type:varchar(100);not null"`
+	Duration    int    `json:"duration"`
 	IsActive    bool   `json:"is_active" gorm:"default:true"`
 }
 
@@ -2504,10 +2504,10 @@ type AgentPerformanceReview struct {
 type AgentLeaveRequest struct {
 	gorm.Model
 	AgentID   uint      `json:"agent_id" gorm:"index;not null"`
-	LeaveType string    `json:"leave_type" gorm:"type:varchar(100);not null"` // E.g., "Annual", "Sick", "Personal"
+	LeaveType string    `json:"leave_type" gorm:"type:varchar(100);not null"`
 	StartDate time.Time `json:"start_date"`
 	EndDate   time.Time `json:"end_date"`
-	Status    string    `json:"status" gorm:"type:varchar(100);not null"` // E.g., "Pending", "Approved", "Denied"
+	Status    string    `json:"status" gorm:"type:varchar(100);not null"`
 }
 
 type AgentScheduleOverride struct {
@@ -2522,7 +2522,7 @@ type AgentSkillSet struct {
 	gorm.Model
 	AgentID uint   `json:"agent_id" gorm:"index;not null"`
 	Skill   string `json:"skill" gorm:"type:varchar(255);not null"`
-	Level   string `json:"level" gorm:"type:varchar(100);not null"` // E.g., "Beginner", "Intermediate", "Expert"
+	Level   string `json:"level" gorm:"type:varchar(100);not null"`
 }
 
 // AddAgentSchedule adds a new schedule for an agent, ensuring data integrity with transactional support.

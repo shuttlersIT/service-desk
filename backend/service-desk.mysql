@@ -1,6 +1,7 @@
 -- Start of the Fully Enhanced MySQL Deployment Script for Service-Desk Application
 
 CREATE DATABASE IF NOT EXISTS itsm;
+
 USE itsm;
 
 -- Departments Table

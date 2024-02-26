@@ -55,10 +55,12 @@ func main() {
 		log.Fatal(fmt.Sprintf("Error initializing database: %v", err))
 	}
 
-	if err := AutoMigrateModels(db); err != nil {
-		log.Fatal(fmt.Sprintf("Error migrating database models: %v", err))
-	}
-	fmt.Printf("db and gorm migration done")
+	/*
+		if err := AutoMigrateModels(db); err != nil {
+			log.Fatal(fmt.Sprintf("Error migrating database models: %v", err))
+		}
+		fmt.Printf("db and gorm migration done")
+	*/
 
 	// Check if database tables have been setup
 	fmt.Printf(configuration.DBSetupStatus)
@@ -152,7 +154,13 @@ func InitDB(config *config.Config, log models.Logger) (*gorm.DB, error) {
 func AutoMigrateModels(db *gorm.DB) error {
 	err := db.AutoMigrate(
 		&models.Users{},
-		&models.Agents{},
+		&models.UserRole{},
+		&models.Position{},
+		&models.Department{},
+		&models.UserProfile{},
+		&models.ProjectAssignment{},
+		&models.Activity{},
+		/*&models.Agents{},
 		&models.Unit{},
 		&models.Permission{},
 		&models.Teams{},
@@ -161,12 +169,9 @@ func AutoMigrateModels(db *gorm.DB) error {
 		&models.RoleBase{},
 		&models.RolePermission{},
 		&models.AgentRole{},
-		&models.UserRole{},
 		&models.UserAgent{},
 		&models.TeamAgent{},
 		&models.AgentPermission{},
-		&models.Position{},
-		&models.Department{},
 		&models.Ticket{},
 		&models.Comment{},
 		&models.TicketHistoryEntry{},
@@ -200,7 +205,7 @@ func AutoMigrateModels(db *gorm.DB) error {
 		&models.AssetTag{},
 		&models.AssetType{},
 		&models.AssetAssignment{},
-		&models.ServiceRequest{},
+		&models.ServiceRequest{}, */
 	)
 	return err
 }

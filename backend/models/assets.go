@@ -26,9 +26,10 @@ func (DeviceRegistration) TableName() string {
 	return "device_registrations"
 }
 
+// Assets represent details about various assets.
 type Assets struct {
 	gorm.Model
-	AssetTag          string     `gorm:"size:100;not null;uniqueIndex" json:"assetTag"`
+	AssetTag          string     `gorm:"size:100;uniqueIndex;not null" json:"assetTag"`
 	Name              string     `gorm:"size:255;not null" json:"name"`
 	Description       string     `gorm:"size:500" json:"description,omitempty"`
 	Status            string     `gorm:"size:100;not null" json:"status"`
@@ -55,14 +56,15 @@ type Assets struct {
 	DecommissionDate  *time.Time `json:"decommission_date,omitempty"`
 	Tag               string     `gorm:"type:varchar(100);uniqueIndex" json:"tag"`
 	DepreciationValue float64    `gorm:"type:decimal(10,2)" json:"depreciationValue"`
-	UsefulLife        int        `gorm:"type:int" json:"usefulLife"`             // Added field for the useful life of the asset
-	SalvageValue      float64    `gorm:"type:decimal(10,2)" json:"salvageValue"` // Added field for the salvage value of the asset
+	UsefulLife        int        `gorm:"type:int" json:"usefulLife"`
+	SalvageValue      float64    `gorm:"type:decimal(10,2)" json:"salvageValue"`
 }
 
 func (Assets) TableName() string {
 	return "assets"
 }
 
+// InventoryItem represents an item in the inventory.
 type InventoryItem struct {
 	gorm.Model
 	ProductID   uint   `gorm:"uniqueIndex;not null" json:"product_id"`
@@ -75,34 +77,33 @@ func (InventoryItem) TableName() string {
 	return "inventory_items"
 }
 
-// Hashtag represents a hashtag entity
+// AssetTag represents tags associated with an asset.
 type AssetTag struct {
 	gorm.Model
 	AssetTag string   `json:"tag"`
-	Tags     []string `gorm:"type:text[]" json:"tags"` // Use pq.StringArray for PostgreSQL compatibility
+	Tags     []string `gorm:"type:text[]" json:"tags"`
 	AssetID  uint     `gorm:"index" json:"asset_id"`
 }
 
-// TableName sets the table name for the AssetTags model.
 func (AssetTag) TableName() string {
 	return "asset_tag"
 }
 
+// AssetType represents the type of an asset.
 type AssetType struct {
 	ID          uint   `gorm:"primaryKey" json:"id"`
 	AssetType   string `json:"asset_type"`
 	Description string `gorm:"type:text" json:"description"`
 }
 
-// TableName sets the table name for the AssetType model.
 func (AssetType) TableName() string {
 	return "assetType"
 }
 
-// AssetCategory represents categories that assets can be classified into.
+// AssetCategory represents the category of an asset.
 type AssetCategory struct {
 	gorm.Model
-	Name        string `gorm:"size:255;not null;uniqueIndex" json:"name"`
+	Name        string `gorm:"size:255;uniqueIndex;not null" json:"name"`
 	Description string `gorm:"size:500" json:"description,omitempty"`
 }
 
@@ -114,7 +115,7 @@ func (AssetCategory) TableName() string {
 type AssetAssignment struct {
 	gorm.Model
 	AssetID        uint       `gorm:"not null" json:"assetId"`
-	AssignedTo     uint       `gorm:"not null" json:"assignedTo"` // Could be a user or a location ID based on context
+	AssignedTo     uint       `gorm:"not null" json:"assignedTo"`
 	AssignmentDate time.Time  `json:"assignmentDate"`
 	ReturnDate     *time.Time `json:"returnDate,omitempty"`
 	AssignmentType string     `gorm:"size:255" json:"assignment_type"`
@@ -132,7 +133,7 @@ type AssetLog struct {
 	ID        uint      `gorm:"primaryKey" json:"id"`
 	AssetID   uint      `gorm:"not null" json:"asset_id"`
 	UserID    uint      `gorm:"not null" json:"user_id"`
-	Action    string    `gorm:"type:varchar(255)" json:"action"` // e.g., "create", "update", "assign"
+	Action    string    `gorm:"type:varchar(255)" json:"action"`
 	Timestamp time.Time `json:"timestamp"`
 	Details   string    `gorm:"type:text" json:"details"`
 }
@@ -141,6 +142,7 @@ func (AssetLog) TableName() string {
 	return "asset_log"
 }
 
+// Resource represents a resource.
 type Resource struct {
 	gorm.Model
 	Name               string    `json:"name" binding:"required"`
@@ -148,8 +150,8 @@ type Resource struct {
 	Type               string    `json:"type"`
 	Location           string    `json:"location,omitempty"`
 	AvailabilityStatus string    `json:"availability_status"`
-	Metadata           string    `gorm:"type:text" json:"metadata,omitempty"`      // JSON for storing additional information
-	Status             string    `gorm:"type:varchar(100);not null" json:"status"` // E.g., "active", "maintenance"
+	Metadata           string    `gorm:"type:text" json:"metadata,omitempty"`
+	Status             string    `gorm:"type:varchar(100);not null" json:"status"`
 	Bookings           []Booking `gorm:"foreignKey:ResourceID" json:"bookings,omitempty"`
 }
 
@@ -157,11 +159,12 @@ func (Resource) TableName() string {
 	return "resources"
 }
 
+// ResourceAllocation represents the allocation of a resource.
 type ResourceAllocation struct {
 	gorm.Model
 	ResourceID        uint      `gorm:"index;not null" json:"resource_id"`
-	UserID            uint      `gorm:"index" json:"user_id,omitempty"`      // Optional, if allocated to a user
-	AllocationDetails string    `gorm:"type:text" json:"allocation_details"` // JSON detailing allocation
+	UserID            uint      `gorm:"index" json:"user_id,omitempty"`
+	AllocationDetails string    `gorm:"type:text" json:"allocation_details"`
 	StartTime         time.Time `json:"start_time"`
 	EndTime           time.Time `json:"end_time"`
 }
@@ -170,11 +173,12 @@ func (ResourceAllocation) TableName() string {
 	return "resource_allocations"
 }
 
+// AgentResourceAllocation represents the allocation of a resource to an agent.
 type AgentResourceAllocation struct {
 	ID                uint            `gorm:"primaryKey" json:"id"`
 	AgentID           uint            `json:"agent_id" gorm:"index;not null"`
 	ResourceID        uint            `json:"resource_id" gorm:"index;not null"`
-	AllocationDetails string          `gorm:"type:text" json:"allocation_details,omitempty"` // JSON detailing allocation
+	AllocationDetails string          `gorm:"type:text" json:"allocation_details,omitempty"`
 	StartTime         time.Time       `json:"start_time"`
 	EndTime           time.Time       `json:"end_time"`
 	CreatedAt         time.Time       `json:"created_at"`
@@ -186,6 +190,7 @@ func (AgentResourceAllocation) TableName() string {
 	return "agent_resource_allocations"
 }
 
+// Booking represents a booking of a resource.
 type Booking struct {
 	gorm.Model
 	ResourceID uint      `json:"resource_id"`
@@ -199,10 +204,11 @@ func (Booking) TableName() string {
 	return "bookings"
 }
 
+// AccessControlList represents an access control list entry.
 type AccessControlList struct {
 	gorm.Model
-	Resource   string `gorm:"type:varchar(255);not null" json:"resource"` // E.g., "article", "user_profile"
-	Action     string `gorm:"type:varchar(100);not null" json:"action"`   // E.g., "read", "write"
+	Resource   string `gorm:"type:varchar(255);not null" json:"resource"`
+	Action     string `gorm:"type:varchar(100);not null" json:"action"`
 	RoleID     uint   `gorm:"index" json:"role_id"`
 	Permission bool   `json:"permission"`
 }
@@ -211,18 +217,20 @@ func (AccessControlList) TableName() string {
 	return "access_control_lists"
 }
 
+// ComplianceAuditLog represents an entry in the compliance audit log.
 type ComplianceAuditLog struct {
 	gorm.Model
 	Action      string `gorm:"type:varchar(255);not null"`
 	UserID      uint   `gorm:"index"`
 	Description string `gorm:"type:text;not null"`
-	Details     string `gorm:"type:text"` // JSON format recommended
+	Details     string `gorm:"type:text"`
 }
 
 func (ComplianceAuditLog) TableName() string {
 	return "compliance_audit_logs"
 }
 
+// Vendor represents a vendor.
 type Vendor struct {
 	gorm.Model
 	VendorName    string `gorm:"size:255;not null;unique" json:"vendor_name"`
@@ -241,7 +249,7 @@ type LifecycleEvent struct {
 	gorm.Model
 	AssetID uint      `gorm:"not null" json:"assetId"`
 	Date    time.Time `json:"date"`
-	Type    string    `gorm:"size:255;not null" json:"type"` // e.g., Purchase, Maintenance, Decommission
+	Type    string    `gorm:"size:255;not null" json:"type"`
 	Notes   string    `gorm:"size:500" json:"notes,omitempty"`
 }
 
@@ -255,6 +263,7 @@ type AssetMaintenance struct {
 	Status        string     `gorm:"size:100;not null" json:"status"`
 }
 
+// AssetPerformanceAnalysis documents the performance analysis of an asset.
 type AssetPerformanceAnalysis struct {
 	ID                uint      `gorm:"primaryKey" json:"id"`
 	AssetID           uint      `gorm:"index;not null" json:"asset_id"`
@@ -264,10 +273,10 @@ type AssetPerformanceAnalysis struct {
 	AnalysisStartDate time.Time `gorm:"type:datetime" json:"analysis_start_date"`
 	AnalysisEndDate   time.Time `gorm:"type:datetime" json:"analysis_end_date"`
 	CreatedAt         time.Time `gorm:"<-:create" json:"created_at"`
-	UpdatedAt         time.Time `gorm:"" json:"updated_at"`
+	UpdatedAt         time.Time `json:"updated_at"`
 }
 
-// AssetPerformanceLog logs performance metrics for an asset over time.
+// AssetPerformanceLog records performance metrics for an asset over time.
 type AssetPerformanceLog struct {
 	gorm.Model
 	AssetID     uint      `gorm:"index;not null" json:"assetId"`
@@ -276,11 +285,12 @@ type AssetPerformanceLog struct {
 	Notes       string    `gorm:"type:text" json:"notes"`
 }
 
+// AssetPerformanceMetrics represents metrics for an asset's performance.
 type AssetPerformanceMetrics struct {
 	gorm.Model
 	AssetID    uint      `gorm:"index;not null" json:"assetId"`
 	MetricDate time.Time `json:"metricDate"`
-	MetricType string    `gorm:"type:varchar(100);not null" json:"metricType"` // E.g., "Operational Efficiency"
+	MetricType string    `gorm:"type:varchar(100);not null" json:"metricType"`
 	Value      float64   `json:"value"`
 }
 
@@ -322,7 +332,7 @@ type AssetIssue struct {
 type AssetCostAnalysis struct {
 	AssetID        uint               `json:"assetId"`
 	TotalCost      float64            `json:"totalCost"`
-	CostComponents map[string]float64 `json:"costComponents"` // Detailed breakdown
+	CostComponents map[string]float64 `json:"costComponents"`
 	AnalysisDate   time.Time          `json:"analysis_date"`
 }
 
@@ -340,8 +350,8 @@ type AssetAccessLog struct {
 type AssetPermission struct {
 	gorm.Model
 	AssetID    uint       `gorm:"index;not null" json:"assetId"`
-	GrantedTo  uint       `gorm:"index" json:"grantedTo"`                       // User ID
-	Permission string     `gorm:"type:varchar(100);not null" json:"permission"` // e.g., "read", "write"
+	GrantedTo  uint       `gorm:"index" json:"grantedTo"`
+	Permission string     `gorm:"type:varchar(100);not null" json:"permission"`
 	ValidUntil *time.Time `json:"validUntil"`
 }
 
@@ -352,14 +362,16 @@ type AssetReport struct {
 	Content    string    `gorm:"type:text" json:"content"`
 }
 
+// AssetLifecycleEvent records events in the lifecycle of an asset.
 type AssetLifecycleEvent struct {
 	gorm.Model
 	AssetID   uint      `gorm:"index;not null" json:"assetId"`
-	EventType string    `gorm:"type:varchar(100);not null" json:"eventType"` // E.g., "Creation", "Update", "Decommission"
+	EventType string    `gorm:"type:varchar(100);not null" json:"eventType"`
 	EventDate time.Time `json:"eventDate"`
 	Details   string    `gorm:"type:text" json:"details"`
 }
 
+// AssetRepairLog records repairs performed on assets.
 type AssetRepairLog struct {
 	gorm.Model
 	AssetID           uint              `gorm:"index;not null" json:"assetId"`
@@ -369,6 +381,7 @@ type AssetRepairLog struct {
 	CompletionDetails CompletionDetails `gorm:"foreignKey:UserID" json:"-"`
 }
 
+// CompletionDetails contains details of the completion of an asset repair.
 type CompletionDetails struct {
 	gorm.Model
 	RepairLogID    uint      `gorm:"index;not null" json:"repairLogId"`
@@ -379,6 +392,7 @@ type CompletionDetails struct {
 	ReturnDate     time.Time `json:"returnDate"`
 }
 
+// AssetDepreciationRecord records depreciation details for an asset.
 type AssetDepreciationRecord struct {
 	gorm.Model
 	AssetID                 uint      `gorm:"index;not null" json:"assetId"`
@@ -387,6 +401,7 @@ type AssetDepreciationRecord struct {
 	AccumulatedDepreciation float64   `gorm:"type:decimal(10,2)" json:"accumulatedDepreciation"`
 }
 
+// ExternalServiceData stores data from external services related to assets.
 type ExternalServiceData struct {
 	ID                    uint      `gorm:"primaryKey" json:"id"`
 	AssetID               uint      `gorm:"index;not null" json:"asset_id"`
@@ -395,7 +410,7 @@ type ExternalServiceData struct {
 	ExternalServiceStatus string    `gorm:"type:varchar(255)" json:"external_service_status"`
 	AdditionalInformation string    `gorm:"type:text" json:"additional_information"`
 	CreatedAt             time.Time `gorm:"<-:create" json:"created_at"`
-	UpdatedAt             time.Time `gorm:"" json:"updated_at"`
+	UpdatedAt             time.Time `json:"updated_at"`
 }
 
 // AssetDecommission records the decommissioning process of assets.
@@ -404,14 +419,14 @@ type AssetDecommission struct {
 	AssetID          uint      `gorm:"not null" json:"asset_id"`
 	DecommissionDate time.Time `json:"decommission_date"`
 	Reason           string    `gorm:"type:text" json:"reason"`
-	Status           string    `gorm:"type:varchar(100)" json:"status"` // e.g., "in_progress", "completed"
+	Status           string    `gorm:"type:varchar(100)" json:"status"`
 }
 
 // AssetUtilization captures utilization data for assets.
 type AssetUtilization struct {
 	ID           uint      `gorm:"primaryKey" json:"id"`
 	AssetID      uint      `gorm:"not null" json:"asset_id"`
-	Utilization  float64   `json:"utilization"` // Percentage or other metric
+	Utilization  float64   `json:"utilization"`
 	ReportedDate time.Time `json:"reported_date"`
 }
 
@@ -437,20 +452,20 @@ type AssetMaintenanceSchedule struct {
 	ScheduledDate time.Time  `json:"scheduled_date"`
 	CompletedDate *time.Time `json:"completedDate,omitempty"`
 	Description   string     `gorm:"type:text" json:"description"`
-	Status        string     `gorm:"type:varchar(100);notNull" json:"status"` // e.g., Scheduled, Completed
+	Status        string     `gorm:"type:varchar(100);notNull" json:"status"`
 }
 
 func (AssetMaintenanceSchedule) TableName() string {
 	return "asset_maintenance_schedules"
 }
 
-// AssetInspectionRecord documents the inspections performed on assets to ensure they are in good working condition.
+// AssetInspectionRecord documents the inspections performed on assets.
 type AssetInspectionRecord struct {
 	ID             uint           `gorm:"primaryKey" json:"id"`
 	AssetID        uint           `gorm:"index;notNull" json:"asset_id"`
 	InspectionDate time.Time      `json:"inspection_date"`
 	InspectedBy    uint           `gorm:"index;notNull" json:"inspected_by"`
-	Outcome        string         `gorm:"size:255" json:"outcome"` // e.g., Passed, RequiresMaintenance
+	Outcome        string         `gorm:"size:255" json:"outcome"`
 	Notes          string         `gorm:"type:text" json:"notes,omitempty"`
 	CreatedAt      time.Time      `json:"created_at"`
 	UpdatedAt      time.Time      `json:"updated_at"`

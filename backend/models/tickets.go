@@ -17,30 +17,30 @@ import (
 type Ticket struct {
 	gorm.Model
 	ID               uint                    `gorm:"primaryKey" json:"id"`
-	Subject          string                  `gorm:"size:255;not null" json:"subject"`                   // Summary of the ticket issue
-	Description      string                  `gorm:"type:text;not null" json:"description"`              // Detailed description of the issue
-	CategoryID       uint                    `gorm:"index;not null" json:"category_id"`                  // Categorizes the ticket for routing or reporting
-	SubCategoryID    uint                    `gorm:"index;not null" json:"sub_category_id"`              // Further refines the ticket category
-	PriorityID       uint                    `gorm:"index;not null" json:"priority_id"`                  // Indicates the urgency of the ticket
-	SLAID            uint                    `json:"sla_id"`                                             // Associates the ticket with a specific Service Level Agreement
-	UserID           uint                    `gorm:"index;not null" json:"user_id"`                      // The user who submitted the ticket
-	AgentID          *uint                   `gorm:"index" json:"agent_id,omitempty"`                    // Optionally assigns the ticket to a specific agent
-	DueAt            *time.Time              `json:"due_at,omitempty"`                                   // Expected resolution time
-	ClosedAt         *time.Time              `json:"closed_at,omitempty"`                                // Time when the ticket was closed
-	Site             string                  `gorm:"size:255" json:"site"`                               // Location or site related to the ticket
-	StatusID         uint                    `gorm:"index;not null" json:"status_id"`                    // Current status of the ticket
-	Status           string                  `gorm:"size:100;not null" json:"status" binding:"required"` // Descriptive status
-	StatusObject     Status                  `json:"status_details"`                                     // Embeds status details
-	Priority         Priority                `json:"priority"`                                           // Embeds priority details
-	Category         Category                `gorm:"foreignKey:CategoryID" json:"-"`                     // Links to the category entity
-	SubCategory      SubCategory             `gorm:"foreignKey:SubCategoryID" json:"-"`                  // Links to the sub-category entity
-	SLA              SLA                     `gorm:"foreignKey:sla_id" json:"-"`                         // Links to the SLA entity
-	MediaAttachments []TicketMediaAttachment `gorm:"foreignKey:TicketID" json:"media_attachments"`       // Related media files
-	Tags             []Tag                   `gorm:"many2many:ticket_tags;" json:"tags"`                 // Tags for categorization or filtering
-	Comments         []Comment               `gorm:"foreignKey:TicketID" json:"comments"`                // User or agent comments on the ticket
-	TicketHistory    []TicketHistoryEntry    `gorm:"foreignKey:TicketID" json:"ticket_history"`          // Audit trail of ticket changes
-	User             Users                   `gorm:"foreignKey:UserID" json:"-"`                         // Links to the submitting user
-	Agent            Agents                  `gorm:"foreignKey:AgentID" json:"-"`                        // Links to the assigned agent, if any
+	Subject          string                  `gorm:"size:255;not null" json:"subject"`
+	Description      string                  `gorm:"type:text;not null" json:"description"`
+	CategoryID       uint                    `gorm:"index;not null" json:"category_id"`
+	SubCategoryID    uint                    `gorm:"index;not null" json:"sub_category_id"`
+	PriorityID       uint                    `gorm:"index;not null" json:"priority_id"`
+	SLAID            uint                    `json:"sla_id"`
+	UserID           uint                    `gorm:"index;not null" json:"user_id"`
+	AgentID          *uint                   `gorm:"index" json:"agent_id,omitempty"`
+	DueAt            *time.Time              `json:"due_at,omitempty"`
+	ClosedAt         *time.Time              `json:"closed_at,omitempty"`
+	Site             string                  `gorm:"size:255" json:"site"`
+	StatusID         uint                    `gorm:"index;not null" json:"status_id"`
+	Status           string                  `gorm:"size:100;not null" json:"status" binding:"required"`
+	StatusObject     Status                  `json:"status_details"`
+	PriorityObject   Priority                `json:"priority_details"`
+	Category         Category                `gorm:"foreignKey:CategoryID" json:"-"`
+	SubCategory      SubCategory             `gorm:"foreignKey:SubCategoryID" json:"-"`
+	SLA              SLA                     `gorm:"foreignKey:SLAID" json:"-"`
+	MediaAttachments []TicketMediaAttachment `gorm:"foreignKey:TicketID" json:"media_attachments"`
+	Tags             []Tag                   `gorm:"many2many:ticket_tags;" json:"tags"`
+	Comments         []Comment               `gorm:"foreignKey:TicketID" json:"comments"`
+	TicketHistory    []TicketHistoryEntry    `gorm:"foreignKey:TicketID" json:"ticket_history"`
+	User             Users                   `gorm:"foreignKey:UserID" json:"-"`
+	Agent            Agents                  `gorm:"foreignKey:AgentID" json:"-"`
 }
 
 func (Ticket) TableName() string {
@@ -49,12 +49,12 @@ func (Ticket) TableName() string {
 
 type Comment struct {
 	ID        uint            `gorm:"primaryKey" json:"id"`
-	TicketID  uint            `json:"ticket_id"`                         // Links comment to a specific ticket
-	AuthorID  uint            `json:"author_id"`                         // Identifies the author of the comment
-	Comment   string          `json:"comment" gorm:"type:text;not null"` // The content of the comment
-	CreatedAt time.Time       `json:"created_at"`                        // Timestamp of comment creation
-	UpdatedAt time.Time       `json:"updated_at"`                        // Timestamp of last update to comment
-	DeletedAt *gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"` // Soft delete flag
+	TicketID  uint            `json:"ticket_id"`
+	AuthorID  uint            `json:"author_id"`
+	Comment   string          `gorm:"type:text;not null" json:"comment"`
+	CreatedAt time.Time       `json:"created_at"`
+	UpdatedAt time.Time       `json:"updated_at"`
+	DeletedAt *gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
 }
 
 func (Comment) TableName() string {
@@ -63,15 +63,14 @@ func (Comment) TableName() string {
 
 type TicketHistoryEntry struct {
 	gorm.Model
-	TicketID uint   `json:"ticket_id"`                       // Associates history entry with a ticket
-	Action   string `gorm:"size:255;not null" json:"action"` // Describes the action taken
+	TicketID uint   `json:"ticket_id"`
+	Action   string `gorm:"size:255;not null" json:"action"`
 }
 
 func (TicketHistoryEntry) TableName() string {
 	return "ticket_history_entries"
 }
 
-// RelatedAd struct for storing related advertisements
 type RelatedTicket struct {
 	gorm.Model
 	TicketID        uint `json:"ticket_id" gorm:"index;not null"`
@@ -82,7 +81,6 @@ func (RelatedTicket) TableName() string {
 	return "related_tickets"
 }
 
-// Hashtag represents a hashtag entity
 type Tag struct {
 	ID        uint            `gorm:"primaryKey" json:"id"`
 	Name      string          `gorm:"size:255;not null;unique" json:"name"`
@@ -132,7 +130,6 @@ type Satisfaction struct {
 	DeletedAt *gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
 }
 
-// TableName sets the table name for the Satisfaction model.
 func (Satisfaction) TableName() string {
 	return "satisfaction"
 }
@@ -141,7 +138,7 @@ type Category struct {
 	ID               uint            `gorm:"primaryKey" json:"id"`
 	Name             string          `gorm:"size:255;not null;unique" json:"name"`
 	Description      string          `gorm:"type:text" json:"description,omitempty"`
-	SubCategories    []*Category     `gorm:"foreignKey:ParentCategoryID" json:"sub_categories,omitempty"`
+	SubCategories    []Category      `gorm:"foreignKey:ParentCategoryID" json:"sub_categories,omitempty"`
 	Icon             string          `gorm:"size:255" json:"icon,omitempty"`
 	CreatedAt        time.Time       `json:"created_at"`
 	UpdatedAt        time.Time       `json:"updated_at"`
@@ -186,12 +183,10 @@ type Policies struct {
 	DeletedAt    *gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
 }
 
-// TableName sets the table name for the Policies model.
 func (Policies) TableName() string {
 	return "policies"
 }
 
-// MediaAttachment struct for storing media attachments related to the Tickets
 type TicketMediaAttachment struct {
 	ID        uint            `gorm:"primaryKey" json:"id"`
 	TicketID  uint            `json:"ticket_id" gorm:"index;not null"`
@@ -264,11 +259,11 @@ type TicketResolution struct {
 	ResolvedBy       uint      `json:"resolved_by" gorm:"index;not null"`
 	Resolution       string    `json:"resolution" gorm:"type:text;not null"`
 	ResolvedAt       time.Time `json:"resolved_at"`
-	CustomerFeedback string    `json:"customer_feedback" gorm:"type:text"` // Optional feedback from the customer
+	CustomerFeedback string    `json:"customer_feedback" gorm:"type:text"`
 }
 
 func (TicketResolution) TableName() string {
-	return "ticket_resolution"
+	return "ticket_resolutions"
 }
 
 type CustomerSatisfactionSurvey struct {
@@ -277,6 +272,10 @@ type CustomerSatisfactionSurvey struct {
 	Rating      int       `json:"rating" gorm:"type:int;not null"` // E.g., 1-5 scale
 	Comments    string    `json:"comments" gorm:"type:text"`
 	SubmittedAt time.Time `json:"submitted_at"`
+}
+
+func (CustomerSatisfactionSurvey) TableName() string {
+	return "customer_satisfaction_surveys"
 }
 
 type SLAPolicy struct {
@@ -289,7 +288,7 @@ type SLAPolicy struct {
 }
 
 func (SLAPolicy) TableName() string {
-	return "sla_policy"
+	return "sla_policies"
 }
 
 type TicketStorage interface {

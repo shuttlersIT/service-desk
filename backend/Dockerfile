@@ -8,6 +8,8 @@ ENV GIN_MODE=release
 
 # Copy go.mod and go.sum first for efficient caching
 COPY go.mod go.sum ./
+
+# go mod tidy
 RUN go mod tidy
 
 COPY . ./

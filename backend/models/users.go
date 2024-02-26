@@ -42,9 +42,8 @@ type Users struct {
 	IsActive     bool                  `gorm:"default:true" json:"is_active"`
 	Roles        []Role                `gorm:"many2many:user_roles;" json:"roles,omitempty"`
 	ProfilePic   string                `gorm:"size:255" json:"profile_pic,omitempty"`
-	Credentials  UsersLoginCredentials `gorm:"embedded" json:"username,omitempty"` // Excluded from JSON responses
+	Credentials  UsersLoginCredentials `gorm:"embedded" json:"credentials,omitempty"`
 	LastLoginAt  *time.Time            `gorm:"type:datetime" json:"last_login_at,omitempty"`
-	DeletedAt    *gorm.DeletedAt       `gorm:"index" json:"deleted_at,omitempty"`
 }
 
 func (Users) TableName() string {
@@ -55,8 +54,8 @@ type UserProfile struct {
 	UserID          uint      `gorm:"primaryKey;autoIncrement:false" json:"user_id"`
 	Bio             string    `gorm:"type:text" json:"bio,omitempty"`
 	AvatarURL       string    `gorm:"type:text" json:"avatar_url,omitempty"`
-	Preferences     string    `gorm:"type:text" json:"preferences,omitempty"`      // Stored as JSON
-	PrivacySettings string    `gorm:"type:text" json:"privacy_settings,omitempty"` // Stored as JSON
+	Preferences     string    `gorm:"type:text" json:"preferences,omitempty"`
+	PrivacySettings string    `gorm:"type:text" json:"privacy_settings,omitempty"`
 	CreatedAt       time.Time `json:"created_at"`
 	UpdatedAt       time.Time `json:"updated_at"`
 }
@@ -66,12 +65,12 @@ func (UserProfile) TableName() string {
 }
 
 type Department struct {
-	ID          uint            `gorm:"primaryKey" json:"id"`
-	Name        string          `gorm:"size:255;not null;unique" json:"name"`
-	Description string          `gorm:"type:text" json:"description,omitempty"`
-	CreatedAt   time.Time       `json:"created_at"`
-	UpdatedAt   time.Time       `json:"updated_at"`
-	DeletedAt   *gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+	ID          uint           `gorm:"primaryKey" json:"id"`
+	Name        string         `gorm:"size:255;not null;unique" json:"name"`
+	Description string         `gorm:"type:text" json:"description,omitempty"`
+	CreatedAt   time.Time      `json:"created_at"`
+	UpdatedAt   time.Time      `json:"updated_at"`
+	DeletedAt   gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
 }
 
 func (Department) TableName() string {
@@ -79,13 +78,12 @@ func (Department) TableName() string {
 }
 
 type Position struct {
-	ID           uint            `gorm:"primaryKey" json:"id"`
-	Name         string          `gorm:"size:255;not null;unique" json:"name"`
-	Description  string          `gorm:"type:text" json:"description,omitempty"`
-	DepartmentID uint            `json:"department_id" gorm:"index;not null"`
-	CreatedAt    time.Time       `json:"created_at"`
-	UpdatedAt    time.Time       `json:"updated_at"`
-	DeletedAt    *gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+	ID           uint      `gorm:"primaryKey" json:"id"`
+	Name         string    `gorm:"size:255;not null;unique" json:"name"`
+	Description  string    `gorm:"type:text" json:"description,omitempty"`
+	DepartmentID uint      `json:"department_id" gorm:"index;not null"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
 }
 
 func (Position) TableName() string {
@@ -93,12 +91,12 @@ func (Position) TableName() string {
 }
 
 type UserRole struct {
-	ID        uint            `gorm:"primaryKey" json:"id"`
-	UserID    uint            `gorm:"not null index;type:int unsigned" json:"user_id"`
-	RoleID    uint            `gorm:"not null index;type:int unsigned" json:"role_id"`
-	CreatedAt time.Time       `json:"created_at"`
-	UpdatedAt time.Time       `json:"updated_at"`
-	DeletedAt *gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+	ID        uint           `gorm:"primaryKey" json:"id"`
+	UserID    uint           `gorm:"not null index;type:int unsigned" json:"user_id"`
+	RoleID    uint           `gorm:"not null index;type:int unsigned" json:"role_id"`
+	CreatedAt time.Time      `json:"created_at"`
+	UpdatedAt time.Time      `json:"updated_at"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
 }
 
 func (UserRole) TableName() string {
@@ -106,27 +104,26 @@ func (UserRole) TableName() string {
 }
 
 type ProjectAssignment struct {
-	ID        uint            `gorm:"primaryKey" json:"id"`
-	UserID    uint            `json:"user_id" gorm:"index;not null"`
-	ProjectID uint            `json:"project_id" gorm:"index;not null"`
-	CreatedAt time.Time       `json:"created_at"`
-	UpdatedAt time.Time       `json:"updated_at"`
-	DeletedAt *gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+	ID        uint           `gorm:"primaryKey" json:"id"`
+	UserID    uint           `json:"user_id" gorm:"index;not null"`
+	ProjectID uint           `json:"project_id" gorm:"index;not null"`
+	CreatedAt time.Time      `json:"created_at"`
+	UpdatedAt time.Time      `json:"updated_at"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
 }
 
-// TableName sets the table name for the Project model.
 func (ProjectAssignment) TableName() string {
 	return "project_assignment"
 }
 
 type Activity struct {
-	ID           uint            `gorm:"primaryKey" json:"id"`
-	UserID       uint            `json:"user_id" gorm:"index;not null"`
-	Description  string          `gorm:"type:text" json:"description"`
-	ActivityType string          `gorm:"type:varchar(100);not null" json:"activity_type"`
-	CreatedAt    time.Time       `json:"created_at"`
-	UpdatedAt    time.Time       `json:"updated_at"`
-	DeletedAt    *gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+	ID           uint           `gorm:"primaryKey" json:"id"`
+	UserID       uint           `json:"user_id" gorm:"index;not null"`
+	Description  string         `gorm:"type:text" json:"description"`
+	ActivityType string         `gorm:"type:varchar(100);not null" json:"activity_type"`
+	CreatedAt    time.Time      `json:"created_at"`
+	UpdatedAt    time.Time      `json:"updated_at"`
+	DeletedAt    gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
 }
 
 func (Activity) TableName() string {

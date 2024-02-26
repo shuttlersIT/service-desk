@@ -3,7 +3,6 @@
 package database
 
 import (
-	"errors"
 	"fmt"
 	_ "log"
 
@@ -45,21 +44,22 @@ func InitializeMySQLConnection(config *config.Config, log models.Logger) (*gorm.
 		log.Error(err)
 		return nil, err
 	}
-	defer sqlDB.Close()
+	//defer sqlDB.Close()
 
 	err = sqlDB.Ping()
 	if err != nil {
 		log.Error(err)
 		return nil, err
 	}
-	table := "users"
+	//table := "users"
 	fmt.Println("Connected to the MySQL database")
 	log.Info(fmt.Sprintf("Connecting to MySQL with DSN: %s\n", dsn))
-	if !tableExists(db, table, log) {
-		log.Error(fmt.Sprintf("Table %s not found in the database", table))
-		return nil, errors.New("database schema incomplete")
-	}
-
+	/*
+		if !tableExists(db, table, log) {
+			log.Error(fmt.Sprintf("Table %s not found in the database", table))
+			return nil, errors.New("database schema incomplete")
+		}
+	*/
 	return db, nil
 }
 
@@ -70,9 +70,10 @@ func GetDB() *gorm.DB {
 
 // Check if a table exists in the database
 func tableExists(db *gorm.DB, tableName string, log models.Logger) bool {
-	query := "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = ?"
+	query := fmt.Sprintf("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = %v", tableName)
+	fmt.Println("Query:", query) // Add this line to print the query
 	var count int
-	err := db.Exec(query, tableName).Scan(&count)
+	err := db.Exec(query).Scan(&count)
 	if err != nil {
 		log.Fatal(err)
 	}

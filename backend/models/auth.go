@@ -66,6 +66,279 @@ func (ExternalServiceToken) TableName() string {
 	return "external_service_tokens"
 }
 
+type AgentLoginCredentials struct {
+	ID           uint       `gorm:"primaryKey" json:"id"`
+	AgentID      uint       `json:"agent_id" gorm:"index;not null"`
+	Username     string     `gorm:"type:varchar(255);not null" json:"username"`
+	Password     string     `gorm:"-" json:"-"` // Excluded from JSON responses for security
+	PasswordHash string     `gorm:"-" json:"-"`
+	CreatedAt    time.Time  `json:"created_at"`
+	UpdatedAt    time.Time  `json:"updated_at"`
+	DeletedAt    *time.Time `gorm:"index" json:"deleted_at,omitempty"`
+	LastLoginAt  *time.Time `json:"last_login_at,omitempty"`
+}
+
+// TableName sets the table name for the AgentLoginCredentials model.
+func (AgentLoginCredentials) TableName() string {
+	return "agent_login_credentials"
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+type UsersLoginCredentials struct {
+	ID           uint       `gorm:"primaryKey" json:"id"`
+	UserID       uint       `json:"user_id" gorm:"index;not null"`
+	Username     string     `gorm:"type:varchar(255);not null" json:"username"`
+	Password     string     `gorm:"-" json:"-"` // Excluded from JSON responses for security
+	PasswordHash string     `gorm:"-" json:"-"`
+	CreatedAt    time.Time  `json:"created_at"`
+	UpdatedAt    time.Time  `json:"updated_at"`
+	DeletedAt    *time.Time `gorm:"index" json:"deleted_at,omitempty"`
+	LastLoginAt  *time.Time `json:"last_login_at,omitempty"`
+}
+
+// TableName sets the table name for the UsersLoginCredentials model.
+func (UsersLoginCredentials) TableName() string {
+	return "users_login_credentials"
+}
+
+type LoginInfo struct {
+	Email    string `json:"email"`
+	Password string `json:"password"`
+}
+
+// TableName sets the table name for the LoginInfo model.
+func (LoginInfo) TableName() string {
+	return "login_info_auth"
+}
+
+// Define a model for storing password reset requests
+type PasswordResetRequest struct {
+	ID        uint            `gorm:"primaryKey" json:"id"`
+	UserID    uint            `json:"user_id" gorm:"index;not null"`
+	RequestID string          `gorm:"size:255;not null;unique" json:"request_id"`
+	Token     string          `gorm:"size:255;not null;unique" json:"token"`
+	ExpiresAt float64         `json:"expires_at"`
+	CreatedAt time.Time       `json:"created_at"`
+	UpdatedAt time.Time       `json:"updated_at"`
+	DeletedAt *gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+}
+
+func (PasswordResetRequest) TableName() string {
+	return "password_reset_requests"
+}
+
+// Password History
+type PasswordHistory struct {
+	ID           uint      `gorm:"primaryKey" json:"id"`
+	UserID       uint      `json:"user_id" gorm:"index;not null"`
+	PasswordHash string    `gorm:"-" json:"-"` // Excluded from JSON for security
+	DateChanged  time.Time `json:"date_changed"`
+}
+
+func (PasswordHistory) TableName() string {
+	return "password_history"
+}
+
+type PasswordResetToken struct {
+	ID        uint            `gorm:"primaryKey" json:"id"`
+	AgentID   uint            `json:"agent_id" gorm:"index;not null"`
+	Token     string          `gorm:"size:255;not null;unique" json:"token"`
+	ExpiresAt time.Time       `json:"expires_at"`
+	CreatedAt time.Time       `json:"created_at"`
+	UpdatedAt time.Time       `json:"updated_at"`
+	DeletedAt *gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+}
+
+func (PasswordResetToken) TableName() string {
+	return "password_reset_tokens"
+}
+
+// Agent User Mapping
+type AgentUserMapping struct {
+	ID        uint            `gorm:"primaryKey" json:"id"`
+	AgentID   uint            `json:"agent_id" gorm:"index;not null"`
+	UserID    uint            `json:"user_id" gorm:"index;not null"`
+	CreatedAt time.Time       `json:"created_at"`
+	UpdatedAt time.Time       `json:"updated_at"`
+	DeletedAt *gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+}
+
+// TableName sets the table name for the AgentUserMapping model.
+func (AgentUserMapping) TableName() string {
+	return "agentUserMapping"
+}
+
+// Encryption Key
+type EncryptionKey struct {
+	ID        uint      `gorm:"primaryKey"`
+	OwnerID   uint      `gorm:"index;not null" json:"owner_id"`             // Could be a user or community
+	KeyType   string    `gorm:"type:varchar(100);not null" json:"key_type"` // E.g., "AES", "RSA"
+	KeyData   string    `gorm:"type:text;not null" json:"key_data"`         // Encrypted key data
+	CreatedAt time.Time `json:"created_at"`
+}
+
+func (EncryptionKey) TableName() string {
+	return "encryption_keys"
+}
+
+// API Gateway
+type APIGateway struct {
+	ID        uint   `gorm:"primaryKey"`
+	Name      string `gorm:"type:varchar(255);not null" json:"name"`
+	Endpoint  string `gorm:"type:text;not null" json:"endpoint"`    // URL to the gateway
+	AuthToken string `gorm:"type:text" json:"auth_token,omitempty"` // Optional token for accessing the gateway
+	IsActive  bool   `gorm:"default:true" json:"is_active"`
+}
+
+func (APIGateway) TableName() string {
+	return "api_gateways"
+}
+
+// External Service Integration
+type ExternalServiceIntegration struct {
+	IntegrationID     uint       `gorm:"primaryKey"`
+	ServiceName       string     `gorm:"unique;not null" json:"service_name"`
+	ApiKey            string     `gorm:"not null" json:"api_key"`
+	IntegrationConfig string     `gorm:"type:json;not null" json:"integration_config"`
+	IsActive          bool       `gorm:"default:true" json:"is_active"`
+	LastSync          *time.Time `json:"last_sync,omitempty"`
+}
+
+func (ExternalServiceIntegration) TableName() string {
+	return "external_service_integration"
+}
+
+// 2FA
+type TwoFactorAuthentication struct {
+	gorm.Model
+	UserID    uint   `json:"user_id" gorm:"index;not null"`
+	SecretKey string `json:"secret_key" gorm:"not null"`
+	IsEnabled bool   `json:"is_enabled" gorm:"default:false"`
+}
+
+func (TwoFactorAuthentication) TableName() string {
+	return "two_factor_authentications"
+}
+
+// User Consent
+type UserConsent struct {
+	gorm.Model
+	UserID    uint      `json:"user_id" gorm:"index;not null"`
+	Type      string    `json:"type" gorm:"type:varchar(100);not null"` // e.g., "marketing", "analytics"
+	Granted   bool      `json:"granted"`
+	GrantedAt time.Time `json:"granted_at"`
+	RevokedAt time.Time `json:"revoked_at,omitempty"`
+}
+
+func (UserConsent) TableName() string {
+	return "user_consents"
+}
+
+type PasswordStrength struct {
+	Level           string   `json:"level"`                     // Example levels: Weak, Moderate, Strong
+	Recommendations []string `json:"recommendations,omitempty"` // Suggestions for improving password strength
+}
+
+// Data Consent
+type DataConsent struct {
+	ID          uint       `gorm:"primaryKey" json:"id"`
+	UserID      uint       `gorm:"index;not null" json:"user_id"`
+	ConsentType string     `gorm:"type:varchar(255);not null" json:"consent_type"` // E.g., "analytics", "personalization"
+	IsGranted   bool       `json:"is_granted"`
+	GrantedAt   time.Time  `json:"granted_at"`
+	RevokedAt   *time.Time `json:"revoked_at,omitempty"`
+}
+
+func (DataConsent) TableName() string {
+	return "data_consents"
+}
+
+// //////////////////////// USER Segmentation ///////////////////////////////
+type UserSegment struct {
+	ID          uint       `gorm:"primaryKey" json:"id"`
+	Name        string     `gorm:"type:varchar(255);not null" json:"name"`
+	Description string     `gorm:"type:varchar(255);not null;unique" json:"description"` // Optional description of the segment
+	IsActive    bool       `json:"is_active" gorm:"default:true"`                        // Whether the segment is currently active
+	CreatedAt   time.Time  `json:"created_at" gorm:"autoCreateTime"`                     // Timestamp of segment creation
+	UpdatedAt   time.Time  `json:"updated_at" gorm:"autoUpdateTime"`                     // Timestamp of last update
+	DeletedAt   *time.Time `json:"deleted_at,omitempty" gorm:"index"`                    // Soft delete timestamp
+	// Additional metadata fields as JSON for flexible data storage
+	Metadata string `json:"metadata,omitempty" gorm:"type:text;null"` // JSON string for storing additional metadata
+}
+
+func (UserSegment) TableName() string {
+	return "user_segments"
+}
+
+type UserSegmentMapping struct {
+	UserID    uint `gorm:"primaryKey;autoIncrement:false" json:"user_id"`
+	SegmentID uint `gorm:"primaryKey;autoIncrement:false" json:"segment_id"`
+}
+
+func (UserSegmentMapping) TableName() string {
+	return "user_segment_mappings"
+}
+
+// /////////////////// RATE LIMITS ///////////////////////////////
+type RateLimit struct {
+	ID           uint      `gorm:"primaryKey" json:"id"`
+	IPAddress    string    `gorm:"type:varchar(255);not null;index:idx_ip_address" json:"ip_address"`
+	Endpoint     string    `gorm:"type:varchar(255);not null;index:idx_endpoint" json:"endpoint"`
+	RequestCount int       `gorm:"default:0" json:"request_count"`
+	ResetAt      time.Time `gorm:"" json:"reset_at"`
+}
+
+func (RateLimit) TableName() string {
+	return "rate_limits"
+}
+
+// ////////////////////////
+type SecurityQuestion struct {
+	ID       uint   `gorm:"primaryKey" json:"id"`
+	UserID   uint   `gorm:"index;not null" json:"user_id"`
+	Question string `gorm:"type:text;not null" json:"question"`
+	Answer   string `gorm:"-" json:"-"` // Store hashed answers for security
+}
+
+func (SecurityQuestion) TableName() string {
+	return "security_questions"
+}
+
+type SecurityAnswer struct {
+	QuestionID uint   `json:"question_id"`
+	Answer     string `json:"answer"`
+}
+
+type IPWhitelist struct {
+	ID        uint      `gorm:"primaryKey" json:"id"`
+	UserID    uint      `gorm:"index;not null" json:"user_id"`
+	IPAddress string    `gorm:"type:varchar(255);not null" json:"ip_address"`
+	CreatedAt time.Time `gorm:"autoCreateTime" json:"created_at"`
+}
+
+func (IPWhitelist) TableName() string {
+	return "ip_whitelists"
+}
+
+// GoogleUserInfo represents the information received from Google's UserInfo endpoint.
+type GoogleUserInfo struct {
+	ID            string `json:"id"`             // Google's identifier for the user
+	Email         string `json:"email"`          // User's email address
+	VerifiedEmail bool   `json:"verified_email"` // If the user's email address has been verified
+	Name          string `json:"name"`           // User's full name
+	GivenName     string `json:"given_name"`     // User's given name (first name)
+	FamilyName    string `json:"family_name"`    // User's family name (last name)
+	Picture       string `json:"picture"`        // URL of the user's profile picture
+	Locale        string `json:"locale"`         // Locale of the user
+}
+
+// MyCustomClaims includes standard JWT claims and a Role field
+type MyCustomClaims struct {
+	jwt.StandardClaims
+	Role string `json:"role"`
+}
+
 type AuthSystem interface {
 	// Authentication and Registration
 	AuthenticateUser(email, password string) (*Users, error)
@@ -138,42 +411,6 @@ type AuthSystem interface {
 	IsIPWhitelisted(userID uint, ipAddress string) (bool, error)
 }
 
-type AgentLoginCredentials struct {
-	ID           uint       `gorm:"primaryKey" json:"id"`
-	AgentID      uint       `json:"agent_id" gorm:"index;not null"`
-	Username     string     `gorm:"type:varchar(255);not null" json:"username"`
-	Password     string     `gorm:"-" json:"-"` // Excluded from JSON responses for security
-	PasswordHash string     `gorm:"-" json:"-"`
-	CreatedAt    time.Time  `json:"created_at"`
-	UpdatedAt    time.Time  `json:"updated_at"`
-	DeletedAt    *time.Time `gorm:"index" json:"deleted_at,omitempty"`
-	LastLoginAt  *time.Time `json:"last_login_at,omitempty"`
-}
-
-// TableName sets the table name for the Agent model.
-func (AgentLoginCredentials) TableName() string {
-	return "agent_login_credentials"
-}
-
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-type UsersLoginCredentials struct {
-	ID           uint       `gorm:"primaryKey" json:"id"`
-	UserID       uint       `json:"user_id" gorm:"index;not null"`
-	Username     string     `gorm:"type:varchar(255);not null" json:"username"`
-	Password     string     `gorm:"-" json:"-"` // Excluded from JSON responses for security
-	PasswordHash string     `gorm:"-" json:"-"`
-	CreatedAt    time.Time  `json:"created_at"`
-	UpdatedAt    time.Time  `json:"updated_at"`
-	DeletedAt    *time.Time `gorm:"index" json:"deleted_at,omitempty"`
-	LastLoginAt  *time.Time `json:"last_login_at,omitempty"`
-}
-
-// TableName sets the table name for the UsersLoginCredentials model.
-func (UsersLoginCredentials) TableName() string {
-	return "users_login_credentials"
-}
-
 // AuthModel handles database operations for Auth
 type AuthDBModel struct {
 	DB             *gorm.DB
@@ -223,16 +460,6 @@ func (as *AuthDBModel) GetAllUserCreds() ([]*UsersLoginCredentials, error) {
 	var usersCredentials []*UsersLoginCredentials
 	err := as.DB.Find(&usersCredentials).Error
 	return usersCredentials, err
-}
-
-type LoginInfo struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
-}
-
-// TableName sets the table name for the UsersLoginCredentials model.
-func (LoginInfo) TableName() string {
-	return "login_info_auth"
 }
 
 type RegisterModel struct {
@@ -469,22 +696,6 @@ func (as *AuthDBModel) ResetAgentPasswordMain(agentID uint, newPassword string) 
 
 //////////////////////////////////////////////////////////////////////////////////
 
-// Define a model for storing password reset requests
-type PasswordResetRequest struct {
-	ID        uint            `gorm:"primaryKey" json:"id"`
-	UserID    uint            `json:"user_id" gorm:"index;not null"`
-	RequestID string          `gorm:"size:255;not null;unique" json:"request_id"`
-	Token     string          `gorm:"size:255;not null;unique" json:"token"`
-	ExpiresAt float64         `json:"expires_at"`
-	CreatedAt time.Time       `json:"created_at"`
-	UpdatedAt time.Time       `json:"updated_at"`
-	DeletedAt *gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
-}
-
-func (PasswordResetRequest) TableName() string {
-	return "password_reset_requests"
-}
-
 // GetPasswordResetRequestByToken retrieves a password reset request record by its token.
 func (as *AuthDBModel) GetPasswordResetRequestByToken(token string) (*PasswordResetRequest, error) {
 	var resetRequest PasswordResetRequest
@@ -582,31 +793,6 @@ func (as *AuthDBModel) DeletePasswordResetToken(token string) error {
 }
 
 // /////////////////////////////////////////////////////////////////////////////////////
-// Password History
-type PasswordHistory struct {
-	ID           uint      `gorm:"primaryKey" json:"id"`
-	UserID       uint      `json:"user_id" gorm:"index;not null"`
-	PasswordHash string    `gorm:"-" json:"-"` // Excluded from JSON for security
-	DateChanged  time.Time `json:"date_changed"`
-}
-
-func (PasswordHistory) TableName() string {
-	return "password_history"
-}
-
-type PasswordResetToken struct {
-	ID        uint            `gorm:"primaryKey" json:"id"`
-	AgentID   uint            `json:"agent_id" gorm:"index;not null"`
-	Token     string          `gorm:"size:255;not null;unique" json:"token"`
-	ExpiresAt time.Time       `json:"expires_at"`
-	CreatedAt time.Time       `json:"created_at"`
-	UpdatedAt time.Time       `json:"updated_at"`
-	DeletedAt *gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
-}
-
-func (PasswordResetToken) TableName() string {
-	return "password_reset_tokens"
-}
 
 // CreatePasswordHistory creates a new password history entry.
 func (as *AuthDBModel) CreatePasswordHistory(history *PasswordHistory) error {
@@ -621,20 +807,6 @@ func (as *AuthDBModel) GetPasswordHistoryByUserID(userID uint) ([]*PasswordHisto
 }
 
 // //////////////////////////////////////////////////////////////////////////////////////////
-// Agent User Mapping
-type AgentUserMapping struct {
-	ID        uint            `gorm:"primaryKey" json:"id"`
-	AgentID   uint            `json:"agent_id" gorm:"index;not null"`
-	UserID    uint            `json:"user_id" gorm:"index;not null"`
-	CreatedAt time.Time       `json:"created_at"`
-	UpdatedAt time.Time       `json:"updated_at"`
-	DeletedAt *gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
-}
-
-// TableName sets the table name for the AgentUserMapping model.
-func (AgentUserMapping) TableName() string {
-	return "agentUserMapping"
-}
 
 // CreateAgentUserMapping creates a mapping between an agent and a user.
 func (as *AuthDBModel) CreateAgentUserMapping(mapping *AgentUserMapping) error {
@@ -644,43 +816,6 @@ func (as *AuthDBModel) CreateAgentUserMapping(mapping *AgentUserMapping) error {
 // DeleteAgentUserMapping deletes a mapping between an agent and a user.
 func (as *AuthDBModel) DeleteAgentUserMapping(agentID, userID uint) error {
 	return as.DB.Where("agent_id = ? AND user_id = ?", agentID, userID).Delete(&AgentUserMapping{}).Error
-}
-
-type EncryptionKey struct {
-	ID        uint      `gorm:"primaryKey"`
-	OwnerID   uint      `gorm:"index;not null" json:"owner_id"`             // Could be a user or community
-	KeyType   string    `gorm:"type:varchar(100);not null" json:"key_type"` // E.g., "AES", "RSA"
-	KeyData   string    `gorm:"type:text;not null" json:"key_data"`         // Encrypted key data
-	CreatedAt time.Time `json:"created_at"`
-}
-
-func (EncryptionKey) TableName() string {
-	return "encryption_keys"
-}
-
-type APIGateway struct {
-	ID        uint   `gorm:"primaryKey"`
-	Name      string `gorm:"type:varchar(255);not null" json:"name"`
-	Endpoint  string `gorm:"type:text;not null" json:"endpoint"`    // URL to the gateway
-	AuthToken string `gorm:"type:text" json:"auth_token,omitempty"` // Optional token for accessing the gateway
-	IsActive  bool   `gorm:"default:true" json:"is_active"`
-}
-
-func (APIGateway) TableName() string {
-	return "api_gateways"
-}
-
-type ExternalServiceIntegration struct {
-	IntegrationID     uint       `gorm:"primaryKey"`
-	ServiceName       string     `gorm:"unique;not null" json:"service_name"`
-	ApiKey            string     `gorm:"not null" json:"api_key"`
-	IntegrationConfig string     `gorm:"type:json;not null" json:"integration_config"`
-	IsActive          bool       `gorm:"default:true" json:"is_active"`
-	LastSync          *time.Time `json:"last_sync,omitempty"`
-}
-
-func (ExternalServiceIntegration) TableName() string {
-	return "external_service_integration"
 }
 
 func (as *AuthDBModel) CreateExternalServiceIntegration(integration *ExternalServiceIntegration) error {
@@ -791,18 +926,6 @@ func (db *AuthDBModel) UpdateUserConsent(userID uint, consentType string, grante
 	})
 }
 
-// 2FA
-type TwoFactorAuthentication struct {
-	gorm.Model
-	UserID    uint   `json:"user_id" gorm:"index;not null"`
-	SecretKey string `json:"secret_key" gorm:"not null"`
-	IsEnabled bool   `json:"is_enabled" gorm:"default:false"`
-}
-
-func (TwoFactorAuthentication) TableName() string {
-	return "two_factor_authentications"
-}
-
 func (db *AuthDBModel) EnableTwoFactorAuthentication(userID uint, secretKey string) error {
 	return db.DB.Transaction(func(tx *gorm.DB) error {
 		tfa := TwoFactorAuthentication{
@@ -828,24 +951,6 @@ func (db *AuthDBModel) AuthenticateWithOAuth2(serviceName, token string) (*Users
 		return nil, fmt.Errorf("user not found: %w", err)
 	}
 	return user, nil
-}
-
-// User Consent
-type UserConsent struct {
-	gorm.Model
-	UserID    uint      `json:"user_id" gorm:"index;not null"`
-	Type      string    `json:"type" gorm:"type:varchar(100);not null"` // e.g., "marketing", "analytics"
-	Granted   bool      `json:"granted"`
-	GrantedAt time.Time `json:"granted_at"`
-	RevokedAt time.Time `json:"revoked_at,omitempty"`
-}
-
-func (UserConsent) TableName() string {
-	return "user_consents"
-}
-
-func (UserActivityLog) TableName() string {
-	return "user_activity_log"
 }
 
 func (db *AuthDBModel) UserActivityLog(userID uint, activityType, details string) error {
@@ -891,11 +996,6 @@ func (as *AuthDBModel) SendRealTimeAlert(userID uint, alertType string, message 
 	return nil // Assuming the send operation is successful
 }
 
-type PasswordStrength struct {
-	Level           string   `json:"level"`                     // Example levels: Weak, Moderate, Strong
-	Recommendations []string `json:"recommendations,omitempty"` // Suggestions for improving password strength
-}
-
 func (as *AuthDBModel) CheckPasswordStrength(password string) (PasswordStrength, error) {
 	// Implement logic to analyze the password's strength based on criteria such as length, diversity of characters, etc.
 	// This is a simplified example:
@@ -906,21 +1006,6 @@ func (as *AuthDBModel) CheckPasswordStrength(password string) (PasswordStrength,
 	} else {
 		return PasswordStrength{Level: "Strong"}, nil
 	}
-}
-
-// Data Consent
-
-type DataConsent struct {
-	ID          uint       `gorm:"primaryKey"`
-	UserID      uint       `gorm:"index;not null" json:"user_id"`
-	ConsentType string     `gorm:"type:varchar(255);not null" json:"consent_type"` // E.g., "analytics", "personalization"
-	IsGranted   bool       `json:"is_granted"`
-	GrantedAt   time.Time  `json:"granted_at"`
-	RevokedAt   *time.Time `json:"revoked_at,omitempty"`
-}
-
-func (DataConsent) TableName() string {
-	return "data_consents"
 }
 
 func (as *AuthDBModel) RecordDataConsent(consent *DataConsent) error {
@@ -961,33 +1046,6 @@ func (as *AuthDBModel) ListDataConsentsByUserID(userID uint) ([]*DataConsent, er
 	return consents, err
 }
 
-// ////////////////////////USER Segmentation
-
-type UserSegment struct {
-	ID          uint       `gorm:"primaryKey" json:"id"`
-	Name        string     `json:"name" gorm:"type:varchar(255);not null"`
-	Description string     `gorm:"type:varchar(255);not null;unique" json:"description"` // Optional description of the segment
-	IsActive    bool       `json:"is_active" gorm:"default:true"`                        // Whether the segment is currently active
-	CreatedAt   time.Time  `json:"created_at" gorm:"autoCreateTime"`                     // Timestamp of segment creation
-	UpdatedAt   time.Time  `json:"updated_at" gorm:"autoUpdateTime"`                     // Timestamp of last update
-	DeletedAt   *time.Time `json:"deleted_at,omitempty" gorm:"index"`                    // Soft delete timestamp
-	// Additional metadata fields as JSON for flexible data storage
-	Metadata string `json:"metadata,omitempty" gorm:"type:text;null"` // JSON string for storing additional metadata
-}
-
-func (UserSegment) TableName() string {
-	return "user_segments"
-}
-
-type UserSegmentMapping struct {
-	UserID    uint `gorm:"primaryKey;autoIncrement:false" json:"user_id"`
-	SegmentID uint `gorm:"primaryKey;autoIncrement:false" json:"segment_id"`
-}
-
-func (UserSegmentMapping) TableName() string {
-	return "user_segment_mappings"
-}
-
 func (as *AuthDBModel) GetUserSegments(userID uint) ([]*UserSegment, error) {
 	var segments []*UserSegment
 	err := as.DB.Joins("JOIN user_segment_mappings on user_segments.id = user_segment_mappings.segment_id").
@@ -998,19 +1056,6 @@ func (as *AuthDBModel) GetUserSegments(userID uint) ([]*UserSegment, error) {
 func (as *AuthDBModel) AddUserToSegment(userID uint, segmentID uint) error {
 	mapping := UserSegmentMapping{UserID: userID, SegmentID: segmentID}
 	return as.DB.Clauses(clause.OnConflict{DoNothing: true}).Create(&mapping).Error
-}
-
-// /////////////////// RATE LIMITS ///////////////////////////////
-type RateLimit struct {
-	ID           uint      `gorm:"primaryKey" json:"id"`
-	IPAddress    string    `gorm:"type:varchar(255);not null;index:idx_ip_address" json:"ip_address"`
-	Endpoint     string    `gorm:"type:varchar(255);not null;index:idx_endpoint" json:"endpoint"`
-	RequestCount int       `gorm:"default:0" json:"request_count"`
-	ResetAt      time.Time `gorm:"" json:"reset_at"`
-}
-
-func (RateLimit) TableName() string {
-	return "rate_limits"
 }
 
 func (as *AuthDBModel) CheckRateLimit(ipAddress string, endpoint string) (bool, error) {
@@ -1044,21 +1089,6 @@ func (as *AuthDBModel) CheckRateLimit(ipAddress string, endpoint string) (bool, 
 }
 
 // ////////////////////////
-type SecurityQuestion struct {
-	ID       uint   `gorm:"primaryKey" json:"id"`
-	UserID   uint   `gorm:"index;not null" json:"user_id"`
-	Question string `gorm:"type:text;not null" json:"question"`
-	Answer   string `gorm:"-" json:"-"` // Store hashed answers for security
-}
-
-func (SecurityQuestion) TableName() string {
-	return "security_questions"
-}
-
-type SecurityAnswer struct {
-	QuestionID uint   `json:"question_id"`
-	Answer     string `json:"answer"`
-}
 
 func (as *AuthDBModel) SetSecurityQuestions(userID uint, questions []*SecurityQuestion) error {
 	return as.DB.Transaction(func(tx *gorm.DB) error {
@@ -1092,17 +1122,6 @@ func (as *AuthDBModel) VerifySecurityAnswers(userID uint, answers []*SecurityAns
 	return true, nil // All answers match
 }
 
-type IPWhitelist struct {
-	ID        uint      `gorm:"primaryKey" json:"id"`
-	UserID    uint      `gorm:"index;not null" json:"user_id"`
-	IPAddress string    `gorm:"type:varchar(255);not null" json:"ip_address"`
-	CreatedAt time.Time `gorm:"autoCreateTime" json:"created_at"`
-}
-
-func (IPWhitelist) TableName() string {
-	return "ip_whitelists"
-}
-
 func (as *AuthDBModel) AddIPToWhitelist(userID uint, ipAddress string) error {
 	whitelistEntry := IPWhitelist{UserID: userID, IPAddress: ipAddress}
 	return as.DB.Create(&whitelistEntry).Error
@@ -1112,24 +1131,6 @@ func (as *AuthDBModel) IsIPWhitelisted(userID uint, ipAddress string) (bool, err
 	var count int64
 	as.DB.Model(&IPWhitelist{}).Where("user_id = ? AND ip_address = ?", userID, ipAddress).Count(&count)
 	return count > 0, nil
-}
-
-// GoogleUserInfo represents the information received from Google's UserInfo endpoint.
-type GoogleUserInfo struct {
-	ID            string `json:"id"`             // Google's identifier for the user
-	Email         string `json:"email"`          // User's email address
-	VerifiedEmail bool   `json:"verified_email"` // If the user's email address has been verified
-	Name          string `json:"name"`           // User's full name
-	GivenName     string `json:"given_name"`     // User's given name (first name)
-	FamilyName    string `json:"family_name"`    // User's family name (last name)
-	Picture       string `json:"picture"`        // URL of the user's profile picture
-	Locale        string `json:"locale"`         // Locale of the user
-}
-
-// MyCustomClaims includes standard JWT claims and a Role field
-type MyCustomClaims struct {
-	jwt.StandardClaims
-	Role string `json:"role"`
 }
 
 /*

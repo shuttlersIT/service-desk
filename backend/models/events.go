@@ -346,6 +346,10 @@ type UserActivityLog struct {
 	DeletedAt    gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
 }
 
+func (UserActivityLog) TableName() string {
+	return "user_activity_logs"
+}
+
 // AssetLocation defines physical or logical locations where assets are stored or used.
 type AssetLocation struct {
 	ID          uint           `gorm:"primaryKey" json:"id"`
