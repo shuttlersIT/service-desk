@@ -3,6 +3,9 @@
 package models
 
 import (
+	"database/sql/driver"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"strconv"
 	"time"
@@ -34,6 +37,25 @@ func (Transaction) TableName() string {
 	return "transaction"
 }
 
+// Implement driver.Valuer for Transaction
+func (t Transaction) Value() (driver.Value, error) {
+	return json.Marshal(t)
+}
+
+// Implement driver.Scanner for Transaction
+func (t *Transaction) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for Transaction scan")
+	}
+
+	return json.Unmarshal(data, &t)
+}
+
 type PaymentDetails struct {
 	ID          uint        `gorm:"primaryKey" json:"id"`
 	UserID      uint        `gorm:"index;not null" json:"user_id"`             // User associated with the payment
@@ -44,6 +66,25 @@ type PaymentDetails struct {
 
 func (PaymentDetails) TableName() string {
 	return "payment_details"
+}
+
+// Implement driver.Valuer for PaymentDetails
+func (pd PaymentDetails) Value() (driver.Value, error) {
+	return json.Marshal(pd)
+}
+
+// Implement driver.Scanner for PaymentDetails
+func (pd *PaymentDetails) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for PaymentDetails scan")
+	}
+
+	return json.Unmarshal(data, &pd)
 }
 
 type PaymentInfo struct {
@@ -64,6 +105,25 @@ func (TransactionLog) TableName() string {
 	return "transaction_logs"
 }
 
+// Implement driver.Valuer for TransactionLog
+func (tl TransactionLog) Value() (driver.Value, error) {
+	return json.Marshal(tl)
+}
+
+// Implement driver.Scanner for TransactionLog
+func (tl *TransactionLog) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for TransactionLog scan")
+	}
+
+	return json.Unmarshal(data, &tl)
+}
+
 type OrderDetails struct {
 	ID           uint         `gorm:"primaryKey" json:"id"`
 	UserID       uint         `gorm:"index;not null" json:"user_id"`                   // User who placed the order
@@ -80,6 +140,25 @@ func (OrderDetails) TableName() string {
 	return "order_details"
 }
 
+// Implement driver.Valuer for OrderDetails
+func (od OrderDetails) Value() (driver.Value, error) {
+	return json.Marshal(od)
+}
+
+// Implement driver.Scanner for OrderDetails
+func (od *OrderDetails) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for OrderDetails scan")
+	}
+
+	return json.Unmarshal(data, &od)
+}
+
 type OrderItem struct {
 	ID        uint `gorm:"primaryKey" json:"id"`
 	OrderID   uint `gorm:"index;not null" json:"order_id"` // Associated order
@@ -91,6 +170,25 @@ func (OrderItem) TableName() string {
 	return "order_items"
 }
 
+// Implement driver.Valuer for OrderItem
+func (oi OrderItem) Value() (driver.Value, error) {
+	return json.Marshal(oi)
+}
+
+// Implement driver.Scanner for OrderItem
+func (oi *OrderItem) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for OrderItem scan")
+	}
+
+	return json.Unmarshal(data, &oi)
+}
+
 type ShipmentInfo struct {
 	Address    string `gorm:"type:text;not null" json:"address"`             // Shipment address
 	Carrier    string `gorm:"type:varchar(100);not null" json:"carrier"`     // Carrier service used for shipment
@@ -99,6 +197,25 @@ type ShipmentInfo struct {
 
 func (ShipmentInfo) TableName() string {
 	return "shipment_info"
+}
+
+// Implement driver.Valuer for ShipmentInfo
+func (si ShipmentInfo) Value() (driver.Value, error) {
+	return json.Marshal(si)
+}
+
+// Implement driver.Scanner for ShipmentInfo
+func (si *ShipmentInfo) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for ShipmentInfo scan")
+	}
+
+	return json.Unmarshal(data, &si)
 }
 
 type Expenses struct {
@@ -114,6 +231,25 @@ func (Expenses) TableName() string {
 	return "expenses"
 }
 
+// Implement driver.Valuer for Expenses
+func (e Expenses) Value() (driver.Value, error) {
+	return json.Marshal(e)
+}
+
+// Implement driver.Scanner for Expenses
+func (e *Expenses) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for Expenses scan")
+	}
+
+	return json.Unmarshal(data, &e)
+}
+
 type UserWallet struct {
 	ID      uint    `gorm:"primaryKey" json:"id"`
 	UserID  uint    `gorm:"index;not null" json:"user_id"`              // Foreign key for the user
@@ -124,6 +260,25 @@ type UserWallet struct {
 // TableName sets the table name for the UserWallet model.
 func (UserWallet) TableName() string {
 	return "user_wallet"
+}
+
+// Implement driver.Valuer for UserWallet
+func (uw UserWallet) Value() (driver.Value, error) {
+	return json.Marshal(uw)
+}
+
+// Implement driver.Scanner for UserWallet
+func (uw *UserWallet) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for UserWallet scan")
+	}
+
+	return json.Unmarshal(data, &uw)
 }
 
 type TransactionStorage interface {

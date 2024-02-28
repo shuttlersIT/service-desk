@@ -1,11 +1,15 @@
 package models
 
 import (
+	"database/sql/driver"
+	"encoding/json"
+	"errors"
 	"time"
 
 	"gorm.io/gorm"
 )
 
+// ServiceRequest represents a service request.
 type ServiceRequest struct {
 	gorm.Model
 	Title         string     `gorm:"size:255;not null" json:"title"`                       // Title of the service request
@@ -19,10 +23,33 @@ type ServiceRequest struct {
 	AssignedTo    *uint      `gorm:"index;type:int unsigned" json:"assignee_id,omitempty"` // Optional assignee of the service request
 	ServiceType   string     `gorm:"size:100" json:"service_type"`                         // Type of the service requested
 	Priority      string     `gorm:"size:50;not null" json:"priority"`                     // Priority of the service request
-	TicketID      *uint      `gorm:"index" json:"ticket_id,omitempty"`
-	// Removed embedded Location struct to normalize data structure and reference by ID instead
+	TicketID      *uint      `gorm:"index" json:"ticket_id,omitempty"`                     // ID of the associated ticket (if any)
 }
 
+func (ServiceRequest) TableName() string {
+	return "service_requests"
+}
+
+// Implement driver.Valuer for ServiceRequest
+func (sr ServiceRequest) Value() (driver.Value, error) {
+	return json.Marshal(sr)
+}
+
+// Implement driver.Scanner for ServiceRequest
+func (sr *ServiceRequest) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for ServiceRequest scan")
+	}
+
+	return json.Unmarshal(data, &sr)
+}
+
+// Location represents a location.
 type Location struct {
 	gorm.Model
 	LocationName string `gorm:"size:255;not null" json:"location_name"` // Name of the location
@@ -32,6 +59,26 @@ func (Location) TableName() string {
 	return "locations"
 }
 
+// Implement driver.Valuer for Location
+func (l Location) Value() (driver.Value, error) {
+	return json.Marshal(l)
+}
+
+// Implement driver.Scanner for Location
+func (l *Location) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for Location scan")
+	}
+
+	return json.Unmarshal(data, &l)
+}
+
+// ServiceRequestComment represents a comment made on a service request.
 type ServiceRequestComment struct {
 	gorm.Model       `gorm:"primaryKey" json:"id"`
 	ServiceRequestID uint   `gorm:"index;not null" json:"service_request_id"` // Foreign key linking to the service request
@@ -42,6 +89,26 @@ func (ServiceRequestComment) TableName() string {
 	return "service_request_comments"
 }
 
+// Implement driver.Valuer for ServiceRequestComment
+func (src ServiceRequestComment) Value() (driver.Value, error) {
+	return json.Marshal(src)
+}
+
+// Implement driver.Scanner for ServiceRequestComment
+func (src *ServiceRequestComment) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for ServiceRequestComment scan")
+	}
+
+	return json.Unmarshal(data, &src)
+}
+
+// ServiceCatalogItem represents an item in the service catalog.
 type ServiceCatalogItem struct {
 	gorm.Model
 	Name        string `json:"name" gorm:"type:varchar(255);not null"`
@@ -51,9 +118,29 @@ type ServiceCatalogItem struct {
 }
 
 func (ServiceCatalogItem) TableName() string {
-	return "service_catalog_item"
+	return "service_catalog_items"
 }
 
+// Implement driver.Valuer for ServiceCatalogItem
+func (sci ServiceCatalogItem) Value() (driver.Value, error) {
+	return json.Marshal(sci)
+}
+
+// Implement driver.Scanner for ServiceCatalogItem
+func (sci *ServiceCatalogItem) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for ServiceCatalogItem scan")
+	}
+
+	return json.Unmarshal(data, &sci)
+}
+
+// ProblemManagementRecord represents a record in problem management.
 type ProblemManagementRecord struct {
 	gorm.Model
 	Title        string     `json:"title" gorm:"type:varchar(255);not null"`
@@ -66,9 +153,29 @@ type ProblemManagementRecord struct {
 }
 
 func (ProblemManagementRecord) TableName() string {
-	return "problem_management_record"
+	return "problem_management_records"
 }
 
+// Implement driver.Valuer for ProblemManagementRecord
+func (pmr ProblemManagementRecord) Value() (driver.Value, error) {
+	return json.Marshal(pmr)
+}
+
+// Implement driver.Scanner for ProblemManagementRecord
+func (pmr *ProblemManagementRecord) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for ProblemManagementRecord scan")
+	}
+
+	return json.Unmarshal(data, &pmr)
+}
+
+// ServiceRequestHistoryEntry represents a historical entry related to a service request.
 type ServiceRequestHistoryEntry struct {
 	gorm.Model       `gorm:"primaryKey" json:"id"`
 	ServiceRequestID uint   `gorm:"index;not null" json:"service_request_id"` // Link to the service request
@@ -79,6 +186,26 @@ func (ServiceRequestHistoryEntry) TableName() string {
 	return "service_request_history_entries"
 }
 
+// Implement driver.Valuer for ServiceRequestHistoryEntry
+func (sre ServiceRequestHistoryEntry) Value() (driver.Value, error) {
+	return json.Marshal(sre)
+}
+
+// Implement driver.Scanner for ServiceRequestHistoryEntry
+func (sre *ServiceRequestHistoryEntry) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for ServiceRequestHistoryEntry scan")
+	}
+
+	return json.Unmarshal(data, &sre)
+}
+
+// ChangeRequest represents a change request.
 type ChangeRequest struct {
 	gorm.Model
 	RequesterID uint       `json:"requester_id" gorm:"index;not null"`
@@ -88,6 +215,29 @@ type ChangeRequest struct {
 	Status      string     `json:"status" gorm:"type:varchar(100);not null"` // E.g., "New", "Approved", "Implemented", "Rejected"
 	Approval    string     `json:"approval" gorm:"type:varchar(100)"`        // E.g., "Pending", "Approved", "Rejected"
 	ImplementBy *time.Time `json:"implement_by,omitempty"`
+}
+
+func (ChangeRequest) TableName() string {
+	return "change_requests"
+}
+
+// Implement driver.Valuer for ChangeRequest
+func (cr ChangeRequest) Value() (driver.Value, error) {
+	return json.Marshal(cr)
+}
+
+// Implement driver.Scanner for ChangeRequest
+func (cr *ChangeRequest) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for ChangeRequest scan")
+	}
+
+	return json.Unmarshal(data, &cr)
 }
 
 type ServiceRequestStorage interface {
@@ -162,6 +312,21 @@ func NewServiceRequestDBModel(db *gorm.DB, log Logger, eventPublisher EventPubli
 		log:            log,
 		EventPublisher: eventPublisher,
 	}
+}
+
+// CreateServiceRequest creates a new service request.
+func CreateServiceRequest2(db *gorm.DB, serviceRequest *ServiceRequest) error {
+	tx := db.Begin()
+	if tx.Error != nil {
+		return tx.Error
+	}
+
+	if err := tx.Create(serviceRequest).Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	return tx.Commit().Error
 }
 
 // CreateServiceRequest initializes a new service request.

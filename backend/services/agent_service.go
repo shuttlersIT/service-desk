@@ -192,7 +192,7 @@ func (ps *DefaultAgentService) CreateAgent3(agent *models.Agents) (*models.Agent
 func (s *DefaultAgentService) GetAgentByID(agentID uint) (*models.Agents, error) {
 	agent, err := s.AgentDBModel.GetAgentByID(agentID)
 	if err != nil {
-		s.Logger.Error(fmt.Sprintf("failed to retrieve agent by ID:", "agentID", agentID, "error", err))
+		s.Logger.Error(fmt.Sprintln("failed to retrieve agent by ID:", "agentID: ", agentID, "error: ", err))
 		return nil, err
 	}
 	return agent, nil
@@ -203,7 +203,7 @@ func (s *DefaultAgentService) GetAgentByID(agentID uint) (*models.Agents, error)
 func (s *DefaultAgentService) UpdateAgent(agent *models.Agents) error {
 	err := s.DB.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Save(agent).Error; err != nil {
-			s.Logger.Error(fmt.Sprintf("failed to update agent:", err))
+			s.Logger.Error(fmt.Sprintln("failed to update agent:", err))
 			return err // Returning error will rollback the transaction
 		}
 
@@ -216,7 +216,7 @@ func (s *DefaultAgentService) UpdateAgent(agent *models.Agents) error {
 			Update:  "Agent updated successfully",
 		}
 		if err := s.EventPublisher.Publish(event); err != nil {
-			s.Logger.Error(fmt.Sprintf("Failed to publish agent update event:", err))
+			s.Logger.Error(fmt.Sprintln("Failed to publish agent update event:", err))
 			// Log the error but do not rollback the transaction for event publishing failure
 		}
 
@@ -224,7 +224,7 @@ func (s *DefaultAgentService) UpdateAgent(agent *models.Agents) error {
 	})
 
 	if err != nil {
-		s.Logger.Error(fmt.Sprintf("Transaction failed for updating agent:", err))
+		s.Logger.Error(fmt.Sprintln("Transaction failed for updating agent:", err))
 		return err
 	}
 
@@ -245,7 +245,7 @@ func (ps *DefaultAgentService) UpdateAgent2(agent *models.Agents) error {
 func (s *DefaultAgentService) DeleteAgent(agentID uint) error {
 	return s.DB.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Delete(&models.Agents{}, agentID).Error; err != nil {
-			s.Logger.Error(fmt.Sprintf("Failed to delete agent:", err))
+			s.Logger.Error(fmt.Sprintln("Failed to delete agent:", err))
 			return err
 		}
 
@@ -259,7 +259,7 @@ func (s *DefaultAgentService) DeleteAgent(agentID uint) error {
 				Message: "Agent deleted successfully",
 			}
 			if err := s.EventPublisher.Publish(event); err != nil {
-				s.Logger.Error(fmt.Sprintf("Failed to publish agent delete event:", err))
+				s.Logger.Error(fmt.Sprintln("Failed to publish agent delete event:", err))
 			}
 		}()
 
@@ -285,7 +285,7 @@ func (ps *DefaultAgentService) DeleteAgent2(agentID uint) error {
 func (ps *DefaultAgentService) CreateUnit(unit *models.Unit) error {
 	err := ps.DB.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Create(unit).Error; err != nil {
-			ps.Logger.Error(fmt.Sprintf("Failed to create unit:", err))
+			ps.Logger.Error(fmt.Sprintln("Failed to create unit:", err))
 			return err
 		}
 		// Asynchronously publish unit creation event
@@ -298,7 +298,7 @@ func (ps *DefaultAgentService) CreateUnit(unit *models.Unit) error {
 			Update: "Unit created successfully",
 		}
 		if err := ps.EventPublisher.Publish(event); err != nil {
-			ps.Logger.Error(fmt.Sprintf("Failed to publish create unit event:", err))
+			ps.Logger.Error(fmt.Sprintln("Failed to publish create unit event:", err))
 			// Log the error but do not rollback the transaction for event publishing failure
 		}
 
@@ -306,7 +306,7 @@ func (ps *DefaultAgentService) CreateUnit(unit *models.Unit) error {
 	})
 
 	if err != nil {
-		ps.Logger.Error(fmt.Sprintf("Transaction failed to create unit:", err))
+		ps.Logger.Error(fmt.Sprintln("Transaction failed to create unit:", err))
 		return err
 	}
 
@@ -325,7 +325,7 @@ func (ps *DefaultAgentService) CreateUnit2(unit *models.Unit) error {
 func (ps *DefaultAgentService) GetUnitByID(unitID uint) (*models.Unit, error) {
 	unit, err := ps.AgentDBModel.GetUnitByID(unitID)
 	if err != nil {
-		ps.Logger.Error(fmt.Sprintf("Failed to retrieve unit by ID:", err))
+		ps.Logger.Error(fmt.Sprintln("Failed to retrieve unit by ID:", err))
 		return nil, err
 	}
 	return unit, nil
@@ -343,7 +343,7 @@ func (ps *DefaultAgentService) GetUnitByID2(unitID uint) (*models.Unit, error) {
 func (ps *DefaultAgentService) UpdateUnit(unit *models.Unit) error {
 	err := ps.DB.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Save(unit).Error; err != nil {
-			ps.Logger.Error(fmt.Sprintf("Failed to update unit:", err))
+			ps.Logger.Error(fmt.Sprintln("Failed to update unit:", err))
 			return err
 		}
 		// Asynchronously publish unit update event
@@ -355,14 +355,14 @@ func (ps *DefaultAgentService) UpdateUnit(unit *models.Unit) error {
 			Update: "Unit updated successfully",
 		}
 		if err := ps.EventPublisher.Publish(event); err != nil {
-			ps.Logger.Error(fmt.Sprintf("Failed to publish update unit event:", err))
+			ps.Logger.Error(fmt.Sprintln("Failed to publish update unit event:", err))
 			// Log the error but do not rollback the transaction for event publishing failure
 		}
 		return nil // Success
 	})
 
 	if err != nil {
-		ps.Logger.Error(fmt.Sprintf("Transaction failed to update unit:", err))
+		ps.Logger.Error(fmt.Sprintln("Transaction failed to update unit:", err))
 		return err
 	}
 	return nil
@@ -382,7 +382,7 @@ func (ps *DefaultAgentService) UpdateUnit2(unit *models.Unit) error {
 func (ps *DefaultAgentService) DeleteUnit(unitID uint) error {
 	return ps.DB.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Delete(&models.Unit{}, unitID).Error; err != nil {
-			ps.Logger.Error(fmt.Sprintf("Failed to delete unit:", err))
+			ps.Logger.Error(fmt.Sprintln("Failed to delete unit:", err))
 			return err
 		}
 		// Asynchronously publish unit deletion event
@@ -396,7 +396,7 @@ func (ps *DefaultAgentService) DeleteUnit(unitID uint) error {
 				Message: "Unit deleted successfully",
 			}
 			if err := ps.EventPublisher.Publish(event); err != nil {
-				ps.Logger.Error(fmt.Sprintf("Failed to publish agent delete event:", err))
+				ps.Logger.Error(fmt.Sprintln("Failed to publish agent delete event:", err))
 			}
 		}()
 
@@ -543,7 +543,7 @@ func (ps *DefaultAgentService) GetTeams2() ([]*models.Teams, error) {
 func (s *DefaultAgentService) CreateRole(role *models.Role) error {
 	return s.DB.Transaction(func(tx *gorm.DB) error {
 		if err := s.AgentDBModel.CreateRole(role); err != nil {
-			s.Logger.Error(fmt.Sprintf("Failed to create role", "roleName", role.RoleName, "error", err))
+			s.Logger.Error(fmt.Sprintln("Failed to create role", "roleName", role.RoleName, "error", err))
 			return err
 		}
 
@@ -559,7 +559,7 @@ func (s *DefaultAgentService) CreateRole(role *models.Role) error {
 				Action:   "role_created",
 			}
 			if err := s.EventPublisher.Publish(event); err != nil {
-				s.Logger.Error(fmt.Sprintf("Failed to publish role creation event", "error", err))
+				s.Logger.Error(fmt.Sprintln("Failed to publish role creation event", "error", err))
 			}
 		}()
 		return nil
@@ -597,7 +597,7 @@ func (ps *DefaultAgentService) GetRoleByID2(roleID uint) (*models.Role, error) {
 func (s *DefaultAgentService) UpdateRole(role *models.Role) error {
 	return s.DB.Transaction(func(tx *gorm.DB) error {
 		if err := s.AgentDBModel.UpdateRole(role); err != nil {
-			s.Logger.Error(fmt.Sprintf("Failed to update role", "roleID", role.ID, "error", err))
+			s.Logger.Error(fmt.Sprintln("Failed to update role", "roleID", role.ID, "error", err))
 			return err
 		}
 
@@ -613,7 +613,7 @@ func (s *DefaultAgentService) UpdateRole(role *models.Role) error {
 				Action:   "role_updated",
 			}
 			if err := s.EventPublisher.Publish(event); err != nil {
-				s.Logger.Error(fmt.Sprintf("Failed to publish role update event", "error", err))
+				s.Logger.Error(fmt.Sprintln("Failed to publish role update event", "error", err))
 			}
 		}()
 		return nil
@@ -751,7 +751,7 @@ func (ps *DefaultAgentService) GetRoleByNumber2(roleNumber int) (*models.Role, e
 func (ps *DefaultAgentService) GetAllRoles() ([]*models.Role, error) {
 	roles, err := ps.AgentDBModel.GetRoles()
 	if err != nil {
-		ps.Logger.Error(fmt.Sprintf("Failed to retrieve all roles:", err))
+		ps.Logger.Error(fmt.Sprintln("Failed to retrieve all roles:", err))
 		return nil, err
 	}
 	return roles, nil
@@ -780,7 +780,7 @@ func (as *DefaultAgentService) GetRoleByName2(roleName string) (*models.Role, er
 func (s *DefaultAgentService) CreatePermission(permission *models.Permission) error {
 	return s.DB.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Create(permission).Error; err != nil {
-			s.Logger.Error(fmt.Sprintf("Failed to create permission", "permissionName", permission.Name, "error", err))
+			s.Logger.Error(fmt.Sprintln("Failed to create permission", "permissionName", permission.Name, "error", err))
 			return err
 		}
 
@@ -794,7 +794,7 @@ func (s *DefaultAgentService) CreatePermission(permission *models.Permission) er
 				Action:       "permission_created",
 			}
 			if err := s.EventPublisher.Publish(event); err != nil {
-				s.Logger.Error(fmt.Sprintf("Failed to publish permission creation event", "error", err))
+				s.Logger.Error(fmt.Sprintln("Failed to publish permission creation event", "error", err))
 			}
 		}()
 		return nil
@@ -809,7 +809,7 @@ func (as *DefaultAgentService) CreatePermission2(permission *models.Permission) 
 func (s *DefaultAgentService) UpdatePermission(permission *models.Permission) error {
 	return s.DB.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Save(permission).Error; err != nil {
-			s.Logger.Error(fmt.Sprintf("Failed to update permission", "permissionID", permission.ID, "error", err))
+			s.Logger.Error(fmt.Sprintln("Failed to update permission", "permissionID", permission.ID, "error", err))
 			return err
 		}
 
@@ -823,7 +823,7 @@ func (s *DefaultAgentService) UpdatePermission(permission *models.Permission) er
 				Action:       "permission_updated",
 			}
 			if err := s.EventPublisher.Publish(event); err != nil {
-				s.Logger.Error(fmt.Sprintf("Failed to publish permission update event", "error", err))
+				s.Logger.Error(fmt.Sprintln("Failed to publish permission update event", "error", err))
 			}
 		}()
 		return nil
@@ -862,7 +862,7 @@ func (ps *DefaultAgentService) DeletePermission(permissionID uint) error {
 				Action:       "permission_deleted",
 			}
 			if err := ps.EventPublisher.Publish(event); err != nil {
-				ps.Logger.Error(fmt.Sprintf("Failed to publish permission deletion event:", err))
+				ps.Logger.Error(fmt.Sprintln("Failed to publish permission deletion event:", err))
 			}
 		}()
 		return nil
@@ -877,7 +877,7 @@ func (as *DefaultAgentService) DeletePermission2(permissionID uint) error {
 func (ps *DefaultAgentService) GetAllPermissions() ([]*models.Permission, error) {
 	permissions, err := ps.AgentDBModel.GetAllPermissions()
 	if err != nil {
-		ps.Logger.Error(fmt.Sprintf("Failed to retrieve all permissions:", err))
+		ps.Logger.Error(fmt.Sprintln("Failed to retrieve all permissions:", err))
 		return nil, err
 	}
 	return permissions, nil
@@ -948,7 +948,7 @@ func (ps *DefaultAgentService) AssignRoleToAgent(agentID uint, roleNames []strin
 func (s *DefaultAgentService) AssignRolesToAgent(agentID uint, roles []uint) error {
 	return s.DB.Transaction(func(tx *gorm.DB) error {
 		if err := s.AgentDBModel.AssignRolesToAgentByRoleID(agentID, roles); err != nil {
-			s.Logger.Error(fmt.Sprintf("Error assigning roles to agent", "agentID", agentID, "error", err))
+			s.Logger.Error(fmt.Sprintln("Error assigning roles to agent", "agentID", agentID, "error", err))
 			return err
 		}
 
@@ -960,7 +960,7 @@ func (s *DefaultAgentService) AssignRolesToAgent(agentID uint, roles []uint) err
 					RoleID  uint
 				}{AgentID: agentID, RoleID: rID}
 				if err := s.EventPublisher.Publish(event); err != nil {
-					s.Logger.Error(fmt.Sprintf("Failed to publish role assignment event", "error", err))
+					s.Logger.Error(fmt.Sprintln("Failed to publish role assignment event", "error", err))
 				}
 			}(roleID)
 		}
@@ -973,7 +973,7 @@ func (s *DefaultAgentService) AssignRolesToAgent2(agentID uint, roleIdentifiers 
 	// Call the adapted AgentDBModel method with the role identifiers
 	err := s.AgentDBModel.AssignRolesToAgentByIDOrName(agentID, roleIdentifiers)
 	if err != nil {
-		aw := fmt.Sprintf("failed to assign roles to agent", err)
+		aw := fmt.Sprintln("failed to assign roles to agent", err)
 		s.Logger.Error(aw)
 		return err
 	}
@@ -1001,7 +1001,7 @@ func (s *DefaultAgentService) AssignRolesToAgent2(agentID uint, roleIdentifiers 
 				}
 			}
 			if err := s.EventPublisher.Publish(event); err != nil {
-				aw := fmt.Sprintf("failed to publish role assignment event", err)
+				aw := fmt.Sprintln("failed to publish role assignment event", err)
 				s.Logger.Error(aw)
 			}
 		}(identifier)
@@ -1014,7 +1014,7 @@ func (s *DefaultAgentService) AssignRolesToAgent2(agentID uint, roleIdentifiers 
 func (s *DefaultAgentService) RevokeRolesFromAgent(agentID uint, roles []uint) error {
 	return s.DB.Transaction(func(tx *gorm.DB) error {
 		if err := s.AgentDBModel.RevokeRolesFromAgentByRoleIDs(agentID, roles); err != nil {
-			s.Logger.Error(fmt.Sprintf("Error revoking roles from agent", "agentID", agentID, "error", err))
+			s.Logger.Error(fmt.Sprintln("Error revoking roles from agent", "agentID", agentID, "error", err))
 			return err
 		}
 
@@ -1031,7 +1031,7 @@ func (s *DefaultAgentService) RevokeRolesFromAgent(agentID uint, roles []uint) e
 					Action:  "role_revoked",
 				}
 				if err := s.EventPublisher.Publish(event); err != nil {
-					s.Logger.Error(fmt.Sprintf("Failed to publish role revocation event", "error", err))
+					s.Logger.Error(fmt.Sprintln("Failed to publish role revocation event", "error", err))
 				}
 			}
 		}()
@@ -1108,7 +1108,7 @@ func (s *DefaultAgentService) AssignPermissionsToAgentWrapper(agentID uint, perm
 
 	err := s.AgentDBModel.AssignPermissionsToAgent(agentID, permissionNames, publishFunc)
 	if err != nil {
-		ae := fmt.Sprintf("Error assigning permissions to agent:", err)
+		ae := fmt.Sprintln("Error assigning permissions to agent:", err)
 		s.Logger.Error(ae)
 	}
 	return err
@@ -1536,7 +1536,7 @@ func (das *DefaultAgentService) RemoveAgentPermissionFromRole2(roleName string, 
 func (s *DefaultAgentService) GetRolePermissions(roleID uint) ([]*models.Permission, error) {
 	permissions, err := s.AgentDBModel.GetRolePermissions(roleID)
 	if err != nil {
-		s.Logger.Error(fmt.Sprintf("Failed to get permissions for role", "roleID", roleID, "error", err))
+		s.Logger.Error(fmt.Sprintln("Failed to get permissions for role", "roleID", roleID, "error", err))
 		return nil, err
 	}
 	return permissions, nil
@@ -1557,7 +1557,7 @@ func (das *DefaultAgentService) GetRolePermissions2(roleName string) ([]*models.
 func (s *DefaultAgentService) GrantPermissionToAgent3(agentID, permissionID uint) error {
 	return s.DB.Transaction(func(tx *gorm.DB) error {
 		if err := s.AgentDBModel.GrantPermissionToAgent(agentID, permissionID); err != nil {
-			s.Logger.Error(fmt.Sprintf("Failed to grant permission to agent", "agentID", agentID, "permissionID", permissionID, "error", err))
+			s.Logger.Error(fmt.Sprintln("Failed to grant permission to agent", "agentID", agentID, "permissionID", permissionID, "error", err))
 			return err
 		}
 
@@ -1573,7 +1573,7 @@ func (s *DefaultAgentService) GrantPermissionToAgent3(agentID, permissionID uint
 				Action:       "permission_granted",
 			}
 			if err := s.EventPublisher.Publish(event); err != nil {
-				s.Logger.Error(fmt.Sprintf("Failed to publish permission granted event", "error", err))
+				s.Logger.Error(fmt.Sprintln("Failed to publish permission granted event", "error", err))
 			}
 		}()
 		return nil
@@ -1584,7 +1584,7 @@ func (s *DefaultAgentService) GrantPermissionToAgent3(agentID, permissionID uint
 func (s *DefaultAgentService) RemoveAgentFromTeam(agentID, teamID uint) error {
 	return s.DB.Transaction(func(tx *gorm.DB) error {
 		if err := s.AgentDBModel.RemoveAgentFromTeam(agentID, teamID); err != nil {
-			s.Logger.Error(fmt.Sprintf("Failed to remove agent from team", "agentID", agentID, "teamID", teamID, "error", err))
+			s.Logger.Error(fmt.Sprintln("Failed to remove agent from team", "agentID", agentID, "teamID", teamID, "error", err))
 			return err
 		}
 
@@ -1600,7 +1600,7 @@ func (s *DefaultAgentService) RemoveAgentFromTeam(agentID, teamID uint) error {
 				Action:  "agent_removed_from_team",
 			}
 			if err := s.EventPublisher.Publish(event); err != nil {
-				s.Logger.Error(fmt.Sprintf("Failed to publish agent removal from team event", "error", err))
+				s.Logger.Error(fmt.Sprintln("Failed to publish agent removal from team event", "error", err))
 			}
 		}()
 		return nil

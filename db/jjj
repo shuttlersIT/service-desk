@@ -1,0 +1,44 @@
+
+
+
+// Example handler for updating the user's name
+func updateName(c *gin.Context) {
+	userID := getCurrentUserID(c) // Implement a function to get the current user's ID
+	newName := c.PostForm("name")
+
+	// Update the user's name in the database
+	if err := updateUserProfileName(userID, newName); err != nil {
+		// Handle errors
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Name updated successfully"})
+}
+
+// Example handler for changing the user's password
+func changePassword(c *gin.Context) {
+    userID := getCurrentUserID(c) // Implement a function to get the current user's ID
+    currentPassword := c.PostForm("current_password")
+    newPassword := c.PostForm("new_password")
+
+    // Verify the current password and update the password in the database
+    if err := changeUserProfilePassword(userID, currentPassword, newPassword); err != nil {
+        // Handle errors
+        c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+        return
+    }
+
+    c.JSON(http.StatusOK, gin.H{"message": "Password changed successfully"})
+}
+
+r.POST("/update-name", func(c *gin.Context) {
+        newName := c.PostForm("name")
+        // You now have the value of the "name" field in the `newName` variable.
+
+        // Perform your update operation with the new name (e.g., update it in the database).
+        // ...
+
+        // Return a response or redirect to another page.
+        c.JSON(http.StatusOK, gin.H{"message": "Name updated successfully"})
+    })

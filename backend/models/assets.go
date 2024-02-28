@@ -3,6 +3,8 @@
 package models
 
 import (
+	"database/sql/driver"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
@@ -26,6 +28,25 @@ func (DeviceRegistration) TableName() string {
 	return "device_registrations"
 }
 
+// Implement driver.Valuer for DeviceRegistration
+func (d DeviceRegistration) Value() (driver.Value, error) {
+	return json.Marshal(d)
+}
+
+// Implement driver.Scanner for DeviceRegistration
+func (d *DeviceRegistration) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for DeviceRegistration scan")
+	}
+
+	return json.Unmarshal(data, &d)
+}
+
 // Assets represent details about various assets.
 type Assets struct {
 	gorm.Model
@@ -47,7 +68,7 @@ type Assets struct {
 	AssetModel        string     `gorm:"size:255" json:"model,omitempty"`
 	WarrantyExpire    *time.Time `json:"warranty_expire,omitempty"`
 	PurchasePrice     float64    `gorm:"type:decimal(10,2)" json:"purchase_price,omitempty"`
-	Vendor            Vendor     `gorm:"foreignKey:VendorID" json:"-"`
+	Vendor            Vendor     `json:"vendor" gorm:"foreignKey:VendorID"`
 	User              Users      `gorm:"foreignKey:UserID" json:"-"`
 	AssigneeID        *uint      `gorm:"index" json:"user_id,omitempty"`
 	SiteID            uint       `gorm:"index" json:"site_id"`
@@ -64,6 +85,25 @@ func (Assets) TableName() string {
 	return "assets"
 }
 
+// Implement driver.Valuer for Assets
+func (a Assets) Value() (driver.Value, error) {
+	return json.Marshal(a)
+}
+
+// Implement driver.Scanner for Assets
+func (a *Assets) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for Assets scan")
+	}
+
+	return json.Unmarshal(data, &a)
+}
+
 // InventoryItem represents an item in the inventory.
 type InventoryItem struct {
 	gorm.Model
@@ -77,6 +117,25 @@ func (InventoryItem) TableName() string {
 	return "inventory_items"
 }
 
+// Implement driver.Valuer for InventoryItem
+func (i InventoryItem) Value() (driver.Value, error) {
+	return json.Marshal(i)
+}
+
+// Implement driver.Scanner for InventoryItem
+func (i *InventoryItem) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for InventoryItem scan")
+	}
+
+	return json.Unmarshal(data, &i)
+}
+
 // AssetTag represents tags associated with an asset.
 type AssetTag struct {
 	gorm.Model
@@ -85,8 +144,29 @@ type AssetTag struct {
 	AssetID  uint     `gorm:"index" json:"asset_id"`
 }
 
-func (AssetTag) TableName() string {
+func (at AssetTag) TableName() string {
 	return "asset_tag"
+}
+
+// Implement driver.Valuer for AssetTag
+func (at AssetTag) Value() (driver.Value, error) {
+	return json.Marshal(at.Tags)
+}
+
+// Implement driver.Scanner for AssetTag
+func (at *AssetTag) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	var tags []string
+	err := json.Unmarshal(value.([]byte), &tags)
+	if err != nil {
+		return err
+	}
+
+	at.Tags = tags
+	return nil
 }
 
 // AssetType represents the type of an asset.
@@ -96,8 +176,27 @@ type AssetType struct {
 	Description string `gorm:"type:text" json:"description"`
 }
 
-func (AssetType) TableName() string {
+func (at AssetType) TableName() string {
 	return "assetType"
+}
+
+// Implement driver.Valuer for AssetType
+func (at AssetType) Value() (driver.Value, error) {
+	return json.Marshal(at)
+}
+
+// Implement driver.Scanner for AssetType
+func (at *AssetType) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for AssetType scan")
+	}
+
+	return json.Unmarshal(data, &at)
 }
 
 // AssetCategory represents the category of an asset.
@@ -107,8 +206,27 @@ type AssetCategory struct {
 	Description string `gorm:"size:500" json:"description,omitempty"`
 }
 
-func (AssetCategory) TableName() string {
+func (ac AssetCategory) TableName() string {
 	return "asset_category"
+}
+
+// Implement driver.Valuer for AssetCategory
+func (ac AssetCategory) Value() (driver.Value, error) {
+	return json.Marshal(ac)
+}
+
+// Implement driver.Scanner for AssetCategory
+func (ac *AssetCategory) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for AssetCategory scan")
+	}
+
+	return json.Unmarshal(data, &ac)
 }
 
 // AssetAssignment tracks the assignment of assets to users or locations.
@@ -128,6 +246,25 @@ func (AssetAssignment) TableName() string {
 	return "asset_assignments"
 }
 
+// Implement driver.Valuer for AssetAssignment
+func (aa AssetAssignment) Value() (driver.Value, error) {
+	return json.Marshal(aa)
+}
+
+// Implement driver.Scanner for AssetAssignment
+func (aa *AssetAssignment) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for AssetAssignment scan")
+	}
+
+	return json.Unmarshal(data, &aa)
+}
+
 // AssetLog records actions taken on assets for auditing purposes.
 type AssetLog struct {
 	ID        uint      `gorm:"primaryKey" json:"id"`
@@ -140,6 +277,25 @@ type AssetLog struct {
 
 func (AssetLog) TableName() string {
 	return "asset_log"
+}
+
+// Implement driver.Valuer for AssetLog
+func (al AssetLog) Value() (driver.Value, error) {
+	return json.Marshal(al)
+}
+
+// Implement driver.Scanner for AssetLog
+func (al *AssetLog) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for AssetLog scan")
+	}
+
+	return json.Unmarshal(data, &al)
 }
 
 // Resource represents a resource.
@@ -159,6 +315,25 @@ func (Resource) TableName() string {
 	return "resources"
 }
 
+// Implement driver.Valuer for Resource
+func (r Resource) Value() (driver.Value, error) {
+	return json.Marshal(r)
+}
+
+// Implement driver.Scanner for Resource
+func (r *Resource) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for Resource scan")
+	}
+
+	return json.Unmarshal(data, &r)
+}
+
 // ResourceAllocation represents the allocation of a resource.
 type ResourceAllocation struct {
 	gorm.Model
@@ -171,6 +346,25 @@ type ResourceAllocation struct {
 
 func (ResourceAllocation) TableName() string {
 	return "resource_allocations"
+}
+
+// Implement driver.Valuer for ResourceAllocation
+func (ra ResourceAllocation) Value() (driver.Value, error) {
+	return json.Marshal(ra)
+}
+
+// Implement driver.Scanner for ResourceAllocation
+func (ra *ResourceAllocation) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for ResourceAllocation scan")
+	}
+
+	return json.Unmarshal(data, &ra)
 }
 
 // AgentResourceAllocation represents the allocation of a resource to an agent.
@@ -190,6 +384,25 @@ func (AgentResourceAllocation) TableName() string {
 	return "agent_resource_allocations"
 }
 
+// Implement driver.Valuer for AgentResourceAllocation
+func (ara AgentResourceAllocation) Value() (driver.Value, error) {
+	return json.Marshal(ara)
+}
+
+// Implement driver.Scanner for AgentResourceAllocation
+func (ara *AgentResourceAllocation) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for AgentResourceAllocation scan")
+	}
+
+	return json.Unmarshal(data, &ara)
+}
+
 // Booking represents a booking of a resource.
 type Booking struct {
 	gorm.Model
@@ -202,6 +415,25 @@ type Booking struct {
 
 func (Booking) TableName() string {
 	return "bookings"
+}
+
+// Implement driver.Valuer for Booking
+func (b Booking) Value() (driver.Value, error) {
+	return json.Marshal(b)
+}
+
+// Implement driver.Scanner for Booking
+func (b *Booking) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for Booking scan")
+	}
+
+	return json.Unmarshal(data, &b)
 }
 
 // AccessControlList represents an access control list entry.
@@ -217,6 +449,25 @@ func (AccessControlList) TableName() string {
 	return "access_control_lists"
 }
 
+// Implement driver.Valuer for AccessControlList
+func (acl AccessControlList) Value() (driver.Value, error) {
+	return json.Marshal(acl)
+}
+
+// Implement driver.Scanner for AccessControlList
+func (acl *AccessControlList) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for AccessControlList scan")
+	}
+
+	return json.Unmarshal(data, &acl)
+}
+
 // ComplianceAuditLog represents an entry in the compliance audit log.
 type ComplianceAuditLog struct {
 	gorm.Model
@@ -226,22 +477,60 @@ type ComplianceAuditLog struct {
 	Details     string `gorm:"type:text"`
 }
 
-func (ComplianceAuditLog) TableName() string {
+func (cal ComplianceAuditLog) TableName() string {
 	return "compliance_audit_logs"
+}
+
+// Implement driver.Valuer for ComplianceAuditLog
+func (cal ComplianceAuditLog) Value() (driver.Value, error) {
+	return json.Marshal(cal)
+}
+
+// Implement driver.Scanner for ComplianceAuditLog
+func (cal *ComplianceAuditLog) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for ComplianceAuditLog scan")
+	}
+
+	return json.Unmarshal(data, &cal)
 }
 
 // Vendor represents a vendor.
 type Vendor struct {
-	gorm.Model
-	VendorName    string `gorm:"size:255;not null;unique" json:"vendor_name"`
-	Description   string `gorm:"type:text" json:"description,omitempty"`
-	ContactInfo   string `gorm:"type:text" json:"contact_info,omitempty"`
-	ContactPerson string `gorm:"size:255" json:"contact_person,omitempty"`
-	Address       string `gorm:"type:text" json:"address,omitempty"`
+	Assets        []Assets `gorm:"many2many:vendor_assets;" json:"assets,omitempty"`
+	VendorName    string   `gorm:"size:255;not null;unique" json:"vendor_name"`
+	Description   string   `gorm:"type:text" json:"description,omitempty"`
+	ContactInfo   string   `gorm:"type:text" json:"contact_info,omitempty"`
+	ContactPerson string   `gorm:"size:255" json:"contact_person,omitempty"`
+	Address       string   `gorm:"type:text" json:"address,omitempty"`
 }
 
-func (Vendor) TableName() string {
+func (v Vendor) TableName() string {
 	return "vendors"
+}
+
+// Implement driver.Valuer for Vendor
+func (v Vendor) Value() (driver.Value, error) {
+	return json.Marshal(v)
+}
+
+// Implement driver.Scanner for Vendor
+func (v *Vendor) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for Vendor scan")
+	}
+
+	return json.Unmarshal(data, &v)
 }
 
 // LifecycleEvent documents significant events in an asset's lifecycle.
@@ -253,6 +542,25 @@ type LifecycleEvent struct {
 	Notes   string    `gorm:"size:500" json:"notes,omitempty"`
 }
 
+// Implement driver.Valuer for LifecycleEvent
+func (le LifecycleEvent) Value() (driver.Value, error) {
+	return json.Marshal(le)
+}
+
+// Implement driver.Scanner for LifecycleEvent
+func (le *LifecycleEvent) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for LifecycleEvent scan")
+	}
+
+	return json.Unmarshal(data, &le)
+}
+
 // AssetMaintenance represents maintenance activities for an asset.
 type AssetMaintenance struct {
 	gorm.Model
@@ -261,6 +569,25 @@ type AssetMaintenance struct {
 	CompletedDate *time.Time `json:"completedDate,omitempty"`
 	Description   string     `gorm:"type:text" json:"description,omitempty"`
 	Status        string     `gorm:"size:100;not null" json:"status"`
+}
+
+// Implement driver.Valuer for AssetMaintenance
+func (am AssetMaintenance) Value() (driver.Value, error) {
+	return json.Marshal(am)
+}
+
+// Implement driver.Scanner for AssetMaintenance
+func (am *AssetMaintenance) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for AssetMaintenance scan")
+	}
+
+	return json.Unmarshal(data, &am)
 }
 
 // AssetPerformanceAnalysis documents the performance analysis of an asset.
@@ -276,6 +603,25 @@ type AssetPerformanceAnalysis struct {
 	UpdatedAt         time.Time `json:"updated_at"`
 }
 
+// Implement driver.Valuer for AssetPerformanceAnalysis
+func (apa AssetPerformanceAnalysis) Value() (driver.Value, error) {
+	return json.Marshal(apa)
+}
+
+// Implement driver.Scanner for AssetPerformanceAnalysis
+func (apa *AssetPerformanceAnalysis) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for AssetPerformanceAnalysis scan")
+	}
+
+	return json.Unmarshal(data, &apa)
+}
+
 // AssetPerformanceLog records performance metrics for an asset over time.
 type AssetPerformanceLog struct {
 	gorm.Model
@@ -285,13 +631,51 @@ type AssetPerformanceLog struct {
 	Notes       string    `gorm:"type:text" json:"notes"`
 }
 
+// Implement driver.Valuer for AssetPerformanceLog
+func (apl AssetPerformanceLog) Value() (driver.Value, error) {
+	return json.Marshal(apl)
+}
+
+// Implement driver.Scanner for AssetPerformanceLog
+func (apl *AssetPerformanceLog) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for AssetPerformanceLog scan")
+	}
+
+	return json.Unmarshal(data, &apl)
+}
+
 // AssetPerformanceMetrics represents metrics for an asset's performance.
 type AssetPerformanceMetrics struct {
 	gorm.Model
-	AssetID    uint      `gorm:"index;not null" json:"assetId"`
-	MetricDate time.Time `json:"metricDate"`
-	MetricType string    `gorm:"type:varchar(100);not null" json:"metricType"`
-	Value      float64   `json:"value"`
+	AssetID          uint      `gorm:"index;not null" json:"assetId"`
+	MetricDate       time.Time `json:"metricDate"`
+	MetricType       string    `gorm:"type:varchar(100);not null" json:"metricType"`
+	PerformanceValue float64   `json:"value"`
+}
+
+// Implement driver.Valuer for AssetPerformanceMetrics
+func (apm AssetPerformanceMetrics) Value() (driver.Value, error) {
+	return json.Marshal(apm)
+}
+
+// Implement driver.Scanner for AssetPerformanceMetrics
+func (apm *AssetPerformanceMetrics) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for AssetPerformanceMetrics scan")
+	}
+
+	return json.Unmarshal(data, &apm)
 }
 
 // AssetUtilizationReport provides a summary of how an asset is being utilized.
@@ -299,6 +683,25 @@ type AssetUtilizationReport struct {
 	AssetID         uint    `json:"assetId"`
 	Utilization     float64 `json:"utilization"`
 	ReportingPeriod string  `json:"reportingPeriod"`
+}
+
+// Implement driver.Valuer for AssetUtilizationReport
+func (aur AssetUtilizationReport) Value() (driver.Value, error) {
+	return json.Marshal(aur)
+}
+
+// Implement driver.Scanner for AssetUtilizationReport
+func (aur *AssetUtilizationReport) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for AssetUtilizationReport scan")
+	}
+
+	return json.Unmarshal(data, &aur)
 }
 
 // AssetAuditLog records changes and access to an asset for auditing purposes.
@@ -309,6 +712,25 @@ type AssetAuditLog struct {
 	ActionDate  time.Time `json:"actionDate"`
 	PerformedBy uint      `gorm:"index" json:"performedBy"`
 	Notes       string    `gorm:"type:text" json:"notes"`
+}
+
+// Implement driver.Valuer for AssetAuditLog
+func (aal AssetAuditLog) Value() (driver.Value, error) {
+	return json.Marshal(aal)
+}
+
+// Implement driver.Scanner for AssetAuditLog
+func (aal *AssetAuditLog) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for AssetAuditLog scan")
+	}
+
+	return json.Unmarshal(data, &aal)
 }
 
 // AssetIssue tracks issues reported for specific assets.
@@ -328,12 +750,50 @@ type AssetIssue struct {
 	DeletedAt   gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
 }
 
+// Implement driver.Valuer for AssetIssue
+func (ai AssetIssue) Value() (driver.Value, error) {
+	return json.Marshal(ai)
+}
+
+// Implement driver.Scanner for AssetIssue
+func (ai *AssetIssue) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for AssetIssue scan")
+	}
+
+	return json.Unmarshal(data, &ai)
+}
+
 // AssetCostAnalysis details the cost analysis of an asset.
 type AssetCostAnalysis struct {
 	AssetID        uint               `json:"assetId"`
 	TotalCost      float64            `json:"totalCost"`
 	CostComponents map[string]float64 `json:"costComponents"`
 	AnalysisDate   time.Time          `json:"analysis_date"`
+}
+
+// Implement driver.Valuer for AssetCostAnalysis
+func (aca AssetCostAnalysis) Value() (driver.Value, error) {
+	return json.Marshal(aca)
+}
+
+// Implement driver.Scanner for AssetCostAnalysis
+func (aca *AssetCostAnalysis) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for AssetCostAnalysis scan")
+	}
+
+	return json.Unmarshal(data, &aca)
 }
 
 // AssetAccessLog records access or modifications to asset data.
@@ -346,6 +806,25 @@ type AssetAccessLog struct {
 	Description string    `gorm:"type:text" json:"description"`
 }
 
+// Implement driver.Valuer for AssetAccessLog
+func (aal AssetAccessLog) Value() (driver.Value, error) {
+	return json.Marshal(aal)
+}
+
+// Implement driver.Scanner for AssetAccessLog
+func (aal *AssetAccessLog) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for AssetAccessLog scan")
+	}
+
+	return json.Unmarshal(data, &aal)
+}
+
 // AssetPermission defines permissions for accessing or modifying asset data.
 type AssetPermission struct {
 	gorm.Model
@@ -355,11 +834,49 @@ type AssetPermission struct {
 	ValidUntil *time.Time `json:"validUntil"`
 }
 
+// Implement driver.Valuer for AssetPermission
+func (ap AssetPermission) Value() (driver.Value, error) {
+	return json.Marshal(ap)
+}
+
+// Implement driver.Scanner for AssetPermission
+func (ap *AssetPermission) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for AssetPermission scan")
+	}
+
+	return json.Unmarshal(data, &ap)
+}
+
 // AssetReport compiles comprehensive details about an asset into a report.
 type AssetReport struct {
 	AssetID    uint      `json:"assetId"`
 	ReportDate time.Time `json:"reportDate"`
 	Content    string    `gorm:"type:text" json:"content"`
+}
+
+// Implement driver.Valuer for AssetReport
+func (ar AssetReport) Value() (driver.Value, error) {
+	return json.Marshal(ar)
+}
+
+// Implement driver.Scanner for AssetReport
+func (ar *AssetReport) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for AssetReport scan")
+	}
+
+	return json.Unmarshal(data, &ar)
 }
 
 // AssetLifecycleEvent records events in the lifecycle of an asset.
@@ -371,6 +888,25 @@ type AssetLifecycleEvent struct {
 	Details   string    `gorm:"type:text" json:"details"`
 }
 
+// Implement driver.Valuer for AssetLifecycleEvent
+func (ale AssetLifecycleEvent) Value() (driver.Value, error) {
+	return json.Marshal(ale)
+}
+
+// Implement driver.Scanner for AssetLifecycleEvent
+func (ale *AssetLifecycleEvent) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for AssetLifecycleEvent scan")
+	}
+
+	return json.Unmarshal(data, &ale)
+}
+
 // AssetRepairLog records repairs performed on assets.
 type AssetRepairLog struct {
 	gorm.Model
@@ -379,6 +915,25 @@ type AssetRepairLog struct {
 	Status            string            `gorm:"type:varchar(100)" json:"status"`
 	StartDate         time.Time         `json:"startDate"`
 	CompletionDetails CompletionDetails `gorm:"foreignKey:UserID" json:"-"`
+}
+
+// Implement driver.Valuer for AssetRepairLog
+func (arl AssetRepairLog) Value() (driver.Value, error) {
+	return json.Marshal(arl)
+}
+
+// Implement driver.Scanner for AssetRepairLog
+func (arl *AssetRepairLog) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for AssetRepairLog scan")
+	}
+
+	return json.Unmarshal(data, &arl)
 }
 
 // CompletionDetails contains details of the completion of an asset repair.
@@ -392,6 +947,25 @@ type CompletionDetails struct {
 	ReturnDate     time.Time `json:"returnDate"`
 }
 
+// Implement driver.Valuer for CompletionDetails
+func (cd CompletionDetails) Value() (driver.Value, error) {
+	return json.Marshal(cd)
+}
+
+// Implement driver.Scanner for CompletionDetails
+func (cd *CompletionDetails) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for CompletionDetails scan")
+	}
+
+	return json.Unmarshal(data, &cd)
+}
+
 // AssetDepreciationRecord records depreciation details for an asset.
 type AssetDepreciationRecord struct {
 	gorm.Model
@@ -399,6 +973,25 @@ type AssetDepreciationRecord struct {
 	DepreciationDate        time.Time `json:"depreciationDate"`
 	DepreciatedValue        float64   `gorm:"type:decimal(10,2)" json:"depreciatedValue"`
 	AccumulatedDepreciation float64   `gorm:"type:decimal(10,2)" json:"accumulatedDepreciation"`
+}
+
+// Implement driver.Valuer for AssetDepreciationRecord
+func (adr AssetDepreciationRecord) Value() (driver.Value, error) {
+	return json.Marshal(adr)
+}
+
+// Implement driver.Scanner for AssetDepreciationRecord
+func (adr *AssetDepreciationRecord) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for AssetDepreciationRecord scan")
+	}
+
+	return json.Unmarshal(data, &adr)
 }
 
 // ExternalServiceData stores data from external services related to assets.
@@ -413,6 +1006,25 @@ type ExternalServiceData struct {
 	UpdatedAt             time.Time `json:"updated_at"`
 }
 
+// Implement driver.Valuer for ExternalServiceData
+func (esd ExternalServiceData) Value() (driver.Value, error) {
+	return json.Marshal(esd)
+}
+
+// Implement driver.Scanner for ExternalServiceData
+func (esd *ExternalServiceData) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for ExternalServiceData scan")
+	}
+
+	return json.Unmarshal(data, &esd)
+}
+
 // AssetDecommission records the decommissioning process of assets.
 type AssetDecommission struct {
 	ID               uint      `gorm:"primaryKey" json:"id"`
@@ -422,12 +1034,50 @@ type AssetDecommission struct {
 	Status           string    `gorm:"type:varchar(100)" json:"status"`
 }
 
+// Implement driver.Valuer for AssetDecommission
+func (ad AssetDecommission) Value() (driver.Value, error) {
+	return json.Marshal(ad)
+}
+
+// Implement driver.Scanner for AssetDecommission
+func (ad *AssetDecommission) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for AssetDecommission scan")
+	}
+
+	return json.Unmarshal(data, &ad)
+}
+
 // AssetUtilization captures utilization data for assets.
 type AssetUtilization struct {
 	ID           uint      `gorm:"primaryKey" json:"id"`
 	AssetID      uint      `gorm:"not null" json:"asset_id"`
 	Utilization  float64   `json:"utilization"`
 	ReportedDate time.Time `json:"reported_date"`
+}
+
+// Implement driver.Valuer for AssetUtilization
+func (au AssetUtilization) Value() (driver.Value, error) {
+	return json.Marshal(au)
+}
+
+// Implement driver.Scanner for AssetUtilization
+func (au *AssetUtilization) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for AssetUtilization scan")
+	}
+
+	return json.Unmarshal(data, &au)
 }
 
 // AssetHealthReport represents the health status of an asset.
@@ -441,8 +1091,23 @@ type AssetHealthReport struct {
 	CreatedAt    time.Time `json:"createdAt"`
 }
 
-func (AssetHealthReport) TableName() string {
-	return "asset_health_reports"
+// Implement driver.Valuer for AssetHealthReport
+func (ahr AssetHealthReport) Value() (driver.Value, error) {
+	return json.Marshal(ahr)
+}
+
+// Implement driver.Scanner for AssetHealthReport
+func (ahr *AssetHealthReport) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for AssetHealthReport scan")
+	}
+
+	return json.Unmarshal(data, &ahr)
 }
 
 // AssetMaintenanceSchedule represents the scheduled maintenance for an asset.
@@ -455,8 +1120,23 @@ type AssetMaintenanceSchedule struct {
 	Status        string     `gorm:"type:varchar(100);notNull" json:"status"`
 }
 
-func (AssetMaintenanceSchedule) TableName() string {
-	return "asset_maintenance_schedules"
+// Implement driver.Valuer for AssetMaintenanceSchedule
+func (ams AssetMaintenanceSchedule) Value() (driver.Value, error) {
+	return json.Marshal(ams)
+}
+
+// Implement driver.Scanner for AssetMaintenanceSchedule
+func (ams *AssetMaintenanceSchedule) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for AssetMaintenanceSchedule scan")
+	}
+
+	return json.Unmarshal(data, &ams)
 }
 
 // AssetInspectionRecord documents the inspections performed on assets.
@@ -472,8 +1152,23 @@ type AssetInspectionRecord struct {
 	DeletedAt      gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
 }
 
-func (AssetInspectionRecord) TableName() string {
-	return "asset_inspection_record"
+// Implement driver.Valuer for AssetInspectionRecord
+func (air AssetInspectionRecord) Value() (driver.Value, error) {
+	return json.Marshal(air)
+}
+
+// Implement driver.Scanner for AssetInspectionRecord
+func (air *AssetInspectionRecord) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for AssetInspectionRecord scan")
+	}
+
+	return json.Unmarshal(data, &air)
 }
 
 type AssetStorage interface {

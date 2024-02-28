@@ -3,13 +3,16 @@
 package models
 
 import (
+	"database/sql/driver"
+	"encoding/json"
+	"errors"
 	"time"
 
 	"gorm.io/gorm"
 )
 
 type Session struct {
-	ID           uint      `gorm:"primaryKey" json:"id"`
+	gorm.Model
 	UserID       uint      `gorm:"index;not null" json:"user_id"`                 // User associated with the session
 	SessionID    string    `gorm:"size:255;not null;unique" json:"session_id"`    // Unique identifier for the session
 	SessionToken string    `gorm:"size:255;not null;unique" json:"session_token"` // Token associated with the session
@@ -23,6 +26,25 @@ func (Session) TableName() string {
 	return "sessions"
 }
 
+// Implement driver.Valuer for Session
+func (s Session) Value() (driver.Value, error) {
+	return json.Marshal(s)
+}
+
+// Implement driver.Scanner for Session
+func (s *Session) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for Session scan")
+	}
+
+	return json.Unmarshal(data, &s)
+}
+
 type Authentication struct {
 	ID                uint       `gorm:"primaryKey" json:"id"`
 	UserID            uint       `gorm:"index;not null" json:"user_id"`                      // User associated with the authentication
@@ -34,9 +56,23 @@ func (Authentication) TableName() string {
 	return "authentications"
 }
 
-// CreateSession creates a new user session.
-func (as *AuthDBModel) CreateSession2(session *Session) error {
-	return as.DB.Create(session).Error
+// Implement driver.Valuer for Authentication
+func (a Authentication) Value() (driver.Value, error) {
+	return json.Marshal(a)
+}
+
+// Implement driver.Scanner for Authentication
+func (a *Authentication) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for Authentication scan")
+	}
+
+	return json.Unmarshal(data, &a)
 }
 
 type UserSession struct {
@@ -54,6 +90,25 @@ func (UserSession) TableName() string {
 	return "user_sessions"
 }
 
+// Implement driver.Valuer for UserSession
+func (us UserSession) Value() (driver.Value, error) {
+	return json.Marshal(us)
+}
+
+// Implement driver.Scanner for UserSession
+func (us *UserSession) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for UserSession scan")
+	}
+
+	return json.Unmarshal(data, &us)
+}
+
 type UserAgentGroup struct {
 	gorm.Model
 	Name         string         `json:"name"`                    // Name of the group
@@ -66,6 +121,25 @@ func (UserAgentGroup) TableName() string {
 	return "userAgentGroups"
 }
 
+// Implement driver.Valuer for UserAgentGroup
+func (uag UserAgentGroup) Value() (driver.Value, error) {
+	return json.Marshal(uag)
+}
+
+// Implement driver.Scanner for UserAgentGroup
+func (uag *UserAgentGroup) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for UserAgentGroup scan")
+	}
+
+	return json.Unmarshal(data, &uag)
+}
+
 type GroupMember struct {
 	gorm.Model
 	GroupID uint `json:"group_id"`           // Identifies the group
@@ -76,6 +150,91 @@ type GroupMember struct {
 // TableName sets the table name for the UserAgentGroup model.
 func (GroupMember) TableName() string {
 	return "groupMember"
+}
+
+// Implement driver.Valuer for GroupMember
+func (gm GroupMember) Value() (driver.Value, error) {
+	return json.Marshal(gm)
+}
+
+// Implement driver.Scanner for GroupMember
+func (gm *GroupMember) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for GroupMember scan")
+	}
+
+	return json.Unmarshal(data, &gm)
+}
+
+type UserAgentMapping struct {
+	gorm.Model
+	UserID  uint `json:"user_id"`
+	AgentID uint `json:"agent_id"`
+}
+
+// TableName sets the table name for the UserAgentMapping model.
+func (UserAgentMapping) TableName() string {
+	return "userAgentMappings"
+}
+
+// Implement driver.Valuer for UserAgentMapping
+func (uam UserAgentMapping) Value() (driver.Value, error) {
+	return json.Marshal(uam)
+}
+
+// Implement driver.Scanner for UserAgentMapping
+func (uam *UserAgentMapping) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for UserAgentMapping scan")
+	}
+
+	return json.Unmarshal(data, &uam)
+}
+
+type UserAgentAccess struct {
+	gorm.Model
+	UserID  uint `json:"user_id"`  // The user involved in the access permission
+	AgentID uint `json:"agent_id"` // The agent involved in the access permission
+	Access  bool `json:"access"`   // Indicates whether access is granted
+}
+
+// TableName sets the table name for the UserAgentAccess model.
+func (UserAgentAccess) TableName() string {
+	return "userAgentAccess"
+}
+
+// Implement driver.Valuer for UserAgentAccess
+func (uaa UserAgentAccess) Value() (driver.Value, error) {
+	return json.Marshal(uaa)
+}
+
+// Implement driver.Scanner for UserAgentAccess
+func (uaa *UserAgentAccess) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for UserAgentAccess scan")
+	}
+
+	return json.Unmarshal(data, &uaa)
+}
+
+// CreateSession creates a new user session.
+func (as *AuthDBModel) CreateSession2(session *Session) error {
+	return as.DB.Create(session).Error
 }
 
 // GetSessionBySessionID retrieves a user session by its session ID.
@@ -144,17 +303,6 @@ func (as *AgentDBModel) HasPermission(userID uint, requiredPermission string) (b
 	return hasPermission, nil
 }
 
-type UserAgentMapping struct {
-	gorm.Model
-	UserID  uint `json:"user_id"`
-	AgentID uint `json:"agent_id"`
-}
-
-// TableName sets the table name for the UserAgentMapping model.
-func (UserAgentMapping) TableName() string {
-	return "userAgentMappings"
-}
-
 // CreateUserAgentMapping creates a mapping between a user and an agent.
 func (as *AuthDBModel) CreateUserAgentMapping(mapping *UserAgentMapping) error {
 	return as.DB.Create(mapping).Error
@@ -177,18 +325,6 @@ func (as *AuthDBModel) GetAgentMappingsByAgentID(agentID uint) ([]*UserAgentMapp
 // DeleteUserAgentMapping deletes a mapping between a user and an agent.
 func (as *AuthDBModel) DeleteUserAgentMapping(mapping *UserAgentMapping) error {
 	return as.DB.Delete(mapping).Error
-}
-
-type UserAgentAccess struct {
-	gorm.Model
-	UserID  uint `json:"user_id"`  // The user involved in the access permission
-	AgentID uint `json:"agent_id"` // The agent involved in the access permission
-	Access  bool `json:"access"`   // Indicates whether access is granted
-}
-
-// TableName sets the table name for the UserAgentAccess model.
-func (UserAgentAccess) TableName() string {
-	return "userAgentAccess"
 }
 
 // CreateUserAgentAccess creates an access record between a user and an agent.

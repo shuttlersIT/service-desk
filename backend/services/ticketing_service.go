@@ -145,7 +145,7 @@ func (ts *DefaultTicketingService) ChangeTicketStatus(ticketID uint, newStatus m
 	}
 
 	// Update the ticket status
-	ticket.Status = newStatus.Name
+	ticket.Status = &newStatus
 
 	// Save the updated ticket
 	err = ts.TicketDBModel.UpdateTicket(ticket)

@@ -5,7 +5,9 @@ package database
 import (
 	"fmt"
 	_ "log"
+	"time"
 
+	"github.com/cenkalti/backoff"
 	"github.com/shuttlersit/service-desk/backend/config"
 	"github.com/shuttlersit/service-desk/backend/models"
 	"gorm.io/driver/mysql"
@@ -66,6 +68,101 @@ func InitializeMySQLConnection(config *config.Config, log models.Logger) (*gorm.
 // GetDB returns the database instance
 func GetDB() *gorm.DB {
 	return db
+}
+
+// InitializeDB initializes the MySQL database connection.
+func InitializeDB(config *config.Config, log models.Logger) (*gorm.DB, error) {
+	dsn, err := CreateGormDsn(config)
+	if err != nil {
+		log.Error(err)
+		return nil, err
+	}
+	// Establish a connection to the database
+	// var err error
+
+	operation := func() error {
+		db, err = gorm.Open(mysql.Open(dsn), &gorm.Config{})
+		if err != nil {
+			return fmt.Errorf("failed to connect to database: %v", err)
+		}
+		return nil
+	}
+
+	// Use exponential backoff for database connection
+	backoffCfg := backoff.NewExponentialBackOff()
+	backoffCfg.MaxElapsedTime = 10 * time.Second
+	if err := backoff.Retry(operation, backoffCfg); err != nil {
+		return nil, fmt.Errorf("exceeded max retry attempts: %v", err)
+	}
+
+	return db, nil
+}
+
+// MigrateModels migrates the provided models to the database.
+func MigrateModels(db *gorm.DB) error {
+	// AutoMigrate creates tables for all registered models
+	if err := db.AutoMigrate(
+		&Ticket{},
+		&Comment{},
+		&TicketHistoryEntry{},
+		&RelatedTicket{},
+		&Tag{},
+		&SLA{},
+		&Priority{},
+		&Satisfaction{},
+		&Category{},
+		&SubCategory{},
+		&Status{},
+		&Policies{},
+		&TicketMediaAttachment{},
+		&TicketUpdate{},
+		&TicketAsset{},
+		&SatisfactionSurvey{},
+		&SupportResponse{},
+		&TicketResolution{},
+		&CustomerSatisfactionSurvey{},
+		&SLAPolicy{},
+		&Agents{},
+		&AgentProfile{},
+		&Unit{},
+		&Permission{},
+		&Teams{},
+		&TeamPermission{},
+		&Role{},
+		&RoleBase{},
+		&RolePermission{},
+		&AgentRole{},
+		&UserAgent{},
+	); err != nil {
+		return fmt.Errorf("failed to migrate models: %v", err)
+	}
+
+	return nil
+}
+
+// InitializeDatabase initializes the MySQL database with models and migrates them.
+func InitializeDatabase(dbURL string) (*gorm.DB, error) {
+	db, err := InitializeDB(dbURL)
+	if err != nil {
+		return nil, err
+	}
+
+	// Migrate models to the database
+	if err := MigrateModels(); err != nil {
+		return nil, err
+	}
+
+	return db, nil
+}
+
+// CloseDB closes the MySQL database connection.
+func CloseDB() {
+	if db != nil {
+		dbSQL, err := db.DB()
+		if err == nil {
+			dbSQL.Close()
+		}
+	}
 }
 
 // Check if a table exists in the database

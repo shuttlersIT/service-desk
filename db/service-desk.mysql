@@ -1,7 +1,7 @@
 -- Start of the Fully Enhanced MySQL Deployment Script for Service-Desk Application
 
-CREATE DATABASE IF NOT EXISTS service_desk;
-USE service_desk;
+CREATE DATABASE IF NOT EXISTS itsm;
+USE itsm;
 
 -- Departments Table
 CREATE TABLE IF NOT EXISTS departments (
@@ -488,6 +488,12 @@ CREATE TABLE IF NOT EXISTS problems (
     closed_at TIMESTAMP NULL DEFAULT NULL,
     FOREIGN KEY (category_id) REFERENCES categories(category_id) ON DELETE SET NULL
 ) COMMENT='Tracks problems identified within the IT infrastructure, facilitating root cause analysis and resolution.';
+
+-- 
+-- --
+-- -- --
+-- -- -- --
+-- -- -- -- --
 
 -- SLA Management Enhancements
 CREATE TABLE IF NOT EXISTS sla_metrics (
@@ -990,6 +996,12 @@ CREATE TABLE IF NOT EXISTS api_access_tokens (
     FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
 ) COMMENT='Stores API access tokens with scope and expiration for external integrations.';
 
+-- 
+-- --
+-- -- --
+-- -- -- --
+-- -- -- -- --
+
 CREATE TABLE IF NOT EXISTS user_access_tokens (
     token_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     user_id INT UNSIGNED NOT NULL,
@@ -1300,8 +1312,6 @@ CREATE TABLE IF NOT EXISTS asset_lifecycle_events (
 
 -- Enhancements to the Fully Enhanced MySQL Deployment Script for Service-Desk Application
 
-USE service_desk;
-
 -- Optimizing data types and adding ENUM where beneficial
 ALTER TABLE statuses MODIFY COLUMN is_closed TINYINT(1) NOT NULL DEFAULT 0;
 ALTER TABLE assets MODIFY COLUMN status ENUM('Active', 'Maintenance', 'Decommissioned', 'Lost') NOT NULL;
@@ -1482,6 +1492,12 @@ ALTER TABLE users
   ADD COLUMN timezone VARCHAR(40) DEFAULT 'UTC';
 CREATE INDEX idx_users_on_locale ON users(locale);
 CREATE INDEX idx_users_on_timezone ON users(timezone);
+
+-- 
+-- --
+-- -- --
+-- -- -- --
+-- -- -- -- --
 
 -- Adding a table for system-wide configurations to manage application settings dynamically
 CREATE TABLE IF NOT EXISTS system_configurations (
@@ -1957,6 +1973,15 @@ CREATE TABLE IF NOT EXISTS external_service_integrations (
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
     last_sync TIMESTAMP NULL COMMENT 'Timestamp of the last successful synchronization'
 );
+
+-- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
+-- -- -- -- --                                              -- -- -- -- --
+-- -- -- --                                                    -- -- -- --
+-- -- --                                                          -- -- --
+-- --                                                                -- --
+--                                                                      --
+-- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
+
 
 -- Note: This script extends the capabilities of the service desk system to include advanced reporting, more detailed incident management, comprehensive asset tracking, and user training management. It also lays the groundwork for integrating external services, providing a platform for future expansions and integrations.
 

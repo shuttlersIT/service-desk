@@ -15,7 +15,7 @@ RUN go mod tidy
 COPY . ./
 
 # Install necessary dependencies
-RUN apk --no-cache add gcc g++ make
+# RUN apk --no-cache add gcc g++ make
 
 # Copy the .env file into the image
 COPY .env ./

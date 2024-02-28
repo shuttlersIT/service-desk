@@ -3,12 +3,16 @@
 package models
 
 import (
+	"database/sql/driver"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
 	"gorm.io/gorm"
 )
 
+/*
 type Users2 struct {
 	gorm.Model
 	ID                     uint                  `gorm:"primaryKey" json:"id"`
@@ -29,9 +33,9 @@ type Users2 struct {
 	Processed              bool                  `json:"processed,omitempty"`
 	LastLoginAt            *time.Time            `json:"last_login_at,omitempty"`
 }
+*/
 
 type Users struct {
-	gorm.Model
 	ID           uint                  `gorm:"primaryKey" json:"id"`
 	FirstName    string                `gorm:"size:255;not null" json:"first_name" binding:"required"`
 	LastName     string                `gorm:"size:255;not null" json:"last_name" binding:"required"`
@@ -41,27 +45,68 @@ type Users struct {
 	DepartmentID uint                  `json:"department_id,omitempty" gorm:"type:int unsigned"`
 	IsActive     bool                  `gorm:"default:true" json:"is_active"`
 	Roles        []Role                `gorm:"many2many:user_roles;" json:"roles,omitempty"`
+	Profile      UserProfile           `gorm:"foreignKey:UserID" json:"_"`
 	ProfilePic   string                `gorm:"size:255" json:"profile_pic,omitempty"`
-	Credentials  UsersLoginCredentials `gorm:"embedded" json:"credentials,omitempty"`
+	Credentials  UsersLoginCredentials `gorm:"embedded;foreignKey:UsersLoginCredentialsID" json:"users_credentials,omitempty"`
 	LastLoginAt  *time.Time            `gorm:"type:datetime" json:"last_login_at,omitempty"`
+	UserID       uint                  `gorm:"index;type:int; unsigned" json:"agent_id,omitempty"`
+	CreatedAt    time.Time             `json:"created_at"`
+	UpdatedAt    time.Time             `json:"updated_at"`
+	DeletedAt    gorm.DeletedAt        `gorm:"index" json:"deleted_at,omitempty"`
 }
 
 func (Users) TableName() string {
 	return "users"
 }
 
+// Implement driver.Valuer for Users
+func (u Users) Value() (driver.Value, error) {
+	return json.Marshal(u)
+}
+
+// Implement driver.Scanner for Users
+func (u *Users) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for Users scan")
+	}
+
+	return json.Unmarshal(data, &u)
+}
+
 type UserProfile struct {
-	UserID          uint      `gorm:"primaryKey;autoIncrement:false" json:"user_id"`
-	Bio             string    `gorm:"type:text" json:"bio,omitempty"`
-	AvatarURL       string    `gorm:"type:text" json:"avatar_url,omitempty"`
-	Preferences     string    `gorm:"type:text" json:"preferences,omitempty"`
-	PrivacySettings string    `gorm:"type:text" json:"privacy_settings,omitempty"`
-	CreatedAt       time.Time `json:"created_at"`
-	UpdatedAt       time.Time `json:"updated_at"`
+	UserID          uint   `gorm:"primaryKey;autoIncrement:false" json:"user_id"`
+	Bio             string `gorm:"type:text" json:"bio,omitempty"`
+	AvatarURL       string `gorm:"type:text" json:"avatar_url,omitempty"`
+	Preferences     string `gorm:"type:text" json:"preferences,omitempty"`
+	PrivacySettings string `gorm:"type:text" json:"privacy_settings,omitempty"`
 }
 
 func (UserProfile) TableName() string {
 	return "user_profiles"
+}
+
+// Implement driver.Valuer for UserProfile
+func (up UserProfile) Value() (driver.Value, error) {
+	return json.Marshal(up)
+}
+
+// Implement driver.Scanner for UserProfile
+func (up *UserProfile) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for UserProfile scan")
+	}
+
+	return json.Unmarshal(data, &up)
 }
 
 type Department struct {
@@ -77,6 +122,25 @@ func (Department) TableName() string {
 	return "departments"
 }
 
+// Implement driver.Valuer for Department
+func (d Department) Value() (driver.Value, error) {
+	return json.Marshal(d)
+}
+
+// Implement driver.Scanner for Department
+func (d *Department) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for Department scan")
+	}
+
+	return json.Unmarshal(data, &d)
+}
+
 type Position struct {
 	ID           uint      `gorm:"primaryKey" json:"id"`
 	Name         string    `gorm:"size:255;not null;unique" json:"name"`
@@ -88,6 +152,25 @@ type Position struct {
 
 func (Position) TableName() string {
 	return "positions"
+}
+
+// Implement driver.Valuer for Position
+func (p Position) Value() (driver.Value, error) {
+	return json.Marshal(p)
+}
+
+// Implement driver.Scanner for Position
+func (p *Position) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for Position scan")
+	}
+
+	return json.Unmarshal(data, &p)
 }
 
 type UserRole struct {
@@ -103,6 +186,25 @@ func (UserRole) TableName() string {
 	return "user_roles"
 }
 
+// Implement driver.Valuer for UserRole
+func (ur UserRole) Value() (driver.Value, error) {
+	return json.Marshal(ur)
+}
+
+// Implement driver.Scanner for UserRole
+func (ur *UserRole) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for UserRole scan")
+	}
+
+	return json.Unmarshal(data, &ur)
+}
+
 type ProjectAssignment struct {
 	ID        uint           `gorm:"primaryKey" json:"id"`
 	UserID    uint           `json:"user_id" gorm:"index;not null"`
@@ -114,6 +216,25 @@ type ProjectAssignment struct {
 
 func (ProjectAssignment) TableName() string {
 	return "project_assignment"
+}
+
+// Implement driver.Valuer for ProjectAssignment
+func (pa ProjectAssignment) Value() (driver.Value, error) {
+	return json.Marshal(pa)
+}
+
+// Implement driver.Scanner for ProjectAssignment
+func (pa *ProjectAssignment) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for ProjectAssignment scan")
+	}
+
+	return json.Unmarshal(data, &pa)
 }
 
 type Activity struct {
@@ -128,6 +249,25 @@ type Activity struct {
 
 func (Activity) TableName() string {
 	return "activities"
+}
+
+// Implement driver.Valuer for Activity
+func (a Activity) Value() (driver.Value, error) {
+	return json.Marshal(a)
+}
+
+// Implement driver.Scanner for Activity
+func (a *Activity) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for Activity scan")
+	}
+
+	return json.Unmarshal(data, &a)
 }
 
 type UserStorage interface {

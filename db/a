@@ -1,0 +1,534 @@
+ENHANCE THE SCRIPT Below EVEN MORE AND INCLUDE ALL THE UNWRITTEN FOUNDATIONAL AND DEPENDANT TABLES AND PLUS ALL OF THE FIELDS IN ALL OF THE TABLES.
+
+EXPANTIATE in such a way that each field in every table is included and also in a way that all the necessary, important, advantageous, and, each performance booting indexes are implemented at the exact point of maximum advantage. 
+
+For reference, here's the script that what we have written out so far:
+-- Start of the Fully Enhanced MySQL Deployment Script for Service-Desk Application
+
+CREATE DATABASE IF NOT EXISTS service_desk;
+USE service_desk;
+
+-- Departments Table
+CREATE TABLE IF NOT EXISTS departments (
+    department_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    department_name VARCHAR(255) NOT NULL UNIQUE,
+    description TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP NULL DEFAULT NULL
+) COMMENT='Stores department details, including a description. Soft delete capability for historical tracking.';
+
+-- Positions Table
+CREATE TABLE IF NOT EXISTS positions (
+    position_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    position_name VARCHAR(255) NOT NULL UNIQUE,
+    description TEXT,
+    department_id INT UNSIGNED,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP NULL DEFAULT NULL,
+    FOREIGN KEY (department_id) REFERENCES departments(department_id)
+) COMMENT='Detailed information on positions, including department association. Supports soft deletes.';
+
+-- Vendors Table
+CREATE TABLE IF NOT EXISTS vendors (
+    vendor_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    vendor_name VARCHAR(255) NOT NULL UNIQUE,
+    description TEXT,
+    contact_info TEXT,
+    contact_person VARCHAR(255),
+    address TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP NULL DEFAULT NULL
+) COMMENT='Comprehensive vendor information with contact details. Soft delete functionality enabled.';
+
+-- Categories Table
+CREATE TABLE IF NOT EXISTS categories (
+    category_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    category_name VARCHAR(255) NOT NULL UNIQUE,
+    parent_category_id INT UNSIGNED NULL,
+    icon VARCHAR(255) NULL,
+    description TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP NULL DEFAULT NULL,
+    FOREIGN KEY (parent_category_id) REFERENCES categories(category_id) ON DELETE SET NULL
+) COMMENT='Hierarchical categorization for tickets with icons for UI representation. Includes soft deletes.';
+
+-- Priorities Table
+CREATE TABLE IF NOT EXISTS priorities (
+    priority_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    color VARCHAR(7) NOT NULL DEFAULT '#FFFFFF',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP NULL DEFAULT NULL
+) COMMENT='Defines priority levels for tickets, including a color code for UI distinction. Soft deletes implemented.';
+
+-- Statuses Table
+CREATE TABLE IF NOT EXISTS statuses (
+    status_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    status_name VARCHAR(255) NOT NULL,
+    description TEXT,
+    is_closed BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP NULL DEFAULT NULL
+) COMMENT='Comprehensive statuses for ticket lifecycle, including descriptions and closure indicators.';
+
+-- Users Table
+CREATE TABLE IF NOT EXISTS users (
+    user_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    first_name VARCHAR(255) NOT NULL,
+    last_name VARCHAR(255) NOT NULL,
+    email VARCHAR(255) NOT NULL UNIQUE,
+    phone VARCHAR(20),
+    position_id INT UNSIGNED,
+    department_id INT UNSIGNED,
+    password_hash CHAR(60) NOT NULL,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    profile_pic VARCHAR(255),
+    last_login_at TIMESTAMP NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP NULL,
+    FOREIGN KEY (department_id) REFERENCES departments(department_id) ON DELETE SET NULL,
+    FOREIGN KEY (position_id) REFERENCES positions(position_id) ON DELETE SET NULL
+) COMMENT='User profiles with comprehensive details, linked to departments and positions. Includes password hashing for security.';
+
+-- Agents Table
+CREATE TABLE IF NOT EXISTS agents (
+    agent_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    first_name VARCHAR(255) NOT NULL,
+    last_name VARCHAR(255) NOT NULL,
+    email VARCHAR(255) NOT NULL UNIQUE,
+    password_hash CHAR(60) NOT NULL,
+    phone VARCHAR(20),
+    position_id INT UNSIGNED,
+    department_id INT UNSIGNED,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    profile_pic VARCHAR(255),
+    last_login_at TIMESTAMP NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP NULL,
+    FOREIGN KEY (department_id) REFERENCES departments(department_id) ON DELETE SET NULL,
+    FOREIGN KEY (position_id) REFERENCES positions(position_id) ON DELETE SET NULL
+) COMMENT='Agent accounts for handling tickets. Includes bcrypt-hashed passwords for security.';
+
+CREATE TABLE IF NOT EXISTS asset_types (
+    asset_type_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    type_name VARCHAR(255) NOT NULL UNIQUE,
+    description TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP NULL DEFAULT NULL
+) COMMENT='Defines types of assets managed, facilitating categorization and reporting.';
+
+-- Optimizing Asset Searches by Type and Status
+CREATE INDEX idx_assets_type_status ON assets(asset_type VARCHAR(255), status);
+
+-- Assets Table with Partitioning for Performance
+CREATE TABLE IF NOT EXISTS assets (
+    asset_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    asset_tag VARCHAR(100) NOT NULL UNIQUE,
+    asset_name VARCHAR(255) NOT NULL,
+    asset_type VARCHAR(255) NOT NULL,
+    description TEXT,
+    vendor_id INT UNSIGNED,
+    purchase_date DATE,
+    warranty_expiration DATE,
+    status ENUM('Active', 'Maintenance', 'Decommissioned', 'Lost') NOT NULL,
+    location VARCHAR(255),
+    user_id INT UNSIGNED,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP NULL,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE SET NULL,
+    FOREIGN KEY (vendor_id) REFERENCES vendors(vendor_id) ON DELETE SET NULL
+) PARTITION BY RANGE COLUMNS(status) (
+    PARTITION p_active VALUES LESS THAN (1),
+    PARTITION p_maintenance VALUES LESS THAN (2),
+    PARTITION p_decommissioned VALUES LESS THAN (3),
+    PARTITION p_lost VALUES LESS THAN (4)
+) COMMENT='Asset tracking with status-based partitioning for enhanced performance. Includes warranty tracking and vendor associations.';
+
+-- Tickets Table with Comprehensive Fields and Indexing
+CREATE TABLE IF NOT EXISTS tickets (
+    ticket_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    subject VARCHAR(255) NOT NULL,
+    description TEXT,
+    category_id INT UNSIGNED,
+    priority_id INT UNSIGNED,
+    status_id INT UNSIGNED,
+    user_id INT UNSIGNED,
+    agent_id INT UNSIGNED,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    closed_at TIMESTAMP NULL,
+    FOREIGN KEY (category_id) REFERENCES categories(category_id),
+    FOREIGN KEY (priority_id) REFERENCES priorities(priority_id),
+    FOREIGN KEY (status_id) REFERENCES statuses(status_id),
+    FOREIGN KEY (user_id) REFERENCES users(user_id),
+    FOREIGN KEY (agent_id) REFERENCES agents(agent_id)
+) COMMENT='Core ticketing table with links to users, agents, categories, priorities, and statuses.';
+
+-- Additional Comprehensive Indexing for Optimized Performance
+CREATE INDEX idx_tickets_on_status_priority ON tickets(status_id, priority_id);
+CREATE INDEX idx_assets_on_status_vendor ON assets(status, vendor_id);
+CREATE INDEX idx_users_on_department_position ON users(department_id, position_id);
+CREATE INDEX idx_agents_on_department_position ON agents(department_id, position_id);
+
+CREATE TABLE IF NOT EXISTS incidents (
+    incident_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    status ENUM('Open', 'Investigating', 'Resolved', 'Closed') NOT NULL,
+    severity ENUM('Low', 'Medium', 'High', 'Critical') NOT NULL,
+    reported_by INT UNSIGNED,
+    assigned_to INT UNSIGNED,
+    category_id INT UNSIGNED,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    closed_at TIMESTAMP NULL,
+    FOREIGN KEY (reported_by) REFERENCES users(user_id) ON DELETE SET NULL,
+    FOREIGN KEY (assigned_to) REFERENCES agents(agent_id) ON DELETE SET NULL,
+    FOREIGN KEY (category_id) REFERENCES categories(category_id) ON DELETE SET NULL
+) COMMENT='Tracks incidents reported by users or detected by system monitoring.';
+
+-- Index for optimizing queries on incident status and severity
+CREATE INDEX idx_incidents_status_severity ON incidents(status, severity);
+
+
+-- User Roles and Permissions
+CREATE TABLE IF NOT EXISTS roles (
+    role_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    role_name VARCHAR(255) NOT NULL UNIQUE,
+    description TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP NULL DEFAULT NULL
+) COMMENT='Defines roles within the system for access control.';
+
+-- Teams Table (Assuming teams are a core part of the application)
+CREATE TABLE IF NOT EXISTS teams (
+    team_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    team_name VARCHAR(255) NOT NULL UNIQUE,
+    description TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP NULL DEFAULT NULL
+) COMMENT='Stores teams within the organization, facilitating group assignments and notifications.';
+
+-- Team Memberships (Linking users to teams)
+CREATE TABLE IF NOT EXISTS team_memberships (
+    team_id INT UNSIGNED NOT NULL,
+    user_id INT UNSIGNED NOT NULL,
+    role_id INT UNSIGNED NOT NULL, -- Assuming roles can differ within teams
+    joined_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY(team_id, user_id),
+    FOREIGN KEY (team_id) REFERENCES teams(team_id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    FOREIGN KEY (role_id) REFERENCES roles(role_id) ON DELETE CASCADE
+) COMMENT='Associates users with teams and specific roles within those teams.';
+
+-- Incorporating Advanced Indexing Strategies
+-- For team memberships, indexes on user_id and team_id for fast lookup
+CREATE INDEX idx_team_memberships_on_user ON team_memberships(user_id);
+CREATE INDEX idx_team_memberships_on_team ON team_memberships(team_id);
+
+
+CREATE TABLE IF NOT EXISTS permissions (
+    permission_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    permission_name VARCHAR(255) NOT NULL UNIQUE,
+    description TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP NULL DEFAULT NULL
+) COMMENT='Specific permissions that can be granted to roles.';
+
+CREATE TABLE IF NOT EXISTS role_permissions (
+    role_id INT UNSIGNED NOT NULL,
+    permission_id INT UNSIGNED NOT NULL,
+    PRIMARY KEY(role_id, permission_id),
+    FOREIGN KEY (role_id) REFERENCES roles(role_id) ON DELETE CASCADE,
+    FOREIGN KEY (permission_id) REFERENCES permissions(permission_id) ON DELETE CASCADE
+) COMMENT='Maps which permissions are granted to each role.';
+
+CREATE TABLE IF NOT EXISTS user_roles (
+    user_id INT UNSIGNED NOT NULL,
+    role_id INT UNSIGNED NOT NULL,
+    PRIMARY KEY(user_id, role_id),
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    FOREIGN KEY (role_id) REFERENCES roles(role_id) ON DELETE CASCADE
+) COMMENT='Associates users with roles for access control purposes.';
+
+CREATE TABLE IF NOT EXISTS ticket_slas (
+    ticket_sla_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    ticket_id INT UNSIGNED NOT NULL,
+    sla_id INT UNSIGNED NOT NULL,
+    due_by TIMESTAMP NOT NULL,
+    FOREIGN KEY (ticket_id) REFERENCES tickets(ticket_id) ON DELETE CASCADE,
+    FOREIGN KEY (sla_id) REFERENCES service_level_agreements(sla_id) ON DELETE RESTRICT
+) COMMENT='Associates tickets with SLAs to track compliance and due dates.';
+
+-- Index for quick SLA compliance checks
+CREATE INDEX idx_ticket_slas_due_by ON ticket_slas(due_by);
+
+CREATE TABLE IF NOT EXISTS feedback (
+    feedback_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    ticket_id INT UNSIGNED NOT NULL,
+    user_id INT UNSIGNED NOT NULL,
+    rating ENUM('Poor', 'Fair', 'Good', 'Excellent') NOT NULL,
+    comments TEXT,
+    submitted_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (ticket_id) REFERENCES tickets(ticket_id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+) COMMENT='Collects user feedback on support experiences, including ratings and comments.';
+
+-- Indexing feedback for reporting and analysis
+CREATE INDEX idx_feedback_ticket_user ON feedback(ticket_id, user_id);
+
+CREATE TABLE IF NOT EXISTS reports (
+    report_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    report_name VARCHAR(255) NOT NULL UNIQUE,
+    description TEXT,
+    query TEXT NOT NULL COMMENT 'The SQL query or reporting logic',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) COMMENT='Custom reports defined within the system for analytics and operational insights.';
+
+CREATE TABLE IF NOT EXISTS changes (
+    change_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    type ENUM('Standard', 'Emergency', 'Normal') NOT NULL,
+    status ENUM('Draft', 'Review', 'Approved', 'Implemented', 'Rejected') NOT NULL,
+    impact ENUM('Low', 'Medium', 'High') NOT NULL,
+    urgency ENUM('Low', 'Medium', 'High') NOT NULL,
+    scheduled_start TIMESTAMP NULL,
+    scheduled_end TIMESTAMP NULL,
+    actual_start TIMESTAMP NULL,
+    actual_end TIMESTAMP NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (impact) REFERENCES priorities(priority_id) ON DELETE SET NULL, -- Mapping impact to priority levels
+    FOREIGN KEY (urgency) REFERENCES priorities(priority_id) ON DELETE SET NULL  -- Mapping urgency to priority levels
+) COMMENT='Manages changes to IT services, including planning, approval, and implementation, to minimize impact on service quality.';
+
+CREATE TABLE IF NOT EXISTS service_catalog (
+    service_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    service_name VARCHAR(255) NOT NULL UNIQUE,
+    description TEXT,
+    category_id INT UNSIGNED,
+    availability ENUM('Available', 'Unavailable') NOT NULL DEFAULT 'Available',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (category_id) REFERENCES categories(category_id) ON DELETE SET NULL
+) COMMENT='Catalog of IT services offered to users, including service descriptions and availability.';
+
+
+-- Knowledge Base for Support Articles
+CREATE TABLE IF NOT EXISTS knowledge_base_articles (
+    article_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    title VARCHAR(255) NOT NULL,
+    content TEXT NOT NULL,
+    author_id INT UNSIGNED NOT NULL,
+    category_id INT UNSIGNED,
+    published BOOLEAN DEFAULT FALSE,
+    published_at TIMESTAMP NULL DEFAULT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP NULL DEFAULT NULL,
+    FOREIGN KEY (author_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    FOREIGN KEY (category_id) REFERENCES categories(category_id) ON DELETE SET NULL
+) COMMENT='Knowledge base articles for self-service and support.';
+
+-- Audit Log for User Activities
+CREATE TABLE IF NOT EXISTS audit_logs (
+    log_id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    user_id INT UNSIGNED,
+    action VARCHAR(255) NOT NULL,
+    description TEXT,
+    ip_address VARCHAR(45),
+    timestamp TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+) COMMENT='Logs user activities for security and auditing.';
+
+-- SLA Management
+CREATE TABLE IF NOT EXISTS service_level_agreements (
+    sla_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    sla_name VARCHAR(255) NOT NULL,
+    description TEXT,
+    response_time INT UNSIGNED COMMENT 'Response time in hours',
+    resolution_time INT UNSIGNED COMMENT 'Resolution time in hours',
+    active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP NULL DEFAULT NULL
+) COMMENT='Service level agreements for ticket response and resolution times.';
+
+-- Additional Comprehensive Indexing
+CREATE INDEX idx_audit_logs_on_user_action ON audit_logs(user_id, action);
+CREATE INDEX idx_knowledge_base_articles_on_published ON knowledge_base_articles(published);
+
+-- Additional User Management Features
+CREATE TABLE IF NOT EXISTS user_preferences (
+    user_id INT UNSIGNED NOT NULL,
+    preference_key VARCHAR(255) NOT NULL,
+    preference_value TEXT NOT NULL,
+    PRIMARY KEY(user_id, preference_key),
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+) COMMENT='Stores individual user preferences for application customization.';
+
+-- Advanced Ticket Management Features
+CREATE TABLE IF NOT EXISTS ticket_history (
+    history_id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    ticket_id INT UNSIGNED NOT NULL,
+    status_id INT UNSIGNED NOT NULL,
+    changed_by INT UNSIGNED NOT NULL,
+    change_timestamp TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (ticket_id) REFERENCES tickets(ticket_id) ON DELETE CASCADE,
+    FOREIGN KEY (status_id) REFERENCES statuses(status_id) ON DELETE CASCADE,
+    FOREIGN KEY (changed_by) REFERENCES users(user_id) ON DELETE CASCADE
+) COMMENT='Tracks changes in ticket status for auditing and workflow automation.';
+
+-- Enhanced Security Features
+CREATE TABLE IF NOT EXISTS user_sessions (
+    session_id VARCHAR(255) PRIMARY KEY,
+    user_id INT UNSIGNED NOT NULL,
+    session_start TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    last_access TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    ip_address VARCHAR(45),
+    user_agent TEXT,
+    is_active BOOLEAN DEFAULT TRUE,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+) COMMENT='Tracks active user sessions for security monitoring and user experience enhancements.';
+
+CREATE TABLE IF NOT EXISTS problems (
+    problem_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    status ENUM('Open', 'Investigating', 'Resolved', 'Closed') NOT NULL,
+    impact ENUM('Low', 'Medium', 'High') NOT NULL,
+    urgency ENUM('Low', 'Medium', 'High') NOT NULL,
+    category_id INT UNSIGNED,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    closed_at TIMESTAMP NULL DEFAULT NULL,
+    FOREIGN KEY (category_id) REFERENCES categories(category_id) ON DELETE SET NULL
+) COMMENT='Tracks problems identified within the IT infrastructure, facilitating root cause analysis and resolution.';
+
+-- Assuming the use of application-level encryption for sensitive fields
+ALTER TABLE user_sessions ADD COLUMN session_data BLOB;
+
+
+ALTER TABLE knowledge_base_articles ADD FULLTEXT(fulltext_index)(title, content);
+
+
+
+-- Optimizing the Users Table
+-- Assuming email and login activities are frequent operations
+CREATE INDEX idx_users_email ON users(email);
+CREATE INDEX idx_users_last_login ON users(last_login_at);
+
+-- Optimizing the Tickets Table for Query Performance
+-- Composite index for frequently accessed ticket views
+CREATE INDEX idx_tickets_on_user_status ON tickets(user_id, status_id);
+-- Index for quickly filtering tickets by priority and status for reporting and dashboards
+CREATE INDEX idx_tickets_priority_status ON tickets(priority_id, status_id);
+
+-- Optimizing Assets for Fast Retrieval in Maintenance or Audit Queries
+CREATE INDEX idx_assets_status ON assets(status);
+CREATE INDEX idx_assets_purchase_date ON assets(purchase_date);
+
+-- Indexing for change management for quick access to changes by status and type
+CREATE INDEX idx_changes_on_status_type ON changes(status, type);
+
+-- Authentication --
+CREATE TABLE IF NOT EXISTS users_login_credentials (
+  id SERIAL PRIMARY KEY,
+  username VARCHAR(255) NOT NULL UNIQUE,
+  password_hash VARCHAR(255) NOT NULL,
+  password_salt VARCHAR(255) NOT NULL,
+  user_id INT NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  DeletedAt  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON DELETE CURRENT_TIMESTAMP,
+  CONSTRAINT fk_users_login_credentials_user_id FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+);
+
+-- Indexes:
+CREATE INDEX idx_users_login_credentials_username ON users_login_credentials (username);
+CREATE INDEX idx_users_login_credentials_user_id ON users_login_credentials (user_id);
+
+
+
+CREATE TABLE IF NOT EXISTS agent_login_credentials (
+  id SERIAL PRIMARY KEY,
+  username VARCHAR(255) NOT NULL UNIQUE,
+  password_hash VARCHAR(255) NOT NULL,
+  password_salt VARCHAR(255) NOT NULL,
+  agent_id INT NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  DeletedAt  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON DELETE CURRENT_TIMESTAMP,
+  CONSTRAINT fk_agent_login_credentials_agent_id FOREIGN KEY (agent_id) REFERENCES agents(agent_id) ON DELETE CASCADE
+);
+
+-- Indexes:
+CREATE INDEX idx_agent_login_credentials_username ON agent_login_credentials (username);
+CREATE INDEX idx_agent_login_credentials_agent_id ON agent_login_credentials (agent_id);
+
+
+
+CREATE TABLE IF NOT EXISTS password_reset_requests (
+  id SERIAL PRIMARY KEY,
+  user_id INT NOT NULL,
+  request_id INT NOT NULL UNIQUE,
+  token VARCHAR(255) NOT NULL UNIQUE,
+  expiration_time TIMESTAMP,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  DeletedAt  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON DELETE CURRENT_TIMESTAMP,
+  CONSTRAINT fk_password_reset_requests_user_id FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+);
+
+-- Indexes:
+CREATE INDEX idx_password_reset_requests_user_id ON password_reset_requests (user_id);
+CREATE INDEX idx_password_reset_requests_token ON password_reset_requests (token);
+CREATE INDEX idx_password_reset_requests_expiration_time ON password_reset_requests (expiration_time);
+
+
+CREATE TABLE IF NOT EXISTS password_history (
+  id SERIAL PRIMARY KEY,
+  user_id INT NOT NULL,
+  password VARCHAR(255) NOT NULL,
+  date_changed TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_password_history_user_id FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+);
+
+-- Indexes:
+CREATE INDEX idx_password_history_user_id ON password_history (user_id);
+CREATE INDEX idx_password_history_date_changed ON password_history (date_changed);
+
+DEPLOYMENT STRATEGY:
+This script should continue to include the following:
+1. Detailed comments for each table and column to ensure clarity and ease of maintenance.
+2. Standardized naming conventions should be applied throughout to enhance readability and consistency across the database schema.
+Performance and Scalability Enhancements
+3. Continue partitioning on tables expected to grow significantly, such as tickets and audit_logs, based on attributes like created_at date or status, to improve query performance and manage historical data efficiently.
+4. Continue Implementing advanced indexing strategies, including full-text indexes for large text fields in tables like knowledge_base_articles and incidents for fast searching and retrieval of text-based data.
+5. Implement ALL PLAUSIBLE VALUE ADDED Advanced Features for Scalability and Performance
+6. Include partitioning, advanced indexing strategies, and foreign key optimisations designed to enhance the application's scalability and performance, especially as data volume grows.
+7. For tables storing sensitive information, such as user_sessions or audit_logs, ensure fields that might contain identifiable information (e.g., ip_address, user_agent) are stored securely and consider encryption at rest for these fields if supported by the MySQL version in use.
+8. Continue expanding on the roles and permissions schema to include table-level access control lists (ACLs) if necessary, providing granular control over who can access or modify specific data within the application.
+9. Keep ensuring that all foreign key relationships are correctly defined with appropriate ON DELETE and ON UPDATE actions to maintain data integrity across the application. Use cascading deletes carefully to prevent unintentional data loss.
+10. Continue implementing with the same comprehensive indexing strategy that covers Foreign keys for faster joins, Frequently queried fields for quick data retrieval, Composite indexes for complex queries involving multiple fields, Consideration of index types (e.g., B-tree, full-text) based on query patterns.
+MySQL
+
+Note: The attached scripts 2.mysql and 4.mysql, 1.mysql, db.mysql and mysql_schema.mysql contain ALL of the UN-ENHANCED scripts and all the tables that we need to comprehensively analyze, fix, improve and add to the Fully Enhanced MySQL Deployment Script.

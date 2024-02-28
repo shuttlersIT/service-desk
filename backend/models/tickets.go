@@ -3,6 +3,8 @@
 package models
 
 import (
+	"database/sql/driver"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -28,23 +30,40 @@ type Ticket struct {
 	DueAt            *time.Time              `json:"due_at,omitempty"`
 	ClosedAt         *time.Time              `json:"closed_at,omitempty"`
 	Site             string                  `gorm:"size:255" json:"site"`
-	StatusID         uint                    `gorm:"index;not null" json:"status_id"`
-	Status           string                  `gorm:"size:100;not null" json:"status" binding:"required"`
-	StatusObject     Status                  `json:"status_details"`
-	PriorityObject   Priority                `json:"priority_details"`
+	Status           *Status                 `json:"status_details" gorm:"foreignKey:StatusID"`
+	Priority         Priority                `gorm:"foreignKey:PriorityID" json:"priority_details"`
 	Category         Category                `gorm:"foreignKey:CategoryID" json:"-"`
 	SubCategory      SubCategory             `gorm:"foreignKey:SubCategoryID" json:"-"`
 	SLA              SLA                     `gorm:"foreignKey:SLAID" json:"-"`
-	MediaAttachments []TicketMediaAttachment `gorm:"foreignKey:TicketID" json:"media_attachments"`
+	MediaAttachments []TicketMediaAttachment `gorm:"many2many:ticket_media_attachments" json:"media_attachments"`
 	Tags             []Tag                   `gorm:"many2many:ticket_tags;" json:"tags"`
-	Comments         []Comment               `gorm:"foreignKey:TicketID" json:"comments"`
-	TicketHistory    []TicketHistoryEntry    `gorm:"foreignKey:TicketID" json:"ticket_history"`
+	Comments         []Comment               `gorm:"many2many:ticket_comments" json:"comments"`
+	TicketHistory    []TicketHistoryEntry    `gorm:"many2many:ticket_history_entries" json:"ticket_history"`
 	User             Users                   `gorm:"foreignKey:UserID" json:"-"`
 	Agent            Agents                  `gorm:"foreignKey:AgentID" json:"-"`
 }
 
 func (Ticket) TableName() string {
 	return "tickets"
+}
+
+// Implement driver.Valuer for Ticket
+func (t Ticket) Value() (driver.Value, error) {
+	return json.Marshal(t)
+}
+
+// Implement driver.Scanner for Ticket
+func (t *Ticket) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for Ticket scan")
+	}
+
+	return json.Unmarshal(data, &t)
 }
 
 type Comment struct {
@@ -61,6 +80,25 @@ func (Comment) TableName() string {
 	return "comments"
 }
 
+// Implement driver.Valuer for Comment
+func (c Comment) Value() (driver.Value, error) {
+	return json.Marshal(c)
+}
+
+// Implement driver.Scanner for Comment
+func (c *Comment) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for Comment scan")
+	}
+
+	return json.Unmarshal(data, &c)
+}
+
 type TicketHistoryEntry struct {
 	gorm.Model
 	TicketID uint   `json:"ticket_id"`
@@ -69,6 +107,25 @@ type TicketHistoryEntry struct {
 
 func (TicketHistoryEntry) TableName() string {
 	return "ticket_history_entries"
+}
+
+// Implement driver.Valuer for TicketHistoryEntry
+func (the TicketHistoryEntry) Value() (driver.Value, error) {
+	return json.Marshal(the)
+}
+
+// Implement driver.Scanner for TicketHistoryEntry
+func (the *TicketHistoryEntry) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for TicketHistoryEntry scan")
+	}
+
+	return json.Unmarshal(data, &the)
 }
 
 type RelatedTicket struct {
@@ -81,6 +138,25 @@ func (RelatedTicket) TableName() string {
 	return "related_tickets"
 }
 
+// Implement driver.Valuer for RelatedTicket
+func (rt RelatedTicket) Value() (driver.Value, error) {
+	return json.Marshal(rt)
+}
+
+// Implement driver.Scanner for RelatedTicket
+func (rt *RelatedTicket) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for RelatedTicket scan")
+	}
+
+	return json.Unmarshal(data, &rt)
+}
+
 type Tag struct {
 	ID        uint            `gorm:"primaryKey" json:"id"`
 	Name      string          `gorm:"size:255;not null;unique" json:"name"`
@@ -91,6 +167,25 @@ type Tag struct {
 
 func (Tag) TableName() string {
 	return "tags"
+}
+
+// Implement driver.Valuer for Tag
+func (tag Tag) Value() (driver.Value, error) {
+	return json.Marshal(tag)
+}
+
+// Implement driver.Scanner for Tag
+func (tag *Tag) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for Tag scan")
+	}
+
+	return json.Unmarshal(data, &tag)
 }
 
 type SLA struct {
@@ -108,6 +203,25 @@ func (SLA) TableName() string {
 	return "slas"
 }
 
+// Implement driver.Valuer for SLA
+func (sla SLA) Value() (driver.Value, error) {
+	return json.Marshal(sla)
+}
+
+// Implement driver.Scanner for SLA
+func (sla *SLA) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for SLA scan")
+	}
+
+	return json.Unmarshal(data, &sla)
+}
+
 type Priority struct {
 	gorm.Model
 	Name        string `gorm:"size:255;not null" json:"name"`
@@ -118,6 +232,25 @@ type Priority struct {
 
 func (Priority) TableName() string {
 	return "priorities"
+}
+
+// Implement driver.Valuer for Priority
+func (p Priority) Value() (driver.Value, error) {
+	return json.Marshal(p)
+}
+
+// Implement driver.Scanner for Priority
+func (p *Priority) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for Priority scan")
+	}
+
+	return json.Unmarshal(data, &p)
 }
 
 type Satisfaction struct {
@@ -134,11 +267,30 @@ func (Satisfaction) TableName() string {
 	return "satisfaction"
 }
 
+// Implement driver.Valuer for Satisfaction
+func (s Satisfaction) Value() (driver.Value, error) {
+	return json.Marshal(s)
+}
+
+// Implement driver.Scanner for Satisfaction
+func (s *Satisfaction) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for Satisfaction scan")
+	}
+
+	return json.Unmarshal(data, &s)
+}
+
 type Category struct {
 	ID               uint            `gorm:"primaryKey" json:"id"`
 	Name             string          `gorm:"size:255;not null;unique" json:"name"`
 	Description      string          `gorm:"type:text" json:"description,omitempty"`
-	SubCategories    []Category      `gorm:"foreignKey:ParentCategoryID" json:"sub_categories,omitempty"`
+	SubCategories    []SubCategory   `gorm:"many2many:sub_categories" json:"sub_categories,omitempty"`
 	Icon             string          `gorm:"size:255" json:"icon,omitempty"`
 	CreatedAt        time.Time       `json:"created_at"`
 	UpdatedAt        time.Time       `json:"updated_at"`
@@ -148,6 +300,25 @@ type Category struct {
 
 func (Category) TableName() string {
 	return "categories"
+}
+
+// Implement driver.Valuer for Category
+func (c Category) Value() (driver.Value, error) {
+	return json.Marshal(c)
+}
+
+// Implement driver.Scanner for Category
+func (c *Category) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for Category scan")
+	}
+
+	return json.Unmarshal(data, &c)
 }
 
 type SubCategory struct {
@@ -162,6 +333,25 @@ func (SubCategory) TableName() string {
 	return "sub_categories"
 }
 
+// Implement driver.Valuer for SubCategory
+func (sc SubCategory) Value() (driver.Value, error) {
+	return json.Marshal(sc)
+}
+
+// Implement driver.Scanner for SubCategory
+func (sc *SubCategory) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for SubCategory scan")
+	}
+
+	return json.Unmarshal(data, &sc)
+}
+
 type Status struct {
 	ID          uint   `gorm:"primaryKey" json:"id"`
 	Name        string `gorm:"size:255;not null" json:"name"`
@@ -171,6 +361,25 @@ type Status struct {
 
 func (Status) TableName() string {
 	return "statuses"
+}
+
+// Implement driver.Valuer for Status
+func (s Status) Value() (driver.Value, error) {
+	return json.Marshal(s)
+}
+
+// Implement driver.Scanner for Status
+func (s *Status) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for Status scan")
+	}
+
+	return json.Unmarshal(data, &s)
 }
 
 type Policies struct {
@@ -185,6 +394,25 @@ type Policies struct {
 
 func (Policies) TableName() string {
 	return "policies"
+}
+
+// Implement driver.Valuer for Policies
+func (p Policies) Value() (driver.Value, error) {
+	return json.Marshal(p)
+}
+
+// Implement driver.Scanner for Policies
+func (p *Policies) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for Policies scan")
+	}
+
+	return json.Unmarshal(data, &p)
 }
 
 type TicketMediaAttachment struct {
@@ -205,6 +433,25 @@ func (TicketMediaAttachment) TableName() string {
 	return "ticket_media_attachments"
 }
 
+// Implement driver.Valuer for TicketMediaAttachment
+func (tma TicketMediaAttachment) Value() (driver.Value, error) {
+	return json.Marshal(tma)
+}
+
+// Implement driver.Scanner for TicketMediaAttachment
+func (tma *TicketMediaAttachment) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for TicketMediaAttachment scan")
+	}
+
+	return json.Unmarshal(data, &tma)
+}
+
 type TicketUpdate struct {
 	ID        uint            `gorm:"primaryKey" json:"id"`
 	TicketID  uint            `json:"ticket_id" gorm:"index;not null"`
@@ -219,6 +466,25 @@ func (TicketUpdate) TableName() string {
 	return "ticket_updates"
 }
 
+// Implement driver.Valuer for TicketUpdate
+func (tu TicketUpdate) Value() (driver.Value, error) {
+	return json.Marshal(tu)
+}
+
+// Implement driver.Scanner for TicketUpdate
+func (tu *TicketUpdate) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for TicketUpdate scan")
+	}
+
+	return json.Unmarshal(data, &tu)
+}
+
 type TicketAsset struct {
 	ID       uint `gorm:"primaryKey" json:"id"`
 	TicketID uint `json:"ticket_id" gorm:"index;not null"`
@@ -227,6 +493,25 @@ type TicketAsset struct {
 
 func (TicketAsset) TableName() string {
 	return "ticket_assets"
+}
+
+// Implement driver.Valuer for TicketAsset
+func (ta TicketAsset) Value() (driver.Value, error) {
+	return json.Marshal(ta)
+}
+
+// Implement driver.Scanner for TicketAsset
+func (ta *TicketAsset) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for TicketAsset scan")
+	}
+
+	return json.Unmarshal(data, &ta)
 }
 
 type SatisfactionSurvey struct {
@@ -241,6 +526,25 @@ func (SatisfactionSurvey) TableName() string {
 	return "satisfaction_surveys"
 }
 
+// Implement driver.Valuer for SatisfactionSurvey
+func (ss SatisfactionSurvey) Value() (driver.Value, error) {
+	return json.Marshal(ss)
+}
+
+// Implement driver.Scanner for SatisfactionSurvey
+func (ss *SatisfactionSurvey) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for SatisfactionSurvey scan")
+	}
+
+	return json.Unmarshal(data, &ss)
+}
+
 type SupportResponse struct {
 	ID          uint      `gorm:"primaryKey" json:"id"`
 	TicketID    uint      `gorm:"index;not null" json:"ticket_id"`
@@ -249,8 +553,23 @@ type SupportResponse struct {
 	RespondedAt time.Time `json:"responded_at"`
 }
 
-func (SupportResponse) TableName() string {
-	return "support_responses"
+// Implement driver.Valuer for SupportResponse
+func (sr SupportResponse) Value() (driver.Value, error) {
+	return json.Marshal(sr)
+}
+
+// Implement driver.Scanner for SupportResponse
+func (sr *SupportResponse) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for SupportResponse scan")
+	}
+
+	return json.Unmarshal(data, &sr)
 }
 
 type TicketResolution struct {
@@ -266,16 +585,54 @@ func (TicketResolution) TableName() string {
 	return "ticket_resolutions"
 }
 
+// Implement driver.Valuer for TicketResolution
+func (tr TicketResolution) Value() (driver.Value, error) {
+	return json.Marshal(tr)
+}
+
+// Implement driver.Scanner for TicketResolution
+func (tr *TicketResolution) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for TicketResolution scan")
+	}
+
+	return json.Unmarshal(data, &tr)
+}
+
 type CustomerSatisfactionSurvey struct {
 	gorm.Model
 	TicketID    uint      `json:"ticket_id" gorm:"index;not null"`
-	Rating      int       `json:"rating" gorm:"type:int;not null"` // E.g., 1-5 scale
+	Rating      int       `json:"rating" gorm:"type:int;not null"`
 	Comments    string    `json:"comments" gorm:"type:text"`
 	SubmittedAt time.Time `json:"submitted_at"`
 }
 
 func (CustomerSatisfactionSurvey) TableName() string {
 	return "customer_satisfaction_surveys"
+}
+
+// Implement driver.Valuer for CustomerSatisfactionSurvey
+func (css CustomerSatisfactionSurvey) Value() (driver.Value, error) {
+	return json.Marshal(css)
+}
+
+// Implement driver.Scanner for CustomerSatisfactionSurvey
+func (css *CustomerSatisfactionSurvey) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for CustomerSatisfactionSurvey scan")
+	}
+
+	return json.Unmarshal(data, &css)
 }
 
 type SLAPolicy struct {
@@ -289,6 +646,25 @@ type SLAPolicy struct {
 
 func (SLAPolicy) TableName() string {
 	return "sla_policies"
+}
+
+// Implement driver.Valuer for SLAPolicy
+func (slap SLAPolicy) Value() (driver.Value, error) {
+	return json.Marshal(slap)
+}
+
+// Implement driver.Scanner for SLAPolicy
+func (slap *SLAPolicy) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for SLAPolicy scan")
+	}
+
+	return json.Unmarshal(data, &slap)
 }
 
 type TicketStorage interface {
@@ -609,8 +985,7 @@ func (tdb *TicketDBModel) ChangeTicketStatus(ticketID uint, newStatus *Status) e
 		return err
 	}
 
-	ticket.Status = newStatus.Name
-	ticket.StatusObject = *newStatus
+	ticket.Status = newStatus
 	if err := tdb.DB.Save(ticket).Error; err != nil {
 		return err
 	}
@@ -1023,8 +1398,8 @@ func (db *TicketDBModel) BatchInsertComments(comments []*Comment) error {
 }
 
 func (t *Ticket) BeforeCreate(tx *gorm.DB) (err error) {
-	if t.Status == "" {
-		t.Status = "open" // Default status if not provided
+	if t.Status == nil {
+		t.Status.Name = "open" // Default status if not provided
 	}
 	return nil
 }

@@ -3,21 +3,26 @@
 package models
 
 import (
+	"database/sql/driver"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
+
+	// "github.com/go-sql-driver/mysql"
+	// Prefered my MySQL driver
+	_ "log"
 
 	"gorm.io/gorm"
 )
 
 // Agents represents the schema of the agents table
 type Agents struct {
-	gorm.Model
 	ID           uint                  `gorm:"primaryKey" json:"id"`
 	FirstName    string                `gorm:"size:255;not null" json:"first_name" binding:"required"`
 	LastName     string                `gorm:"size:255;not null" json:"last_name" binding:"required"`
 	Email        string                `gorm:"size:255;not null;unique" json:"email" binding:"required,email"`
-	Credentials  AgentLoginCredentials `gorm:"embedded" json:"credentials,omitempty"`
+	Credentials  AgentLoginCredentials `gorm:"embedded;foreignKey:AgentLoginCredentialsID" json:"agent_credentials,omitempty"`
 	Phone        *string               `gorm:"size:20" json:"phone,omitempty" binding:"omitempty,e164"`
 	PositionID   uint                  `gorm:"index;type:int unsigned" json:"position_id,omitempty"`
 	DepartmentID uint                  `gorm:"index;type:int unsigned" json:"department_id,omitempty"`
@@ -28,16 +33,37 @@ type Agents struct {
 	SupervisorID *uint                 `gorm:"type:int unsigned" json:"supervisor_id,omitempty"`
 	Roles        []Role                `gorm:"many2many:agent_roles;" json:"roles"`
 	Biography    string                `json:"biography,omitempty"`
-	UserID       uint                  `gorm:"primaryKey" json:"user_id"`
-	AgentDetails Users                 `gorm:"foreignKey:UserID" json:"-"`
+	UserID       uint                  `gorm:"index;type:int; unsigned" json:"user_id,omitempty"`
+	AgentProfile AgentProfile          `gorm:"foreignKey:AgentID" json:"_"`
+	CreatedAt    time.Time             `json:"created_at"`
+	UpdatedAt    time.Time             `json:"updated_at"`
+	DeletedAt    gorm.DeletedAt        `gorm:"index" json:"deleted_at,omitempty"`
 }
 
 func (Agents) TableName() string {
 	return "agents"
 }
 
+// Implement driver.Valuer for Agents
+func (a Agents) Value() (driver.Value, error) {
+	return json.Marshal(a)
+}
+
+// Implement driver.Scanner for Agents
+func (a *Agents) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for Agents scan")
+	}
+
+	return json.Unmarshal(data, &a)
+}
+
 type AgentProfile struct {
-	gorm.Model
 	AgentID         uint   `gorm:"primaryKey;autoIncrement:false" json:"agent_id"`
 	Bio             string `gorm:"type:text" json:"bio,omitempty"`
 	AvatarURL       string `gorm:"type:text" json:"avatar_url,omitempty"`
@@ -49,6 +75,25 @@ func (AgentProfile) TableName() string {
 	return "agent_profiles"
 }
 
+// Implement driver.Valuer for AgentProfile
+func (ap AgentProfile) Value() (driver.Value, error) {
+	return json.Marshal(ap)
+}
+
+// Implement driver.Scanner for AgentProfile
+func (ap *AgentProfile) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for AgentProfile scan")
+	}
+
+	return json.Unmarshal(data, &ap)
+}
+
 // Unit represents the schema of the unit table
 type Unit struct {
 	gorm.Model
@@ -57,7 +102,26 @@ type Unit struct {
 }
 
 func (Unit) TableName() string {
-	return "unit"
+	return "units"
+}
+
+// Implement driver.Valuer for Unit
+func (u Unit) Value() (driver.Value, error) {
+	return json.Marshal(u)
+}
+
+// Implement driver.Scanner for Unit
+func (u *Unit) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for Unit scan")
+	}
+
+	return json.Unmarshal(data, &u)
 }
 
 // Permission represents the schema of the permission table
@@ -71,7 +135,26 @@ func (Permission) TableName() string {
 	return "permissions"
 }
 
-// Teams represents the schema of the teams table
+// Implement driver.Valuer for Permission
+func (p Permission) Value() (driver.Value, error) {
+	return json.Marshal(p)
+}
+
+// Implement driver.Scanner for Permission
+func (p *Permission) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for Permission scan")
+	}
+
+	return json.Unmarshal(data, &p)
+}
+
+// Team represents the schema of the teams table
 type Teams struct {
 	gorm.Model
 	TeamName         string  `gorm:"size:255;not null" json:"team_name"`
@@ -80,7 +163,26 @@ type Teams struct {
 }
 
 func (Teams) TableName() string {
-	return "team"
+	return "teams"
+}
+
+// Implement driver.Valuer for Teams
+func (t Teams) Value() (driver.Value, error) {
+	return json.Marshal(t)
+}
+
+// Implement driver.Scanner for Teams
+func (t *Teams) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for Teams scan")
+	}
+
+	return json.Unmarshal(data, &t)
 }
 
 // TeamPermission links 'teams' with their 'permissions'.
@@ -88,6 +190,29 @@ type TeamPermission struct {
 	gorm.Model
 	TeamID      uint          `gorm:"not null;index:idx_team_id,unique" json:"team_id"`
 	Permissions []*Permission `gorm:"many2many:team_permissions_permissions;" json:"permissions,omitempty"`
+}
+
+func (TeamPermission) TableName() string {
+	return "team_permission"
+}
+
+// Implement driver.Valuer for TeamPermission
+func (tp TeamPermission) Value() (driver.Value, error) {
+	return json.Marshal(tp)
+}
+
+// Implement driver.Scanner for TeamPermission
+func (tp *TeamPermission) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for TeamPermission scan")
+	}
+
+	return json.Unmarshal(data, &tp)
 }
 
 // Role represents the schema of the role table
@@ -102,6 +227,25 @@ func (Role) TableName() string {
 	return "roles"
 }
 
+// Implement driver.Valuer for Role
+func (r Role) Value() (driver.Value, error) {
+	return json.Marshal(r)
+}
+
+// Implement driver.Scanner for Role
+func (r *Role) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for Role scan")
+	}
+
+	return json.Unmarshal(data, &r)
+}
+
 // RoleBase represents a foundational role structure that may be used for additional role metadata
 type RoleBase struct {
 	gorm.Model
@@ -110,7 +254,26 @@ type RoleBase struct {
 }
 
 func (RoleBase) TableName() string {
-	return "role_base"
+	return "role_bases"
+}
+
+// Implement driver.Valuer for RoleBase
+func (rb RoleBase) Value() (driver.Value, error) {
+	return json.Marshal(rb)
+}
+
+// Implement driver.Scanner for RoleBase
+func (rb *RoleBase) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for RoleBase scan")
+	}
+
+	return json.Unmarshal(data, &rb)
 }
 
 // RolePermission links roles with permissions in a many-to-many relationship
@@ -122,6 +285,25 @@ type RolePermission struct {
 
 func (RolePermission) TableName() string {
 	return "role_permissions"
+}
+
+// Implement driver.Valuer for RolePermission
+func (rp RolePermission) Value() (driver.Value, error) {
+	return json.Marshal(rp)
+}
+
+// Implement driver.Scanner for RolePermission
+func (rp *RolePermission) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for RolePermission scan")
+	}
+
+	return json.Unmarshal(data, &rp)
 }
 
 // AgentRole links agents with roles in a many-to-many relationship
@@ -138,6 +320,26 @@ func (AgentRole) TableName() string {
 	return "agent_roles"
 }
 
+// Implement driver.Valuer for AgentRole
+func (ar AgentRole) Value() (driver.Value, error) {
+	return json.Marshal(ar)
+}
+
+// Implement driver.Scanner for AgentRole
+func (ar *AgentRole) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for AgentRole scan")
+	}
+
+	return json.Unmarshal(data, &ar)
+}
+
+// AgentTrainingSession represents the schema of the agent_training_sessions table
 type AgentTrainingSession struct {
 	gorm.Model
 	Title       string    `json:"title" gorm:"type:varchar(255);not null"`
@@ -150,7 +352,24 @@ type AgentTrainingSession struct {
 }
 
 func (AgentTrainingSession) TableName() string {
-	return "agent_training_session"
+	return "agent_training_sessions"
+}
+
+// GetAttendeesCount returns the count of attendees for the training session
+func (ats *AgentTrainingSession) GetAttendeesCount() int {
+	return len(ats.Attendees)
+}
+
+// IsTrainerAvailable checks if the trainer for the session is available
+func (ats *AgentTrainingSession) IsTrainerAvailable() bool {
+	// Implement the logic to check trainer availability
+	// You might want to query the schedule or availability
+	return true
+}
+
+// AddAttendee adds an agent to the list of attendees for the training session
+func (ats *AgentTrainingSession) AddAttendee(agent *Agents) {
+	ats.Attendees = append(ats.Attendees, *agent)
 }
 
 // UserAgent represents the relationship between a user and an agent
@@ -167,6 +386,17 @@ func (UserAgent) TableName() string {
 	return "user_agents"
 }
 
+// IsActive checks if the user-agent relationship is active
+func (ua *UserAgent) IsActive() bool {
+	// Implement the logic to check if the relationship is active
+	return true
+}
+
+// TerminateRelationship terminates the user-agent relationship
+func (ua *UserAgent) TerminateRelationship() {
+	// Implement the logic to terminate the relationship
+}
+
 // TeamAgent represents the relationship between a team and an agent
 type TeamAgent struct {
 	gorm.Model
@@ -176,6 +406,17 @@ type TeamAgent struct {
 
 func (TeamAgent) TableName() string {
 	return "team_agents"
+}
+
+// IsLeader checks if the agent is the leader of the team
+func (ta *TeamAgent) IsLeader() bool {
+	// Implement the logic to check if the agent is the leader
+	return true
+}
+
+// ChangeTeam changes the team for the agent
+func (ta *TeamAgent) ChangeTeam(newTeamID uint) {
+	// Implement the logic to change the team
 }
 
 // AgentPermission represents the relationship between an agent and their granted permissions
@@ -192,6 +433,7 @@ func (AgentPermission) TableName() string {
 	return "agent_permissions"
 }
 
+// SearchCriteria represents the schema of the search_criteria table
 type SearchCriteria struct {
 	gorm.Model
 	Name       string `json:"name,omitempty"`
@@ -201,6 +443,545 @@ type SearchCriteria struct {
 
 func (SearchCriteria) TableName() string {
 	return "search_criteria"
+}
+
+// AgentSchedule represents the schema of the agent_schedules table
+type AgentSchedule struct {
+	gorm.Model
+	AgentID   uint      `json:"agent_id" gorm:"index;not null"`
+	StartDate time.Time `json:"start_date"`
+	EndDate   time.Time `json:"end_date"`
+	ShiftType string    `json:"shift_type" gorm:"type:varchar(100);not null"`
+	IsActive  bool      `json:"is_active" gorm:"default:true"`
+}
+
+// AgentShift represents the schema of the agent_shifts table
+type AgentShift struct {
+	gorm.Model
+	AgentID   uint      `json:"agent_id" gorm:"index;not null"`
+	ShiftDate time.Time `json:"shift_date"`
+	StartTime time.Time `json:"start_time"`
+	EndTime   time.Time `json:"end_time"`
+	ShiftType string    `json:"shift_type" gorm:"type:varchar(100);not null"`
+}
+
+// AgentSkill represents the schema of the agent_skills table
+type AgentSkill struct {
+	gorm.Model
+	AgentID   uint   `json:"agent_id" gorm:"index;not null"`
+	SkillName string `json:"skill_name" gorm:"type:varchar(255);not null"`
+	Level     int    `json:"level" gorm:"not null"`
+}
+
+// AgentFeedback represents the schema of the agent_feedbacks table
+type AgentFeedback struct {
+	gorm.Model
+	AgentID      uint      `json:"agent_id" gorm:"index;not null"`
+	FeedbackType string    `json:"feedback_type" gorm:"type:varchar(100);not null"`
+	Score        int       `json:"score" gorm:"type:int;not null"`
+	Comments     string    `json:"comments" gorm:"type:text"`
+	SubmittedAt  time.Time `json:"submitted_at"`
+}
+
+// AgentKPI represents the schema of the agent_kpis table
+type AgentKPI struct {
+	gorm.Model
+	AgentID     uint    `json:"agent_id" gorm:"index;not null"`
+	KPIName     string  `json:"kpi_name" gorm:"type:varchar(255);not null"`
+	Value       float64 `json:"value" gorm:"type:decimal(10,2);not null"`
+	TargetValue float64 `json:"target_value" gorm:"type:decimal(10,2)"`
+	Period      string  `json:"period" gorm:"type:varchar(100);not null"`
+}
+
+// AgentOnboarding represents the schema of the agent_onboardings table
+type AgentOnboarding struct {
+	gorm.Model
+	AgentID        uint       `json:"agent_id" gorm:"index;not null"`
+	OnboardingStep string     `json:"onboarding_step" gorm:"type:varchar(255);not null"`
+	Status         string     `json:"status" gorm:"type:varchar(100);not null"`
+	CompletedAt    *time.Time `json:"completed_at,omitempty"`
+}
+
+// AgentTeam represents the schema of the agent_teams table
+type AgentTeam struct {
+	gorm.Model
+	TeamName    string   `json:"team_name" gorm:"type:varchar(255);not null;unique"`
+	Description string   `json:"description" gorm:"type:text"`
+	LeaderID    uint     `json:"leader_id" gorm:"index"`
+	Members     []Agents `gorm:"many2many:agent_teams_members;" json:"-"`
+}
+
+// AgentTrainingRecord represents the schema of the agent_training_records table
+type AgentTrainingRecord struct {
+	gorm.Model
+	AgentID          uint      `json:"agent_id" gorm:"index;not null"`
+	TrainingModuleID uint      `json:"training_module_id" gorm:"index;not null"`
+	Score            int       `json:"score"`
+	Feedback         string    `json:"feedback" gorm:"type:text"`
+	CompletedAt      time.Time `json:"completed_at"`
+}
+
+// AgentAvailability represents the schema of the agent_availabilities table
+type AgentAvailability struct {
+	gorm.Model
+	AgentID       uint       `json:"agent_id" gorm:"index;not null"`
+	Availability  string     `json:"availability" gorm:"type:varchar(100);not null"`
+	LastUpdated   time.Time  `json:"last_updated"`
+	NextAvailable *time.Time `json:"next_available,omitempty"`
+}
+
+// AgentContactInfo represents the schema of the agent_contact_infos table
+type AgentContactInfo struct {
+	gorm.Model
+	AgentID      uint   `json:"agent_id" gorm:"index;not null"`
+	ContactType  string `json:"contact_type" gorm:"type:varchar(100);not null"`
+	ContactValue string `json:"contact_value" gorm:"type:varchar(255);not null"`
+}
+
+// AgentLoginActivity represents the schema of the agent_login_activities table
+type AgentLoginActivity struct {
+	gorm.Model
+	AgentID    uint       `json:"agent_id" gorm:"index;not null"`
+	LoginTime  time.Time  `json:"login_time"`
+	LogoutTime *time.Time `json:"logout_time,omitempty"`
+	IP         string     `json:"ip" gorm:"type:varchar(45)"`
+}
+
+// AgentVacation represents the schema of the agent_vacations table
+type AgentVacation struct {
+	gorm.Model
+	AgentID    uint      `json:"agent_id" gorm:"index;not null"`
+	StartDate  time.Time `json:"start_date"`
+	EndDate    time.Time `json:"end_date"`
+	Reason     string    `json:"reason" gorm:"type:text"`
+	ApprovedBy uint      `json:"approved_by"`
+}
+
+// CustomerInteraction represents the schema of the customer_interactions table
+type CustomerInteraction struct {
+	gorm.Model
+	CustomerID      uint      `json:"customer_id" gorm:"index;not null"`
+	AgentID         uint      `json:"agent_id" gorm:"index;not null"`
+	Channel         string    `json:"channel" gorm:"type:varchar(100);not null"`
+	Content         string    `json:"content" gorm:"type:text;not null"`
+	InteractionTime time.Time `json:"interaction_time"`
+}
+
+// FeedbackReview represents the schema of the feedback_reviews table
+type FeedbackReview struct {
+	gorm.Model
+	FeedbackID uint      `json:"feedback_id" gorm:"index;not null"`
+	ReviewerID uint      `json:"reviewer_id" gorm:"index;not null"`
+	Review     string    `json:"review" gorm:"type:text"`
+	ReviewedAt time.Time `json:"reviewed_at"`
+}
+
+// AgentTicketAssignment represents the schema of the agent_ticket_assignments table
+type AgentTicketAssignment struct {
+	gorm.Model
+	TicketID   uint      `json:"ticket_id" gorm:"index;not null"`
+	AgentID    uint      `json:"agent_id" gorm:"index;not null"`
+	AssignedAt time.Time `json:"assigned_at"`
+}
+
+// AgentTrainingModule represents the schema of the agent_training_modules table
+type AgentTrainingModule struct {
+	gorm.Model
+	Title       string `json:"title" gorm:"type:varchar(255);not null"`
+	Description string `json:"description" gorm:"type:text"`
+	ModuleType  string `json:"module_type" gorm:"type:varchar(100);not null"`
+	Duration    int    `json:"duration"`
+	IsActive    bool   `json:"is_active" gorm:"default:true"`
+}
+
+// AgentCertification represents the schema of the agent_certifications table
+type AgentCertification struct {
+	gorm.Model
+	AgentID       uint       `json:"agent_id" gorm:"index;not null"`
+	Certification string     `json:"certification" gorm:"type:varchar(255);not null"`
+	IssuedBy      string     `json:"issued_by" gorm:"type:varchar(255)"`
+	IssuedDate    time.Time  `json:"issued_date"`
+	ExpiryDate    *time.Time `json:"expiry_date,omitempty"`
+}
+
+// AgentPerformanceReview represents the schema of the agent_performance_reviews table
+type AgentPerformanceReview struct {
+	gorm.Model
+	AgentID    uint      `json:"agent_id" gorm:"index;not null"`
+	ReviewDate time.Time `json:"review_date"`
+	Score      float64   `json:"score"`
+	Feedback   string    `json:"feedback" gorm:"type:text"`
+}
+
+// AgentLeaveRequest represents the schema of the agent_leave_requests table
+type AgentLeaveRequest struct {
+	gorm.Model
+	AgentID   uint      `json:"agent_id" gorm:"index;not null"`
+	LeaveType string    `json:"leave_type" gorm:"type:varchar(100);not null"`
+	StartDate time.Time `json:"start_date"`
+	EndDate   time.Time `json:"end_date"`
+	Status    string    `json:"status" gorm:"type:varchar(100);not null"`
+}
+
+// AgentScheduleOverride represents the schema of the agent_schedule_overrides table
+type AgentScheduleOverride struct {
+	gorm.Model
+	AgentID   uint      `json:"agent_id" gorm:"index;not null"`
+	StartDate time.Time `json:"start_date"`
+	EndDate   time.Time `json:"end_date"`
+	Reason    string    `json:"reason" gorm:"type:text"`
+}
+
+// AgentSkillSet represents the schema of the agent_skill_sets table
+type AgentSkillSet struct {
+	gorm.Model
+	AgentID uint   `json:"agent_id" gorm:"index;not null"`
+	Skill   string `json:"skill" gorm:"type:varchar(255);not null"`
+	Level   string `json:"level" gorm:"type:varchar(100);not null"`
+}
+
+// AgentEvent represents the schema of the agent_events table
+type AgentEvent struct {
+	gorm.Model
+	Title       *string    `gorm:"size:255;not null" json:"title"`
+	Description *string    `gorm:"type:text" json:"description"`
+	ActionType  *string    `json:"action_type"`
+	StartTime   *time.Time `json:"start_time"`
+	Details     *string    `gorm:"type:text" json:"details"`
+	Timestamp   time.Time  `json:"time_stamp"`
+	AllDay      bool       `json:"all_day"`
+	Location    *string    `gorm:"size:255" json:"location"`
+	AgentID     uint       `gorm:"not null;index" json:"user_id"`
+	Agents      []Agents   `gorm:"foreignKey:UserID" json:"-"`
+}
+
+func (AgentEvent) TableName() string {
+	return "agent_events"
+}
+
+// AgentActivityLog represents the schema of the agent_activity_logs table
+type AgentActivityLog struct {
+	ID        uint      `gorm:"primaryKey" json:"id"`
+	AgentID   uint      `json:"agent_id"`
+	Activity  string    `json:"activity"`
+	Timestamp time.Time `json:"timestamp"`
+}
+
+func (AgentActivityLog) TableName() string {
+	return "agent_activity_logs"
+}
+
+// AgentSchedule represents the schema of the agent_schedules table
+func (AgentSchedule) TableName() string {
+	return "agent_schedules"
+}
+
+// AgentShift represents the schema of the agent_shifts table
+func (AgentShift) TableName() string {
+	return "agent_shifts"
+}
+
+// AgentSkill represents the schema of the agent_skills table
+func (AgentSkill) TableName() string {
+	return "agent_skills"
+}
+
+// AgentFeedback represents the schema of the agent_feedbacks table
+func (AgentFeedback) TableName() string {
+	return "agent_feedbacks"
+}
+
+// AgentKPI represents the schema of the agent_kpis table
+func (AgentKPI) TableName() string {
+	return "agent_kpis"
+}
+
+// AgentOnboarding represents the schema of the agent_onboardings table
+func (AgentOnboarding) TableName() string {
+	return "agent_onboardings"
+}
+
+// AgentTeam represents the schema of the agent_teams table
+func (AgentTeam) TableName() string {
+	return "agent_teams"
+}
+
+// AgentTrainingRecord represents the schema of the agent_training_records table
+func (AgentTrainingRecord) TableName() string {
+	return "agent_training_records"
+}
+
+// AgentAvailability represents the schema of the agent_availabilities table
+func (AgentAvailability) TableName() string {
+	return "agent_availabilities"
+}
+
+// AgentContactInfo represents the schema of the agent_contact_infos table
+func (AgentContactInfo) TableName() string {
+	return "agent_contact_infos"
+}
+
+// AgentLoginActivity represents the schema of the agent_login_activities table
+func (AgentLoginActivity) TableName() string {
+	return "agent_login_activities"
+}
+
+// AgentVacation represents the schema of the agent_vacations table
+func (AgentVacation) TableName() string {
+	return "agent_vacations"
+}
+
+// CustomerInteraction represents the schema of the customer_interactions table
+func (CustomerInteraction) TableName() string {
+	return "customer_interactions"
+}
+
+// FeedbackReview represents the schema of the feedback_reviews table
+func (FeedbackReview) TableName() string {
+	return "feedback_reviews"
+}
+
+// AgentTicketAssignment represents the schema of the agent_ticket_assignments table
+func (AgentTicketAssignment) TableName() string {
+	return "agent_ticket_assignments"
+}
+
+// AgentTrainingModule represents the schema of the agent_training_modules table
+func (AgentTrainingModule) TableName() string {
+	return "agent_training_modules"
+}
+
+// AgentCertification represents the schema of the agent_certifications table
+func (AgentCertification) TableName() string {
+	return "agent_certifications"
+}
+
+// AgentPerformanceReview represents the schema of the agent_performance_reviews table
+func (AgentPerformanceReview) TableName() string {
+	return "agent_performance_reviews"
+}
+
+// AgentLeaveRequest represents the schema of the agent_leave_requests table
+func (AgentLeaveRequest) TableName() string {
+	return "agent_leave_requests"
+}
+
+// AgentScheduleOverride represents the schema of the agent_schedule_overrides table
+func (AgentScheduleOverride) TableName() string {
+	return "agent_schedule_overrides"
+}
+
+// AgentSkillSet represents the schema of the agent_skill_sets table
+func (AgentSkillSet) TableName() string {
+	return "agent_skill_sets"
+}
+
+// GetTrainingSessionDuration returns the duration of the training session
+func (ats *AgentTrainingSession) GetTrainingSessionDuration() time.Duration {
+	return ats.EndDate.Sub(ats.StartDate)
+}
+
+// ChangeTrainer changes the trainer for the training session
+func (ats *AgentTrainingSession) ChangeTrainer(newTrainerID uint) {
+	ats.TrainerID = newTrainerID
+}
+
+// IsValid checks if the search criteria is valid
+func (sc *SearchCriteria) IsValid() bool {
+	// Implement validation logic for search criteria
+	return true
+}
+
+// ClearCriteria resets all search criteria fields
+func (sc *SearchCriteria) ClearCriteria() {
+	sc.Name = ""
+	sc.Role = ""
+	sc.Department = ""
+}
+
+// GetShiftDuration returns the duration of the agent's shift
+func (as *AgentShift) GetShiftDuration() time.Duration {
+	return as.EndTime.Sub(as.StartTime)
+}
+
+// ShiftIsOver checks if the agent's shift is over
+func (as *AgentShift) ShiftIsOver() bool {
+	return time.Now().After(as.EndTime)
+}
+
+// GetSkillInfo returns information about the agent's skill
+func (as *AgentSkill) GetSkillInfo() string {
+	return fmt.Sprintf("Agent ID: %d, Skill: %s, Level: %d", as.AgentID, as.SkillName, as.Level)
+}
+
+// IncreaseSkillLevel increases the skill level of the agent
+func (as *AgentSkill) IncreaseSkillLevel() {
+	as.Level++
+}
+
+// IsPositiveFeedback checks if the feedback is positive
+func (af *AgentFeedback) IsPositiveFeedback() bool {
+	return af.Score > 3
+}
+
+// RequestFeedbackRevision requests a revision for the agent's feedback
+func (af *AgentFeedback) RequestFeedbackRevision() {
+	// Implement logic to request revision
+}
+
+// IsKPIAchieved checks if the agent has achieved the KPI
+func (ak *AgentKPI) IsKPIAchieved() bool {
+	return ak.Value >= ak.TargetValue
+}
+
+// SetTargetValue sets a new target value for the KPI
+func (ak *AgentKPI) SetTargetValue(newTargetValue float64) {
+	ak.TargetValue = newTargetValue
+}
+
+// IsOnboardingCompleted checks if the agent has completed onboarding
+func (ao *AgentOnboarding) IsOnboardingCompleted() bool {
+	return ao.Status == "completed"
+}
+
+// UpdateOnboardingStatus updates the status of the agent's onboarding
+func (ao *AgentOnboarding) UpdateOnboardingStatus(newStatus string) {
+	ao.Status = newStatus
+}
+
+// GetTeamMembersCount returns the number of members in the team
+func (at *AgentTeam) GetTeamMembersCount() int {
+	return len(at.Members)
+}
+
+// IsTrainingPassed checks if the agent has passed the training
+func (atr *AgentTrainingRecord) IsTrainingPassed() bool {
+	return atr.Score >= 70
+}
+
+// ProvideTrainingFeedback provides feedback for the agent's training
+func (atr *AgentTrainingRecord) ProvideTrainingFeedback(feedback string) {
+	atr.Feedback = feedback
+}
+
+// IsAvailableNow checks if the agent is currently available
+func (aa *AgentAvailability) IsAvailableNow() bool {
+	return aa.Availability == "available"
+}
+
+// SetNextAvailable sets the next available time for the agent
+func (aa *AgentAvailability) SetNextAvailable(nextAvailable time.Time) {
+	aa.NextAvailable = &nextAvailable
+}
+
+// GetContactInfo returns the contact information of the agent
+func (aci *AgentContactInfo) GetContactInfo() string {
+	return fmt.Sprintf("Agent ID: %d, Type: %s, Value: %s", aci.AgentID, aci.ContactType, aci.ContactValue)
+}
+
+// UpdateContactValue updates the contact value for the agent
+func (aci *AgentContactInfo) UpdateContactValue(newValue string) {
+	aci.ContactValue = newValue
+}
+
+// IsLoggedIn checks if the agent is currently logged in
+func (ala *AgentLoginActivity) IsLoggedIn() bool {
+	return ala.LogoutTime == nil
+}
+
+// Logout logs out the agent and sets the logout time
+func (ala *AgentLoginActivity) Logout() {
+	logoutTime := time.Now()
+	ala.LogoutTime = &logoutTime
+}
+
+// IsOnVacation checks if the agent is currently on vacation
+func (av *AgentVacation) IsOnVacation() bool {
+	return time.Now().After(av.StartDate) && time.Now().Before(av.EndDate)
+}
+
+// GetInteractionSummary returns a summary of the customer interaction
+func (ci *CustomerInteraction) GetInteractionSummary() string {
+	return fmt.Sprintf("Customer ID: %d, Agent ID: %d, Channel: %s", ci.CustomerID, ci.AgentID, ci.Channel)
+}
+
+// GetAssignmentDetails returns details of the ticket assignment
+func (ata *AgentTicketAssignment) GetAssignmentDetails() string {
+	return fmt.Sprintf("Ticket ID: %d, Agent ID: %d", ata.TicketID, ata.AgentID)
+}
+
+// ReassignTicket reassigns the ticket to another agent
+func (ata *AgentTicketAssignment) ReassignTicket(newAgentID uint) {
+	ata.AgentID = newAgentID
+}
+
+// IsModuleActive checks if the training module is currently active
+func (atm *AgentTrainingModule) IsModuleActive() bool {
+	return atm.IsActive
+}
+
+// DeactivateModule deactivates the training module
+func (atm *AgentTrainingModule) DeactivateModule() {
+	atm.IsActive = false
+}
+
+// IsCertificationExpired checks if the agent's certification has expired
+func (ac *AgentCertification) IsCertificationExpired() bool {
+	if ac.ExpiryDate == nil {
+		return false
+	}
+	return time.Now().After(*ac.ExpiryDate)
+}
+
+// RenewCertification renews the agent's certification
+func (ac *AgentCertification) RenewCertification(newExpiryDate time.Time) {
+	ac.ExpiryDate = &newExpiryDate
+}
+
+// IsLeaveRequestApproved checks if the leave request is approved
+func (alr *AgentLeaveRequest) IsLeaveRequestApproved() bool {
+	return alr.Status == "approved"
+}
+
+// ApproveLeaveRequest approves the leave request
+func (alr *AgentLeaveRequest) ApproveLeaveRequest() {
+	alr.Status = "approved"
+}
+
+// GetOverrideDetails returns details of the schedule override
+func (aso *AgentScheduleOverride) GetOverrideDetails() string {
+	return fmt.Sprintf("Agent ID: %d, Start Date: %s, End Date: %s", aso.AgentID, aso.StartDate, aso.EndDate)
+}
+
+// GetSkillSetDetails returns details of the agent's skill set
+func (ass *AgentSkillSet) GetSkillSetDetails() string {
+	return fmt.Sprintf("Agent ID: %d, Skill: %s, Level: %s", ass.AgentID, ass.Skill, ass.Level)
+}
+
+// UpdateSkillLevel updates the skill level for the agent
+func (ass *AgentSkillSet) UpdateSkillLevel(newLevel string) {
+	ass.Level = newLevel
+}
+
+// GetEventDetails returns details of the agent's event
+func (ae *AgentEvent) GetEventDetails() string {
+	return fmt.Sprintf("Agent ID: %d, Title: %s, Start Time: %s", ae.AgentID, *ae.Title, ae.StartTime)
+}
+
+// UpdateEventDetails updates the details of the agent's event
+func (ae *AgentEvent) UpdateEventDetails(newDetails string) {
+	ae.Details = &newDetails
+}
+
+// LogActivity logs an activity for the agent
+func (aal *AgentActivityLog) LogActivity(activity string) {
+	aal.Activity = activity
+	aal.Timestamp = time.Now()
+}
+
+// GetActivityDetails returns details of the agent's activity log
+func (aal *AgentActivityLog) GetActivityDetails() string {
+	return fmt.Sprintf("Agent ID: %d, Activity: %s, Timestamp: %s", aal.AgentID, aal.Activity, aal.Timestamp)
 }
 
 // AgentStorage interface consolidates all operations related to agents.
@@ -2259,34 +3040,6 @@ func (db *AgentDBModel) RemovePermissionFromRoleByPermissionName(roleName string
 
 // ////////////////////////////////////////////////////////////////////////////////////////////////////
 // ////////////////////////////////////////////////////////////////////////////////////////////////////
-type AgentEvent struct {
-	gorm.Model
-	Title       *string    `gorm:"size:255;not null" json:"title"`
-	Description *string    `gorm:"type:text" json:"description"`
-	ActionType  *string    `json:"action_type"`
-	StartTime   *time.Time `json:"start_time"`
-	Details     *string    `gorm:"type:text" json:"details"`
-	Timestamp   time.Time  `json:"time_stamp"`
-	AllDay      bool       `json:"all_day"`
-	Location    *string    `gorm:"size:255" json:"location"`
-	AgentID     uint       `gorm:"not null;index" json:"user_id"`
-	Agents      Agents     `gorm:"foreignKey:UserID" json:"-"`
-}
-
-func (AgentEvent) TableName() string {
-	return "agent_event"
-}
-
-type AgentActivityLog struct {
-	ID        uint      `gorm:"primaryKey" json:"id"`
-	AgentID   uint      `json:"agent_id"`
-	Activity  string    `json:"activity"`
-	Timestamp time.Time `json:"timestamp"`
-}
-
-func (AgentActivityLog) TableName() string {
-	return "agent_activity_log"
-}
 
 // LogAction records an action performed by an agent for auditing purposes.
 func (db *AgentDBModel) LogAgentAction(agentID uint, actionType string, details string) error {
@@ -2353,177 +3106,6 @@ func (db *AgentDBModel) SearchAgents(criteria SearchCriteria, page, pageSize int
 }
 
 // ////////////////////////////////////////////////////////////////////////////////////////
-type AgentSchedule struct {
-	gorm.Model
-	AgentID   uint      `json:"agent_id" gorm:"index;not null"`
-	StartDate time.Time `json:"start_date"`
-	EndDate   time.Time `json:"end_date"`
-	ShiftType string    `json:"shift_type" gorm:"type:varchar(100);not null"`
-	IsActive  bool      `json:"is_active" gorm:"default:true"`
-}
-type AgentShift struct {
-	gorm.Model
-	AgentID   uint      `json:"agent_id" gorm:"index;not null"`
-	ShiftDate time.Time `json:"shift_date"`
-	StartTime time.Time `json:"start_time"`
-	EndTime   time.Time `json:"end_time"`
-	ShiftType string    `json:"shift_type" gorm:"type:varchar(100);not null"`
-}
-
-type AgentSkill struct {
-	gorm.Model
-	AgentID   uint   `json:"agent_id" gorm:"index;not null"`
-	SkillName string `json:"skill_name" gorm:"type:varchar(255);not null"`
-	Level     int    `json:"level" gorm:"not null"`
-}
-
-type AgentFeedback struct {
-	gorm.Model
-	AgentID      uint      `json:"agent_id" gorm:"index;not null"`
-	FeedbackType string    `json:"feedback_type" gorm:"type:varchar(100);not null"`
-	Score        int       `json:"score" gorm:"type:int;not null"`
-	Comments     string    `json:"comments" gorm:"type:text"`
-	SubmittedAt  time.Time `json:"submitted_at"`
-}
-
-type AgentKPI struct {
-	gorm.Model
-	AgentID     uint    `json:"agent_id" gorm:"index;not null"`
-	KPIName     string  `json:"kpi_name" gorm:"type:varchar(255);not null"`
-	Value       float64 `json:"value" gorm:"type:decimal(10,2);not null"`
-	TargetValue float64 `json:"target_value" gorm:"type:decimal(10,2)"`
-	Period      string  `json:"period" gorm:"type:varchar(100);not null"`
-}
-
-type AgentOnboarding struct {
-	gorm.Model
-	AgentID        uint       `json:"agent_id" gorm:"index;not null"`
-	OnboardingStep string     `json:"onboarding_step" gorm:"type:varchar(255);not null"`
-	Status         string     `json:"status" gorm:"type:varchar(100);not null"`
-	CompletedAt    *time.Time `json:"completed_at,omitempty"`
-}
-
-type AgentTeam struct {
-	gorm.Model
-	TeamName    string   `json:"team_name" gorm:"type:varchar(255);not null;unique"`
-	Description string   `json:"description" gorm:"type:text"`
-	LeaderID    uint     `json:"leader_id" gorm:"index"`
-	Members     []Agents `gorm:"many2many:agent_teams_members;"`
-}
-
-type AgentTrainingRecord struct {
-	gorm.Model
-	AgentID          uint      `json:"agent_id" gorm:"index;not null"`
-	TrainingModuleID uint      `json:"training_module_id" gorm:"index;not null"`
-	Score            int       `json:"score"`
-	Feedback         string    `json:"feedback" gorm:"type:text"`
-	CompletedAt      time.Time `json:"completed_at"`
-}
-
-type AgentAvailability struct {
-	gorm.Model
-	AgentID       uint       `json:"agent_id" gorm:"index;not null"`
-	Availability  string     `json:"availability" gorm:"type:varchar(100);not null"`
-	LastUpdated   time.Time  `json:"last_updated"`
-	NextAvailable *time.Time `json:"next_available,omitempty"`
-}
-
-type AgentContactInfo struct {
-	gorm.Model
-	AgentID      uint   `json:"agent_id" gorm:"index;not null"`
-	ContactType  string `json:"contact_type" gorm:"type:varchar(100);not null"`
-	ContactValue string `json:"contact_value" gorm:"type:varchar(255);not null"`
-}
-
-type AgentLoginActivity struct {
-	gorm.Model
-	AgentID    uint       `json:"agent_id" gorm:"index;not null"`
-	LoginTime  time.Time  `json:"login_time"`
-	LogoutTime *time.Time `json:"logout_time,omitempty"`
-	IP         string     `json:"ip" gorm:"type:varchar(45)"`
-}
-
-type AgentVacation struct {
-	gorm.Model
-	AgentID    uint      `json:"agent_id" gorm:"index;not null"`
-	StartDate  time.Time `json:"start_date"`
-	EndDate    time.Time `json:"end_date"`
-	Reason     string    `json:"reason" gorm:"type:text"`
-	ApprovedBy uint      `json:"approved_by"`
-}
-type CustomerInteraction struct {
-	gorm.Model
-	CustomerID      uint      `json:"customer_id" gorm:"index;not null"`
-	AgentID         uint      `json:"agent_id" gorm:"index;not null"`
-	Channel         string    `json:"channel" gorm:"type:varchar(100);not null"`
-	Content         string    `json:"content" gorm:"type:text;not null"`
-	InteractionTime time.Time `json:"interaction_time"`
-}
-
-type FeedbackReview struct {
-	gorm.Model
-	FeedbackID uint      `json:"feedback_id" gorm:"index;not null"`
-	ReviewerID uint      `json:"reviewer_id" gorm:"index;not null"`
-	Review     string    `json:"review" gorm:"type:text"`
-	ReviewedAt time.Time `json:"reviewed_at"`
-}
-
-type AgentTicketAssignment struct {
-	gorm.Model
-	TicketID   uint      `json:"ticket_id" gorm:"index;not null"`
-	AgentID    uint      `json:"agent_id" gorm:"index;not null"`
-	AssignedAt time.Time `json:"assigned_at"`
-}
-
-type AgentTrainingModule struct {
-	gorm.Model
-	Title       string `json:"title" gorm:"type:varchar(255);not null"`
-	Description string `json:"description" gorm:"type:text"`
-	ModuleType  string `json:"module_type" gorm:"type:varchar(100);not null"`
-	Duration    int    `json:"duration"`
-	IsActive    bool   `json:"is_active" gorm:"default:true"`
-}
-
-type AgentCertification struct {
-	gorm.Model
-	AgentID       uint       `json:"agent_id" gorm:"index;not null"`
-	Certification string     `json:"certification" gorm:"type:varchar(255);not null"`
-	IssuedBy      string     `json:"issued_by" gorm:"type:varchar(255)"`
-	IssuedDate    time.Time  `json:"issued_date"`
-	ExpiryDate    *time.Time `json:"expiry_date,omitempty"`
-}
-
-type AgentPerformanceReview struct {
-	gorm.Model
-	AgentID    uint      `json:"agent_id" gorm:"index;not null"`
-	ReviewDate time.Time `json:"review_date"`
-	Score      float64   `json:"score"`
-	Feedback   string    `json:"feedback" gorm:"type:text"`
-}
-
-type AgentLeaveRequest struct {
-	gorm.Model
-	AgentID   uint      `json:"agent_id" gorm:"index;not null"`
-	LeaveType string    `json:"leave_type" gorm:"type:varchar(100);not null"`
-	StartDate time.Time `json:"start_date"`
-	EndDate   time.Time `json:"end_date"`
-	Status    string    `json:"status" gorm:"type:varchar(100);not null"`
-}
-
-type AgentScheduleOverride struct {
-	gorm.Model
-	AgentID   uint      `json:"agent_id" gorm:"index;not null"`
-	StartDate time.Time `json:"start_date"`
-	EndDate   time.Time `json:"end_date"`
-	Reason    string    `json:"reason" gorm:"type:text"`
-}
-
-type AgentSkillSet struct {
-	gorm.Model
-	AgentID uint   `json:"agent_id" gorm:"index;not null"`
-	Skill   string `json:"skill" gorm:"type:varchar(255);not null"`
-	Level   string `json:"level" gorm:"type:varchar(100);not null"`
-}
 
 // AddAgentSchedule adds a new schedule for an agent, ensuring data integrity with transactional support.
 func (db *AgentDBModel) AddAgentSchedule(schedule *AgentSchedule) error {

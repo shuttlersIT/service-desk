@@ -14,6 +14,7 @@ import (
 	"gorm.io/gorm/clause"
 )
 
+// APIToken represents the schema of the api_tokens table
 type APIToken struct {
 	gorm.Model
 	UserID      uint       `json:"user_id" gorm:"index;not null"`
@@ -27,6 +28,7 @@ func (APIToken) TableName() string {
 	return "api_tokens"
 }
 
+// APIRequestLog represents the schema of the api_request_logs table
 type APIRequestLog struct {
 	gorm.Model
 	UserID       uint   `json:"user_id" gorm:"index;not null"`
@@ -42,6 +44,7 @@ func (APIRequestLog) TableName() string {
 	return "api_request_logs"
 }
 
+// APIAccessLog represents the schema of the api_access_logs table
 type APIAccessLog struct {
 	gorm.Model
 	UserID      uint      `json:"user_id" gorm:"index"`
@@ -55,6 +58,7 @@ func (APIAccessLog) TableName() string {
 	return "api_access_logs"
 }
 
+// ExternalServiceToken represents the schema of the external_service_tokens table
 type ExternalServiceToken struct {
 	gorm.Model
 	ServiceName string     `json:"service_name" gorm:"type:varchar(255);not null"`
@@ -66,53 +70,45 @@ func (ExternalServiceToken) TableName() string {
 	return "external_service_tokens"
 }
 
+// AgentLoginCredentials represents the schema of the agent_login_credentials table
 type AgentLoginCredentials struct {
 	ID           uint       `gorm:"primaryKey" json:"id"`
 	AgentID      uint       `json:"agent_id" gorm:"index;not null"`
 	Username     string     `gorm:"type:varchar(255);not null" json:"username"`
 	Password     string     `gorm:"-" json:"-"` // Excluded from JSON responses for security
 	PasswordHash string     `gorm:"-" json:"-"`
-	CreatedAt    time.Time  `json:"created_at"`
-	UpdatedAt    time.Time  `json:"updated_at"`
-	DeletedAt    *time.Time `gorm:"index" json:"deleted_at,omitempty"`
 	LastLoginAt  *time.Time `json:"last_login_at,omitempty"`
 }
 
-// TableName sets the table name for the AgentLoginCredentials model.
 func (AgentLoginCredentials) TableName() string {
 	return "agent_login_credentials"
 }
 
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
+// UsersLoginCredentials represents the schema of the users_login_credentials table
 type UsersLoginCredentials struct {
 	ID           uint       `gorm:"primaryKey" json:"id"`
 	UserID       uint       `json:"user_id" gorm:"index;not null"`
 	Username     string     `gorm:"type:varchar(255);not null" json:"username"`
 	Password     string     `gorm:"-" json:"-"` // Excluded from JSON responses for security
 	PasswordHash string     `gorm:"-" json:"-"`
-	CreatedAt    time.Time  `json:"created_at"`
-	UpdatedAt    time.Time  `json:"updated_at"`
-	DeletedAt    *time.Time `gorm:"index" json:"deleted_at,omitempty"`
 	LastLoginAt  *time.Time `json:"last_login_at,omitempty"`
 }
 
-// TableName sets the table name for the UsersLoginCredentials model.
 func (UsersLoginCredentials) TableName() string {
 	return "users_login_credentials"
 }
 
+// LoginInfo represents the schema of the login_info_auth table
 type LoginInfo struct {
 	Email    string `json:"email"`
 	Password string `json:"password"`
 }
 
-// TableName sets the table name for the LoginInfo model.
 func (LoginInfo) TableName() string {
 	return "login_info_auth"
 }
 
-// Define a model for storing password reset requests
+// PasswordResetRequest represents the schema of the password_reset_requests table
 type PasswordResetRequest struct {
 	ID        uint            `gorm:"primaryKey" json:"id"`
 	UserID    uint            `json:"user_id" gorm:"index;not null"`
@@ -128,7 +124,7 @@ func (PasswordResetRequest) TableName() string {
 	return "password_reset_requests"
 }
 
-// Password History
+// PasswordHistory represents the schema of the password_history table
 type PasswordHistory struct {
 	ID           uint      `gorm:"primaryKey" json:"id"`
 	UserID       uint      `json:"user_id" gorm:"index;not null"`
@@ -140,6 +136,7 @@ func (PasswordHistory) TableName() string {
 	return "password_history"
 }
 
+// PasswordResetToken represents the schema of the password_reset_tokens table
 type PasswordResetToken struct {
 	ID        uint            `gorm:"primaryKey" json:"id"`
 	AgentID   uint            `json:"agent_id" gorm:"index;not null"`
@@ -154,7 +151,7 @@ func (PasswordResetToken) TableName() string {
 	return "password_reset_tokens"
 }
 
-// Agent User Mapping
+// AgentUserMapping represents the schema of the agent_user_mappings table
 type AgentUserMapping struct {
 	ID        uint            `gorm:"primaryKey" json:"id"`
 	AgentID   uint            `json:"agent_id" gorm:"index;not null"`
@@ -164,12 +161,11 @@ type AgentUserMapping struct {
 	DeletedAt *gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
 }
 
-// TableName sets the table name for the AgentUserMapping model.
 func (AgentUserMapping) TableName() string {
-	return "agentUserMapping"
+	return "agent_user_mappings"
 }
 
-// Encryption Key
+// EncryptionKey represents the schema of the encryption_keys table
 type EncryptionKey struct {
 	ID        uint      `gorm:"primaryKey"`
 	OwnerID   uint      `gorm:"index;not null" json:"owner_id"`             // Could be a user or community
@@ -182,7 +178,7 @@ func (EncryptionKey) TableName() string {
 	return "encryption_keys"
 }
 
-// API Gateway
+// APIGateway represents the schema of the api_gateways table
 type APIGateway struct {
 	ID        uint   `gorm:"primaryKey"`
 	Name      string `gorm:"type:varchar(255);not null" json:"name"`
@@ -195,7 +191,7 @@ func (APIGateway) TableName() string {
 	return "api_gateways"
 }
 
-// External Service Integration
+// ExternalServiceIntegration represents the schema of the external_service_integrations table
 type ExternalServiceIntegration struct {
 	IntegrationID     uint       `gorm:"primaryKey"`
 	ServiceName       string     `gorm:"unique;not null" json:"service_name"`
@@ -206,10 +202,10 @@ type ExternalServiceIntegration struct {
 }
 
 func (ExternalServiceIntegration) TableName() string {
-	return "external_service_integration"
+	return "external_service_integrations"
 }
 
-// 2FA
+// TwoFactorAuthentication represents the schema of the two_factor_authentications table
 type TwoFactorAuthentication struct {
 	gorm.Model
 	UserID    uint   `json:"user_id" gorm:"index;not null"`
@@ -221,7 +217,7 @@ func (TwoFactorAuthentication) TableName() string {
 	return "two_factor_authentications"
 }
 
-// User Consent
+// UserConsent represents the schema of the user_consents table
 type UserConsent struct {
 	gorm.Model
 	UserID    uint      `json:"user_id" gorm:"index;not null"`
@@ -235,12 +231,13 @@ func (UserConsent) TableName() string {
 	return "user_consents"
 }
 
+// PasswordStrength represents password strength information
 type PasswordStrength struct {
 	Level           string   `json:"level"`                     // Example levels: Weak, Moderate, Strong
 	Recommendations []string `json:"recommendations,omitempty"` // Suggestions for improving password strength
 }
 
-// Data Consent
+// DataConsent represents the schema of the data_consents table
 type DataConsent struct {
 	ID          uint       `gorm:"primaryKey" json:"id"`
 	UserID      uint       `gorm:"index;not null" json:"user_id"`
@@ -255,6 +252,7 @@ func (DataConsent) TableName() string {
 }
 
 // //////////////////////// USER Segmentation ///////////////////////////////
+// UserSegment represents the schema of the user_segments table
 type UserSegment struct {
 	ID          uint       `gorm:"primaryKey" json:"id"`
 	Name        string     `gorm:"type:varchar(255);not null" json:"name"`
@@ -271,6 +269,7 @@ func (UserSegment) TableName() string {
 	return "user_segments"
 }
 
+// UserSegmentMapping represents the schema of the user_segment_mappings table
 type UserSegmentMapping struct {
 	UserID    uint `gorm:"primaryKey;autoIncrement:false" json:"user_id"`
 	SegmentID uint `gorm:"primaryKey;autoIncrement:false" json:"segment_id"`
@@ -280,7 +279,7 @@ func (UserSegmentMapping) TableName() string {
 	return "user_segment_mappings"
 }
 
-// /////////////////// RATE LIMITS ///////////////////////////////
+// RateLimit represents the schema of the rate_limits table
 type RateLimit struct {
 	ID           uint      `gorm:"primaryKey" json:"id"`
 	IPAddress    string    `gorm:"type:varchar(255);not null;index:idx_ip_address" json:"ip_address"`
@@ -293,7 +292,7 @@ func (RateLimit) TableName() string {
 	return "rate_limits"
 }
 
-// ////////////////////////
+// SecurityQuestion represents the schema of the security_questions table
 type SecurityQuestion struct {
 	ID       uint   `gorm:"primaryKey" json:"id"`
 	UserID   uint   `gorm:"index;not null" json:"user_id"`
@@ -305,11 +304,13 @@ func (SecurityQuestion) TableName() string {
 	return "security_questions"
 }
 
+// SecurityAnswer represents the schema of the security_answers table
 type SecurityAnswer struct {
 	QuestionID uint   `json:"question_id"`
 	Answer     string `json:"answer"`
 }
 
+// IPWhitelist represents the schema of the ip_whitelists table
 type IPWhitelist struct {
 	ID        uint      `gorm:"primaryKey" json:"id"`
 	UserID    uint      `gorm:"index;not null" json:"user_id"`
@@ -321,7 +322,7 @@ func (IPWhitelist) TableName() string {
 	return "ip_whitelists"
 }
 
-// GoogleUserInfo represents the information received from Google's UserInfo endpoint.
+// GoogleUserInfo represents the information received from Google's UserInfo endpoint
 type GoogleUserInfo struct {
 	ID            string `json:"id"`             // Google's identifier for the user
 	Email         string `json:"email"`          // User's email address

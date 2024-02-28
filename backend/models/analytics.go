@@ -29,6 +29,40 @@ func (Analytics) TableName() string {
 	return "engagement_metrics"
 }
 
+type PerformanceMetric struct {
+	gorm.Model
+	MetricName string  `gorm:"type:varchar(255);not null"`
+	Value      float64 `gorm:"not null"`
+	RecordedAt time.Time
+}
+
+type AgentPerformanceMetric struct {
+	gorm.Model
+	AgentID     uint    `json:"agent_id" gorm:"index;not null"`
+	MetricName  string  `json:"metric_name" gorm:"type:varchar(255);not null"`
+	Value       float64 `json:"value" gorm:"type:decimal(10,2);not null"`
+	TargetValue float64 `json:"target_value" gorm:"type:decimal(10,2)"`
+	Period      string  `json:"period" gorm:"type:varchar(100);not null"` // E.g., "Monthly", "Quarterly"
+}
+
+func (PerformanceMetric) TableName() string {
+	return "performance_metrics"
+}
+
+type OptimizationSuggestion struct {
+	ResourceID   uint    `json:"resource_id"`
+	TotalUsage   float64 `json:"total_usage"`
+	AverageUsage float64 `json:"average_usage"`
+}
+
+type OptimizationDBModel struct {
+	DB *gorm.DB
+}
+
+func NewOptimizationDBModel(db *gorm.DB) *OptimizationDBModel {
+	return &OptimizationDBModel{DB: db}
+}
+
 // EngagementMetrics handles database operations for incidents.
 type AnalyticsDBModel struct {
 	DB  *gorm.DB
@@ -73,38 +107,4 @@ func (db *OptimizationDBModel) OptimizeSystemResources(threshold float64) ([]Opt
 		return nil, err
 	}
 	return suggestions, nil
-}
-
-type PerformanceMetric struct {
-	gorm.Model
-	MetricName string  `gorm:"type:varchar(255);not null"`
-	Value      float64 `gorm:"not null"`
-	RecordedAt time.Time
-}
-
-type AgentPerformanceMetric struct {
-	gorm.Model
-	AgentID     uint    `json:"agent_id" gorm:"index;not null"`
-	MetricName  string  `json:"metric_name" gorm:"type:varchar(255);not null"`
-	Value       float64 `json:"value" gorm:"type:decimal(10,2);not null"`
-	TargetValue float64 `json:"target_value" gorm:"type:decimal(10,2)"`
-	Period      string  `json:"period" gorm:"type:varchar(100);not null"` // E.g., "Monthly", "Quarterly"
-}
-
-func (PerformanceMetric) TableName() string {
-	return "performance_metrics"
-}
-
-type OptimizationSuggestion struct {
-	ResourceID   uint    `json:"resource_id"`
-	TotalUsage   float64 `json:"total_usage"`
-	AverageUsage float64 `json:"average_usage"`
-}
-
-type OptimizationDBModel struct {
-	DB *gorm.DB
-}
-
-func NewOptimizationDBModel(db *gorm.DB) *OptimizationDBModel {
-	return &OptimizationDBModel{DB: db}
 }

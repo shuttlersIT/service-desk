@@ -3,6 +3,9 @@
 package models
 
 import (
+	"database/sql/driver"
+	"encoding/json"
+	"errors"
 	"time"
 
 	"gorm.io/gorm"
@@ -10,59 +13,116 @@ import (
 
 // Incident represents an incident report.
 type Incident struct {
-	gorm.Model                 // This includes ID, CreatedAt, UpdatedAt, and DeletedAt
-	AssignedTo     *uint       `gorm:"index" json:"assigned_to,omitempty"`
-	UserID         uint        `json:"user_id" gorm:"not null;index"`
-	ReportedBy     uint        `gorm:"index" json:"reported_by"`
-	Reporter       Users       `gorm:"foreignKey:ReportedBy" json:"-"`
-	Title          string      `json:"title" gorm:"size:255;not null"`
-	Description    string      `json:"description" gorm:"type:text;not null"`
-	CategoryID     *uint       `gorm:"index" json:"category_id,omitempty"`
-	Category       Category    `gorm:"foreignKey:CategoryID" json:"-"`
-	SubCategoryID  uint        `gorm:"index" json:"sub_category_id,omitempty"`
-	SubCategory    SubCategory `gorm:"foreignKey:SubCategoryID" json:"-"`
-	Priority       string      `json:"priority" gorm:"size:50;not null"`
-	Tags           []Tag       `json:"tags" gorm:"type:text[]"` // Use pq.StringArray for PostgreSQL; adjust for MySQL if necessary
-	AttachmentURL  string      `json:"attachment_url" gorm:"size:255"`
-	HasAttachments bool        `json:"has_attachments"`
-	Severity       string      `gorm:"type:enum('Low', 'Medium', 'High', 'Critical');not null" json:"severity"`
-	Status         string      `gorm:"type:enum('Open', 'Investigating', 'Resolved', 'Closed');not null" json:"status"`
-	ResolvedAt     *time.Time  `json:"resolved_at"`
-	ClosedAt       *time.Time  `json:"closed_at,omitempty"`
-	TicketID       *uint       `json:"ticket_id" gorm:"foreignKey:TicketID"`
+	gorm.Model                 // Embedded fields: ID, CreatedAt, UpdatedAt, DeletedAt
+	AssignedTo     *uint       `gorm:"index" json:"assigned_to,omitempty"`                                              // ID of the assigned user
+	UserID         uint        `json:"user_id" gorm:"not null;index"`                                                   // ID of the user who reported the incident
+	ReportedBy     uint        `gorm:"index" json:"reported_by"`                                                        // ID of the user who reported the incident
+	Reporter       Users       `gorm:"foreignKey:ReportedBy" json:"-"`                                                  // User who reported the incident
+	Title          string      `json:"title" gorm:"size:255;not null"`                                                  // Title of the incident
+	Description    string      `json:"description" gorm:"type:text;not null"`                                           // Description of the incident
+	CategoryID     *uint       `gorm:"index" json:"category_id,omitempty"`                                              // ID of the category
+	Category       Category    `gorm:"foreignKey:CategoryID" json:"-"`                                                  // Category of the incident
+	SubCategoryID  uint        `gorm:"index" json:"sub_category_id,omitempty"`                                          // ID of the sub-category
+	SubCategory    SubCategory `gorm:"foreignKey:SubCategoryID" json:"-"`                                               // Sub-category of the incident
+	Priority       string      `json:"priority" gorm:"size:50;not null"`                                                // Priority level of the incident
+	Tags           []Tag       `json:"tags" gorm:"type:text[]"`                                                         // Tags associated with the incident
+	AttachmentURL  string      `json:"attachment_url" gorm:"size:255"`                                                  // URL of the attachment
+	HasAttachments bool        `json:"has_attachments"`                                                                 // Indicates if the incident has attachments
+	Severity       string      `gorm:"type:enum('Low', 'Medium', 'High', 'Critical');not null" json:"severity"`         // Severity level of the incident
+	Status         string      `gorm:"type:enum('Open', 'Investigating', 'Resolved', 'Closed');not null" json:"status"` // Status of the incident
+	ResolvedAt     *time.Time  `json:"resolved_at"`                                                                     // Time when the incident was resolved
+	ClosedAt       *time.Time  `json:"closed_at,omitempty"`                                                             // Time when the incident was closed
+	TicketID       *uint       `json:"ticket_id" gorm:"foreignKey:TicketID"`                                            // ID of the associated ticket (if any)
 }
 
 func (Incident) TableName() string {
 	return "incidents"
 }
 
+// Implement driver.Valuer for Incident
+func (i Incident) Value() (driver.Value, error) {
+	return json.Marshal(i)
+}
+
+// Implement driver.Scanner for Incident
+func (i *Incident) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for Incident scan")
+	}
+
+	return json.Unmarshal(data, &i)
+}
+
 // IncidentHistoryEntry represents a historical entry related to an incident.
 type IncidentHistoryEntry struct {
-	gorm.Model                  // Includes ID, CreatedAt, UpdatedAt, and DeletedAt automatically
-	IncidentID  uint            `json:"incident_id" gorm:"not null;index"`
-	Description string          `json:"description" gorm:"type:text;not null"`
-	Status      string          `json:"status" gorm:"size:100;not null"`
-	CreatedAt   time.Time       `json:"created_at"`
-	UpdatedAt   time.Time       `json:"updated_at"`
-	DeletedAt   *gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+	gorm.Model                  // Embedded fields: ID, CreatedAt, UpdatedAt, DeletedAt
+	IncidentID  uint            `json:"incident_id" gorm:"not null;index"`     // ID of the associated incident
+	Description string          `json:"description" gorm:"type:text;not null"` // Description of the historical entry
+	Status      string          `json:"status" gorm:"size:100;not null"`       // Status associated with the historical entry
+	CreatedAt   time.Time       `json:"created_at"`                            // Time when the historical entry was created
+	UpdatedAt   time.Time       `json:"updated_at"`                            // Time when the historical entry was last updated
+	DeletedAt   *gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`     // Time when the historical entry was deleted (soft delete)
 }
 
 func (IncidentHistoryEntry) TableName() string {
 	return "incident_history_entry"
 }
 
+// Implement driver.Valuer for IncidentHistoryEntry
+func (ihe IncidentHistoryEntry) Value() (driver.Value, error) {
+	return json.Marshal(ihe)
+}
+
+// Implement driver.Scanner for IncidentHistoryEntry
+func (ihe *IncidentHistoryEntry) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for IncidentHistoryEntry scan")
+	}
+
+	return json.Unmarshal(data, &ihe)
+}
+
 // IncidentComment represents a comment made on an incident.
 type IncidentComment struct {
-	gorm.Model                 // Includes ID, CreatedAt, UpdatedAt, and DeletedAt automatically
-	IncidentID uint            `json:"incident_id" gorm:"not null;index"`
-	Comment    string          `json:"comment" gorm:"type:text;not null"`
-	CreatedAt  time.Time       `json:"created_at"`
-	UpdatedAt  time.Time       `json:"updated_at"`
-	DeletedAt  *gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+	gorm.Model                 // Embedded fields: ID, CreatedAt, UpdatedAt, DeletedAt
+	IncidentID uint            `json:"incident_id" gorm:"not null;index"` // ID of the associated incident
+	Comment    string          `json:"comment" gorm:"type:text;not null"` // Comment made on the incident
+	CreatedAt  time.Time       `json:"created_at"`                        // Time when the comment was created
+	UpdatedAt  time.Time       `json:"updated_at"`                        // Time when the comment was last updated
+	DeletedAt  *gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"` // Time when the comment was deleted (soft delete)
 }
 
 func (IncidentComment) TableName() string {
 	return "incident_comment"
+}
+
+// Implement driver.Valuer for IncidentComment
+func (ic IncidentComment) Value() (driver.Value, error) {
+	return json.Marshal(ic)
+}
+
+// Implement driver.Scanner for IncidentComment
+func (ic *IncidentComment) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for IncidentComment scan")
+	}
+
+	return json.Unmarshal(data, &ic)
 }
 
 // IncidentStorage defines the methods for managing incidents.
@@ -112,6 +172,21 @@ func NewIncidentDBModel(db *gorm.DB, log Logger, eventPublisher EventPublisherIm
 		log:            log,
 		EventPublisher: eventPublisher,
 	}
+}
+
+// CreateServiceRequest creates a new service request.
+func CreateServiceRequest(db *gorm.DB, incident *Incident) error {
+	tx := db.Begin()
+	if tx.Error != nil {
+		return tx.Error
+	}
+
+	if err := tx.Create(incident).Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	return tx.Commit().Error
 }
 
 // GetAllIncidents retrieves all service requests from the database.

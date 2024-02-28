@@ -3,6 +3,9 @@
 package models
 
 import (
+	"database/sql/driver"
+	"encoding/json"
+	"errors"
 	"time"
 
 	"gorm.io/gorm"
@@ -23,6 +26,42 @@ type Event struct {
 
 func (Event) TableName() string {
 	return "event"
+}
+
+type ServiceDeskEvent struct {
+	gorm.Model
+	Title       string    `gorm:"size:255;not null" json:"title"` // Title of the event
+	Description string    `gorm:"type:text" json:"description"`   // Detailed description of the event
+	StartTime   time.Time `json:"start_time" gorm:"not null"`     // Start time of the event
+	EndTime     time.Time `json:"end_time" gorm:"not null"`       // End time of the event
+	AllDay      bool      `json:"all_day"`                        // Indicates if the event lasts all day
+	Location    string    `gorm:"size:255" json:"location"`       // Location of the event
+	UserID      uint      `gorm:"not null;index" json:"user_id"`  // ID of the user who created the event
+	AgentID     uint      `gorm:"not null;index" json:"agent_id"` // ID of the agent associated with the event, if any
+	OrganizerID uint      `gorm:"index" json:"organizer_id"`      // ID of the organizer of the event, if different from the user
+}
+
+func (ServiceDeskEvent) TableName() string {
+	return "service_desk_event"
+}
+
+// Implement driver.Valuer for ServiceDeskEvent
+func (sde ServiceDeskEvent) Value() (driver.Value, error) {
+	return json.Marshal(sde)
+}
+
+// Implement driver.Scanner for ServiceDeskEvent
+func (sde *ServiceDeskEvent) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for ServiceDeskEvent scan")
+	}
+
+	return json.Unmarshal(data, &sde)
 }
 
 type LogEntry struct {
@@ -48,15 +87,53 @@ func (UserSetting) TableName() string {
 	return "user_setting"
 }
 
+// Implement driver.Valuer for UserSetting
+func (us UserSetting) Value() (driver.Value, error) {
+	return json.Marshal(us)
+}
+
+// Implement driver.Scanner for UserSetting
+func (us *UserSetting) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for UserSetting scan")
+	}
+
+	return json.Unmarshal(data, &us)
+}
+
 type ApplicationSetting struct {
 	gorm.Model
-	Key         string `gorm:"size:255;not null;unique" json:"key"` // The key or name of the application-wide setting
-	Value       string `gorm:"type:text;not null" json:"value"`     // The value of the setting, allowing for complex configurations stored as strings
-	Description string `gorm:"size:255" json:"description"`         // Optional description of what the setting controls or affects
+	Key                     string `gorm:"size:255;not null;unique" json:"key"` // The key or name of the application-wide setting
+	ApplicationSettingValue string `gorm:"type:text;not null" json:"value"`     // The value of the setting, allowing for complex configurations stored as strings
+	Description             string `gorm:"size:255" json:"description"`         // Optional description of what the setting controls or affects
 }
 
 func (ApplicationSetting) TableName() string {
 	return "application_setting"
+}
+
+// Implement driver.Valuer for ApplicationSetting
+func (as ApplicationSetting) Value() (driver.Value, error) {
+	return json.Marshal(as)
+}
+
+// Implement driver.Scanner for ApplicationSetting
+func (as *ApplicationSetting) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for ApplicationSetting scan")
+	}
+
+	return json.Unmarshal(data, &as)
 }
 
 type Project struct {
@@ -70,6 +147,25 @@ type Project struct {
 
 func (Project) TableName() string {
 	return "project"
+}
+
+// Implement driver.Valuer for Project
+func (p Project) Value() (driver.Value, error) {
+	return json.Marshal(p)
+}
+
+// Implement driver.Scanner for Project
+func (p *Project) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for Project scan")
+	}
+
+	return json.Unmarshal(data, &p)
 }
 
 type Task struct {
@@ -87,6 +183,25 @@ func (Task) TableName() string {
 	return "tasks"
 }
 
+// Implement driver.Valuer for Task
+func (t Task) Value() (driver.Value, error) {
+	return json.Marshal(t)
+}
+
+// Implement driver.Scanner for Task
+func (t *Task) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for Task scan")
+	}
+
+	return json.Unmarshal(data, &t)
+}
+
 type Notification struct {
 	gorm.Model
 	UserID  uint   `gorm:"not null;index" json:"user_id"`     // The user who will receive the notification
@@ -102,6 +217,25 @@ func (Notification) TableName() string {
 	return "notification"
 }
 
+// Implement driver.Valuer for Notification
+func (n Notification) Value() (driver.Value, error) {
+	return json.Marshal(n)
+}
+
+// Implement driver.Scanner for Notification
+func (n *Notification) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for Notification scan")
+	}
+
+	return json.Unmarshal(data, &n)
+}
+
 type NotificationSetting struct {
 	gorm.Model
 	UserID               uint   `gorm:"index;not null" json:"user_id"`          // ID of the user to whom the settings apply
@@ -113,6 +247,25 @@ type NotificationSetting struct {
 
 func (NotificationSetting) TableName() string {
 	return "notification_setting"
+}
+
+// Implement driver.Valuer for NotificationSetting
+func (ns NotificationSetting) Value() (driver.Value, error) {
+	return json.Marshal(ns)
+}
+
+// Implement driver.Scanner for NotificationSetting
+func (ns *NotificationSetting) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for NotificationSetting scan")
+	}
+
+	return json.Unmarshal(data, &ns)
 }
 
 type FileUpload struct {
@@ -130,17 +283,55 @@ func (FileUpload) TableName() string {
 	return "file_upload"
 }
 
+// Implement driver.Valuer for FileUpload
+func (fu FileUpload) Value() (driver.Value, error) {
+	return json.Marshal(fu)
+}
+
+// Implement driver.Scanner for FileUpload
+func (fu *FileUpload) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for FileUpload scan")
+	}
+
+	return json.Unmarshal(data, &fu)
+}
+
 type UserFeedback struct {
 	gorm.Model
-	UserID    uint   `gorm:"not null;index" json:"user_id"`      // ID of the user providing feedback
-	Feedback  string `gorm:"type:text;not null" json:"feedback"` // The content of the feedback
-	ContactMe bool   `gorm:"default:false" json:"contact_me"`    // Whether the user consents to be contacted for further information
-	Content   string `gorm:"type:text;not null"`                 // Additional content or context related to the feedback
-	Response  string `gorm:"type:text" json:"response"`          // An optional response to the feedback, possibly from an admin or support team
+	UserID       uint   `gorm:"not null;index" json:"user_id"`      // ID of the user providing feedback
+	Feedback     string `gorm:"type:text;not null" json:"feedback"` // The content of the feedback
+	CanContactMe bool   `gorm:"default:false" json:"contact_me"`    // Whether the user consents to be contacted for further information
+	Content      string `gorm:"type:text;not null"`                 // Additional content or context related to the feedback
+	Response     string `gorm:"type:text" json:"response"`          // An optional response to the feedback, possibly from an admin or support team
 }
 
 func (UserFeedback) TableName() string {
 	return "user_feedback"
+}
+
+// Implement driver.Valuer for UserFeedback
+func (uf UserFeedback) Value() (driver.Value, error) {
+	return json.Marshal(uf)
+}
+
+// Implement driver.Scanner for UserFeedback
+func (uf *UserFeedback) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for UserFeedback scan")
+	}
+
+	return json.Unmarshal(data, &uf)
 }
 
 type EventLog struct {
@@ -158,15 +349,53 @@ func (EventLog) TableName() string {
 	return "event_log"
 }
 
+// Implement driver.Valuer for EventLog
+func (el EventLog) Value() (driver.Value, error) {
+	return json.Marshal(el)
+}
+
+// Implement driver.Scanner for EventLog
+func (el *EventLog) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for EventLog scan")
+	}
+
+	return json.Unmarshal(data, &el)
+}
+
 type AppConfig struct {
-	ID          uint   `gorm:"primaryKey" json:"id"`
-	Key         string `gorm:"size:255;unique;not null" json:"key"` // Unique key for the configuration setting
-	Value       string `gorm:"type:text;not null" json:"value"`     // Value of the configuration setting
-	Description string `gorm:"size:255" json:"description"`         // Optional description of the configuration setting
+	ID             uint   `gorm:"primaryKey" json:"id"`
+	Key            string `gorm:"size:255;unique;not null" json:"key"` // Unique key for the configuration setting
+	AppConfigValue string `gorm:"type:text;not null" json:"value"`     // Value of the configuration setting
+	Description    string `gorm:"size:255" json:"description"`         // Optional description of the configuration setting
 }
 
 func (AppConfig) TableName() string {
 	return "app_config"
+}
+
+// Implement driver.Valuer for AppConfig
+func (ac AppConfig) Value() (driver.Value, error) {
+	return json.Marshal(ac)
+}
+
+// Implement driver.Scanner for AppConfig
+func (ac *AppConfig) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for AppConfig scan")
+	}
+
+	return json.Unmarshal(data, &ac)
 }
 
 type AuditLog struct {
@@ -184,6 +413,25 @@ func (AuditLog) TableName() string {
 	return "audit_log"
 }
 
+// Implement driver.Valuer for AuditLog
+func (al AuditLog) Value() (driver.Value, error) {
+	return json.Marshal(al)
+}
+
+// Implement driver.Scanner for AuditLog
+func (al *AuditLog) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for AuditLog scan")
+	}
+
+	return json.Unmarshal(data, &al)
+}
+
 type UserPreference struct {
 	gorm.Model
 	UserID          uint   `json:"user_id"`
@@ -197,6 +445,25 @@ func (UserPreference) TableName() string {
 	return "user_preferences"
 }
 
+// Implement driver.Valuer for UserPreference
+func (up UserPreference) Value() (driver.Value, error) {
+	return json.Marshal(up)
+}
+
+// Implement driver.Scanner for UserPreference
+func (up *UserPreference) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for UserPreference scan")
+	}
+
+	return json.Unmarshal(data, &up)
+}
+
 type Feedback struct {
 	gorm.Model
 	UserID     uint      `gorm:"index;not null" json:"user_id"`      // User ID associated with the feedback
@@ -208,6 +475,495 @@ type Feedback struct {
 
 func (Feedback) TableName() string {
 	return "feedback"
+}
+
+type ProductReview struct {
+	ID        uint   `gorm:"primaryKey"`
+	ProductID uint   `gorm:"index;not null" json:"product_id"`  // ID of the product being reviewed
+	UserID    uint   `gorm:"index;not null" json:"user_id"`     // ID of the user submitting the review
+	Review    string `gorm:"type:text;not null" json:"review"`  // Content of the review
+	Rating    int    `gorm:"check:rating >= 1 AND rating <= 5"` // Rating given by the user, on a scale of 1 to 5
+	CreatedAt time.Time
+}
+
+func (ProductReview) TableName() string {
+	return "product_reviews"
+}
+
+// Implement driver.Valuer for ProductReview
+func (pr ProductReview) Value() (driver.Value, error) {
+	return json.Marshal(pr)
+}
+
+// Implement driver.Scanner for ProductReview
+func (pr *ProductReview) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for ProductReview scan")
+	}
+
+	return json.Unmarshal(data, &pr)
+}
+
+type ScheduledTask struct {
+	ID       uint       `gorm:"primaryKey" json:"id"`
+	Name     string     `gorm:"type:varchar(255);not null" json:"name"`     // Unique name of the scheduled task
+	Type     string     `gorm:"type:varchar(100);not null" json:"type"`     // Type of task, e.g., "email", "cleanup"
+	Schedule string     `gorm:"type:varchar(100);not null" json:"schedule"` // Scheduling format, e.g., cron expression
+	LastRun  *time.Time `json:"last_run,omitempty"`                         // Timestamp of the last run
+	NextRun  time.Time  `json:"next_run" gorm:"not null"`                   // Timestamp of the next scheduled run
+	IsActive bool       `gorm:"default:true" json:"is_active"`              // Indicates if the task is active
+}
+
+func (ScheduledTask) TableName() string {
+	return "scheduled_tasks"
+}
+
+// Implement driver.Valuer for ScheduledTask
+func (st ScheduledTask) Value() (driver.Value, error) {
+	return json.Marshal(st)
+}
+
+// Implement driver.Scanner for ScheduledTask
+func (st *ScheduledTask) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for ScheduledTask scan")
+	}
+
+	return json.Unmarshal(data, &st)
+}
+
+type SecurityEventLog struct {
+	gorm.Model
+	EventType string    `gorm:"type:varchar(100);not null"` // E.g., "login_attempt", "password_change"
+	UserID    uint      `gorm:"index"`                      // Optional, not all events may be user-specific
+	Details   string    `gorm:"type:text"`                  // JSON or similar structured format recommended
+	LogTime   time.Time `json:"log_time,omitempty"`
+}
+
+func (SecurityEventLog) TableName() string {
+	return "security_event_logs"
+}
+
+// Implement driver.Valuer for SecurityEventLog
+func (sel SecurityEventLog) Value() (driver.Value, error) {
+	return json.Marshal(sel)
+}
+
+// Implement driver.Scanner for SecurityEventLog
+func (sel *SecurityEventLog) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for SecurityEventLog scan")
+	}
+
+	return json.Unmarshal(data, &sel)
+}
+
+type Poll struct {
+	gorm.Model
+	Question string     `gorm:"type:varchar(255);not null" json:"question"` // The question or statement of the poll
+	Options  string     `gorm:"type:text;not null" json:"options"`          // JSON-encoded array of options for the poll
+	IsActive bool       `gorm:"default:true" json:"is_active"`              // Whether the poll is currently active
+	EndTime  *time.Time `json:"end_time,omitempty"`                         // Optional end time for when the poll closes
+
+}
+
+func (Poll) TableName() string {
+	return "polls"
+}
+
+// Implement driver.Valuer for Poll
+func (p Poll) Value() (driver.Value, error) {
+	return json.Marshal(p)
+}
+
+// Implement driver.Scanner for Poll
+func (p *Poll) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for Poll scan")
+	}
+
+	return json.Unmarshal(data, &p)
+}
+
+type PollVote struct {
+	ID      uint      `gorm:"primaryKey" json:"id"`
+	PollID  uint      `gorm:"index;not null" json:"poll_id"`            // The poll to which the vote belongs
+	UserID  uint      `gorm:"index;not null" json:"user_id"`            // The user who cast the vote
+	Option  string    `gorm:"type:varchar(255);not null" json:"option"` // The chosen option
+	VotedAt time.Time `json:"voted_at"`                                 // Timestamp of when the vote was cast
+}
+
+func (PollVote) TableName() string {
+	return "poll_votes"
+}
+
+// Implement driver.Valuer for PollVote
+func (pv PollVote) Value() (driver.Value, error) {
+	return json.Marshal(pv)
+}
+
+// Implement driver.Scanner for PollVote
+func (pv *PollVote) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for PollVote scan")
+	}
+
+	return json.Unmarshal(data, &pv)
+}
+
+type TicketCommentCreatedEvent struct {
+	CommentID   uint      `gorm:"primaryKey" json:"commentId"`
+	TicketID    uint      `gorm:"not null" json:"ticketId"`
+	CommenterID uint      `gorm:"not null" json:"commenterId"`
+	CommentText string    `gorm:"type:text;not null" json:"commentText"`
+	CreatedAt   time.Time `gorm:"autoCreateTime" json:"createdAt"`
+	UpdatedAt   time.Time `gorm:"autoUpdateTime" json:"updatedAt"`
+}
+
+// Implement driver.Valuer for TicketCommentCreatedEvent
+func (tce TicketCommentCreatedEvent) Value() (driver.Value, error) {
+	return json.Marshal(tce)
+}
+
+// Implement driver.Scanner for TicketCommentCreatedEvent
+func (tce *TicketCommentCreatedEvent) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for TicketCommentCreatedEvent scan")
+	}
+
+	return json.Unmarshal(data, &tce)
+}
+
+// UserActivityLog records activities performed by users within the system.
+type UserActivityLog struct {
+	ID           uint           `gorm:"primaryKey" json:"id"`
+	UserID       uint           `gorm:"index;notNull" json:"user_id"`
+	Action       string         `gorm:"type:varchar(255);notNull" json:"action"`
+	Description  string         `gorm:"type:text" json:"description,omitempty"`
+	ActivityType string         `json:"activity_type" gorm:"type:varchar(255);not null"`
+	Details      string         `json:"details" gorm:"type:text;not null"`
+	Timestamp    time.Time      `json:"timestamp"` // Timestamp of when the activity occurred
+	OccurredAt   time.Time      `json:"occurred_at"`
+	CreatedAt    time.Time      `json:"created_at"`
+	UpdatedAt    time.Time      `json:"updated_at"`
+	DeletedAt    gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+}
+
+func (UserActivityLog) TableName() string {
+	return "user_activity_logs"
+}
+
+// Implement driver.Valuer for UserActivityLog
+func (ual UserActivityLog) Value() (driver.Value, error) {
+	return json.Marshal(ual)
+}
+
+// Implement driver.Scanner for UserActivityLog
+func (ual *UserActivityLog) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for UserActivityLog scan")
+	}
+
+	return json.Unmarshal(data, &ual)
+}
+
+// AssetLocation defines physical or logical locations where assets are stored or used.
+type AssetLocation struct {
+	ID          uint           `gorm:"primaryKey" json:"id"`
+	Name        string         `gorm:"size:255;notNull;unique" json:"name"`
+	Description string         `gorm:"type:text" json:"description,omitempty"`
+	Address     string         `gorm:"type:text" json:"address,omitempty"`
+	CreatedAt   time.Time      `json:"created_at"`
+	UpdatedAt   time.Time      `json:"updated_at"`
+	DeletedAt   gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+}
+
+func (AssetLocation) TableName() string {
+	return "asset_location"
+}
+
+// Implement driver.Valuer for AssetLocation
+func (al AssetLocation) Value() (driver.Value, error) {
+	return json.Marshal(al)
+}
+
+// Implement driver.Scanner for AssetLocation
+func (al *AssetLocation) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for AssetLocation scan")
+	}
+
+	return json.Unmarshal(data, &al)
+}
+
+// AssetReservation allows users to reserve assets for specific periods.
+type AssetReservation struct {
+	ID        uint           `gorm:"primaryKey" json:"id"`
+	AssetID   uint           `gorm:"index;notNull" json:"asset_id"`
+	UserID    uint           `gorm:"index;notNull" json:"user_id"`
+	StartTime time.Time      `json:"start_time"`
+	EndTime   time.Time      `json:"end_time"`
+	Status    string         `gorm:"size:100;notNull" json:"status"` // e.g., Reserved, Cancelled
+	CreatedAt time.Time      `json:"created_at"`
+	UpdatedAt time.Time      `json:"updated_at"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+}
+
+func (AssetReservation) TableName() string {
+	return "asset_reservation"
+}
+
+// Implement driver.Valuer for AssetReservation
+func (ar AssetReservation) Value() (driver.Value, error) {
+	return json.Marshal(ar)
+}
+
+// Implement driver.Scanner for AssetReservation
+func (ar *AssetReservation) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for AssetReservation scan")
+	}
+
+	return json.Unmarshal(data, &ar)
+}
+
+// AssetCheckInOut records check-in and check-out activities for assets.
+type AssetCheckInOut struct {
+	ID         uint           `gorm:"primaryKey" json:"id"`
+	AssetID    uint           `gorm:"index;notNull" json:"asset_id"`
+	UserID     uint           `gorm:"index;notNull" json:"user_id"`
+	Action     string         `gorm:"type:varchar(100);notNull" json:"action"` // CheckIn, CheckOut
+	OccurredAt time.Time      `json:"occurred_at"`
+	Notes      string         `gorm:"type:text" json:"notes,omitempty"`
+	CreatedAt  time.Time      `json:"created_at"`
+	UpdatedAt  time.Time      `json:"updated_at"`
+	DeletedAt  gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+}
+
+func (AssetCheckInOut) TableName() string {
+	return "asset_check_in_out"
+}
+
+// Implement driver.Valuer for AssetCheckInOut
+func (acio AssetCheckInOut) Value() (driver.Value, error) {
+	return json.Marshal(acio)
+}
+
+// Implement driver.Scanner for AssetCheckInOut
+func (acio *AssetCheckInOut) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for AssetCheckInOut scan")
+	}
+
+	return json.Unmarshal(data, &acio)
+}
+
+// SystemSetting represents configurable settings within the asset management system.
+type SystemSetting struct {
+	ID                 uint           `gorm:"primaryKey" json:"id"`
+	Key                string         `gorm:"size:255;notNull;unique" json:"key"`
+	SystemSettingValue string         `gorm:"type:text;notNull" json:"value"`
+	CreatedAt          time.Time      `json:"created_at"`
+	UpdatedAt          time.Time      `json:"updated_at"`
+	DeletedAt          gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+}
+
+// Implement driver.Valuer for SystemSetting
+func (ss SystemSetting) Value() (driver.Value, error) {
+	return json.Marshal(ss)
+}
+
+// Implement driver.Scanner for SystemSetting
+func (ss *SystemSetting) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for SystemSetting scan")
+	}
+
+	return json.Unmarshal(data, &ss)
+}
+
+// AssetTransferLog records the transfer of assets between different locations or users.
+type AssetTransferLog struct {
+	ID            uint           `gorm:"primaryKey" json:"id"`
+	AssetID       uint           `gorm:"index;notNull" json:"asset_id"`
+	FromLocation  uint           `gorm:"index" json:"from_location"`
+	ToLocation    uint           `gorm:"index" json:"to_location"`
+	TransferDate  time.Time      `json:"transfer_date"`
+	TransferredBy uint           `gorm:"index;notNull" json:"transferred_by"`
+	Notes         string         `gorm:"type:text" json:"notes,omitempty"`
+	CreatedAt     time.Time      `json:"created_at"`
+	UpdatedAt     time.Time      `json:"updated_at"`
+	DeletedAt     gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+}
+
+// Implement driver.Valuer for AssetTransferLog
+func (atl AssetTransferLog) Value() (driver.Value, error) {
+	return json.Marshal(atl)
+}
+
+// Implement driver.Scanner for AssetTransferLog
+func (atl *AssetTransferLog) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for AssetTransferLog scan")
+	}
+
+	return json.Unmarshal(data, &atl)
+}
+
+// UserNotification stores notifications sent to users within the system.
+type UserNotification struct {
+	ID         uint           `gorm:"primaryKey" json:"id"`
+	UserID     uint           `gorm:"index;notNull" json:"user_id"`
+	Message    string         `gorm:"type:text;notNull" json:"message"`
+	Read       bool           `gorm:"notNull;default:false" json:"read"`
+	NotifiedAt time.Time      `json:"notified_at"`
+	CreatedAt  time.Time      `json:"created_at"`
+	UpdatedAt  time.Time      `json:"updated_at"`
+	DeletedAt  gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+}
+
+// Implement driver.Valuer for UserNotification
+func (un UserNotification) Value() (driver.Value, error) {
+	return json.Marshal(un)
+}
+
+// Implement driver.Scanner for UserNotification
+func (un *UserNotification) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for UserNotification scan")
+	}
+
+	return json.Unmarshal(data, &un)
+}
+
+// MaintenanceRequest captures requests for maintenance of assets, including details of the request and status.
+type MaintenanceRequest struct {
+	ID              uint           `gorm:"primaryKey" json:"id"`
+	AssetID         uint           `gorm:"index;notNull" json:"asset_id"`
+	RequestedBy     uint           `gorm:"index;notNull" json:"requested_by"`
+	Description     string         `gorm:"type:text;notNull" json:"description"`
+	Status          string         `gorm:"size:100;notNull" json:"status"` // e.g., Pending, InProgress, Completed
+	MaintenanceDate *time.Time     `json:"maintenance_date,omitempty"`
+	CompletedDate   *time.Time     `json:"completed_date,omitempty"`
+	CreatedAt       time.Time      `json:"created_at"`
+	UpdatedAt       time.Time      `json:"updated_at"`
+	DeletedAt       gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+}
+
+// Implement driver.Valuer for MaintenanceRequest
+func (mr MaintenanceRequest) Value() (driver.Value, error) {
+	return json.Marshal(mr)
+}
+
+// Implement driver.Scanner for MaintenanceRequest
+func (mr *MaintenanceRequest) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for MaintenanceRequest scan")
+	}
+
+	return json.Unmarshal(data, &mr)
+}
+
+// AssetWarrantyDetails holds warranty information for assets, including start and end dates.
+type AssetWarrantyDetails struct {
+	ID            uint           `gorm:"primaryKey" json:"id"`
+	AssetID       uint           `gorm:"index;notNull" json:"asset_id"`
+	WarrantyStart time.Time      `json:"warranty_start"`
+	WarrantyEnd   time.Time      `json:"warranty_end"`
+	Provider      string         `gorm:"size:255" json:"provider"`
+	WarrantyTerms string         `gorm:"type:text" json:"warranty_terms"`
+	CreatedAt     time.Time      `json:"created_at"`
+	UpdatedAt     time.Time      `json:"updated_at"`
+	DeletedAt     gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+}
+
+// Implement driver.Valuer for AssetWarrantyDetails
+func (awd AssetWarrantyDetails) Value() (driver.Value, error) {
+	return json.Marshal(awd)
+}
+
+// Implement driver.Scanner for AssetWarrantyDetails
+func (awd *AssetWarrantyDetails) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for AssetWarrantyDetails scan")
+	}
+
+	return json.Unmarshal(data, &awd)
 }
 
 // GenerateUserActivityReport aggregates user activities over a specified period.
@@ -237,79 +993,6 @@ func (db *AssetDBModel) AllocateResources(requestID uint, resourcesNeeded int) e
 	})
 }
 
-type ProductReview struct {
-	ID        uint   `gorm:"primaryKey"`
-	ProductID uint   `gorm:"index;not null" json:"product_id"`  // ID of the product being reviewed
-	UserID    uint   `gorm:"index;not null" json:"user_id"`     // ID of the user submitting the review
-	Review    string `gorm:"type:text;not null" json:"review"`  // Content of the review
-	Rating    int    `gorm:"check:rating >= 1 AND rating <= 5"` // Rating given by the user, on a scale of 1 to 5
-	CreatedAt time.Time
-}
-
-func (ProductReview) TableName() string {
-	return "product_reviews"
-}
-
-type ScheduledTask struct {
-	ID       uint       `gorm:"primaryKey" json:"id"`
-	Name     string     `gorm:"type:varchar(255);not null" json:"name"`     // Unique name of the scheduled task
-	Type     string     `gorm:"type:varchar(100);not null" json:"type"`     // Type of task, e.g., "email", "cleanup"
-	Schedule string     `gorm:"type:varchar(100);not null" json:"schedule"` // Scheduling format, e.g., cron expression
-	LastRun  *time.Time `json:"last_run,omitempty"`                         // Timestamp of the last run
-	NextRun  time.Time  `json:"next_run" gorm:"not null"`                   // Timestamp of the next scheduled run
-	IsActive bool       `gorm:"default:true" json:"is_active"`              // Indicates if the task is active
-}
-
-func (ScheduledTask) TableName() string {
-	return "scheduled_tasks"
-}
-
-type SecurityEventLog struct {
-	gorm.Model
-	EventType string    `gorm:"type:varchar(100);not null"` // E.g., "login_attempt", "password_change"
-	UserID    uint      `gorm:"index"`                      // Optional, not all events may be user-specific
-	Details   string    `gorm:"type:text"`                  // JSON or similar structured format recommended
-	LogTime   time.Time `json:"log_time,omitempty"`
-}
-
-func (SecurityEventLog) TableName() string {
-	return "security_event_logs"
-}
-
-type Poll struct {
-	gorm.Model
-	Question string     `gorm:"type:varchar(255);not null" json:"question"` // The question or statement of the poll
-	Options  string     `gorm:"type:text;not null" json:"options"`          // JSON-encoded array of options for the poll
-	IsActive bool       `gorm:"default:true" json:"is_active"`              // Whether the poll is currently active
-	EndTime  *time.Time `json:"end_time,omitempty"`                         // Optional end time for when the poll closes
-
-}
-
-func (Poll) TableName() string {
-	return "polls"
-}
-
-type PollVote struct {
-	ID      uint      `gorm:"primaryKey" json:"id"`
-	PollID  uint      `gorm:"index;not null" json:"poll_id"`            // The poll to which the vote belongs
-	UserID  uint      `gorm:"index;not null" json:"user_id"`            // The user who cast the vote
-	Option  string    `gorm:"type:varchar(255);not null" json:"option"` // The chosen option
-	VotedAt time.Time `json:"voted_at"`                                 // Timestamp of when the vote was cast
-}
-
-func (PollVote) TableName() string {
-	return "poll_votes"
-}
-
-type ServiceDeskEvent struct {
-	gorm.Model
-	EventName       string    `json:"event_name" gorm:"type:varchar(255);not null"`
-	Description     string    `json:"description" gorm:"type:text"`
-	EventDate       time.Time `json:"event_date"`
-	Severity        string    `json:"severity" gorm:"type:varchar(100);not null"` // E.g., "Low", "Medium", "High"
-	AffectedSystems string    `json:"affected_systems" gorm:"type:text"`          // JSON array of affected systems
-}
-
 type EventsDBModel struct {
 	DB  *gorm.DB
 	log Logger
@@ -320,132 +1003,4 @@ func NewEventsDBModel(db *gorm.DB, log Logger) *EventsDBModel {
 		DB:  db,
 		log: log,
 	}
-}
-
-type TicketCommentCreatedEvent struct {
-	CommentID   uint      `gorm:"primaryKey" json:"commentId"`
-	TicketID    uint      `gorm:"not null" json:"ticketId"`
-	CommenterID uint      `gorm:"not null" json:"commenterId"`
-	CommentText string    `gorm:"type:text;not null" json:"commentText"`
-	CreatedAt   time.Time `gorm:"autoCreateTime" json:"createdAt"`
-	UpdatedAt   time.Time `gorm:"autoUpdateTime" json:"updatedAt"`
-}
-
-// UserActivityLog records activities performed by users within the system.
-type UserActivityLog struct {
-	ID           uint           `gorm:"primaryKey" json:"id"`
-	UserID       uint           `gorm:"index;notNull" json:"user_id"`
-	Action       string         `gorm:"type:varchar(255);notNull" json:"action"`
-	Description  string         `gorm:"type:text" json:"description,omitempty"`
-	ActivityType string         `json:"activity_type" gorm:"type:varchar(255);not null"`
-	Details      string         `json:"details" gorm:"type:text;not null"`
-	Timestamp    time.Time      `json:"timestamp"` // Timestamp of when the activity occurred
-	OccurredAt   time.Time      `json:"occurred_at"`
-	CreatedAt    time.Time      `json:"created_at"`
-	UpdatedAt    time.Time      `json:"updated_at"`
-	DeletedAt    gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
-}
-
-func (UserActivityLog) TableName() string {
-	return "user_activity_logs"
-}
-
-// AssetLocation defines physical or logical locations where assets are stored or used.
-type AssetLocation struct {
-	ID          uint           `gorm:"primaryKey" json:"id"`
-	Name        string         `gorm:"size:255;notNull;unique" json:"name"`
-	Description string         `gorm:"type:text" json:"description,omitempty"`
-	Address     string         `gorm:"type:text" json:"address,omitempty"`
-	CreatedAt   time.Time      `json:"created_at"`
-	UpdatedAt   time.Time      `json:"updated_at"`
-	DeletedAt   gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
-}
-
-// AssetReservation allows users to reserve assets for specific periods.
-type AssetReservation struct {
-	ID        uint           `gorm:"primaryKey" json:"id"`
-	AssetID   uint           `gorm:"index;notNull" json:"asset_id"`
-	UserID    uint           `gorm:"index;notNull" json:"user_id"`
-	StartTime time.Time      `json:"start_time"`
-	EndTime   time.Time      `json:"end_time"`
-	Status    string         `gorm:"size:100;notNull" json:"status"` // e.g., Reserved, Cancelled
-	CreatedAt time.Time      `json:"created_at"`
-	UpdatedAt time.Time      `json:"updated_at"`
-	DeletedAt gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
-}
-
-// AssetCheckInOut records check-in and check-out activities for assets.
-type AssetCheckInOut struct {
-	ID         uint           `gorm:"primaryKey" json:"id"`
-	AssetID    uint           `gorm:"index;notNull" json:"asset_id"`
-	UserID     uint           `gorm:"index;notNull" json:"user_id"`
-	Action     string         `gorm:"type:varchar(100);notNull" json:"action"` // CheckIn, CheckOut
-	OccurredAt time.Time      `json:"occurred_at"`
-	Notes      string         `gorm:"type:text" json:"notes,omitempty"`
-	CreatedAt  time.Time      `json:"created_at"`
-	UpdatedAt  time.Time      `json:"updated_at"`
-	DeletedAt  gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
-}
-
-// SystemSetting represents configurable settings within the asset management system.
-type SystemSetting struct {
-	ID        uint           `gorm:"primaryKey" json:"id"`
-	Key       string         `gorm:"size:255;notNull;unique" json:"key"`
-	Value     string         `gorm:"type:text;notNull" json:"value"`
-	CreatedAt time.Time      `json:"created_at"`
-	UpdatedAt time.Time      `json:"updated_at"`
-	DeletedAt gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
-}
-
-// AssetTransferLog records the transfer of assets between different locations or users.
-type AssetTransferLog struct {
-	ID            uint           `gorm:"primaryKey" json:"id"`
-	AssetID       uint           `gorm:"index;notNull" json:"asset_id"`
-	FromLocation  uint           `gorm:"index" json:"from_location"`
-	ToLocation    uint           `gorm:"index" json:"to_location"`
-	TransferDate  time.Time      `json:"transfer_date"`
-	TransferredBy uint           `gorm:"index;notNull" json:"transferred_by"`
-	Notes         string         `gorm:"type:text" json:"notes,omitempty"`
-	CreatedAt     time.Time      `json:"created_at"`
-	UpdatedAt     time.Time      `json:"updated_at"`
-	DeletedAt     gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
-}
-
-// UserNotification stores notifications sent to users within the system.
-type UserNotification struct {
-	ID         uint           `gorm:"primaryKey" json:"id"`
-	UserID     uint           `gorm:"index;notNull" json:"user_id"`
-	Message    string         `gorm:"type:text;notNull" json:"message"`
-	Read       bool           `gorm:"notNull;default:false" json:"read"`
-	NotifiedAt time.Time      `json:"notified_at"`
-	CreatedAt  time.Time      `json:"created_at"`
-	UpdatedAt  time.Time      `json:"updated_at"`
-	DeletedAt  gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
-}
-
-// MaintenanceRequest captures requests for maintenance of assets, including details of the request and status.
-type MaintenanceRequest struct {
-	ID              uint           `gorm:"primaryKey" json:"id"`
-	AssetID         uint           `gorm:"index;notNull" json:"asset_id"`
-	RequestedBy     uint           `gorm:"index;notNull" json:"requested_by"`
-	Description     string         `gorm:"type:text;notNull" json:"description"`
-	Status          string         `gorm:"size:100;notNull" json:"status"` // e.g., Pending, InProgress, Completed
-	MaintenanceDate *time.Time     `json:"maintenance_date,omitempty"`
-	CompletedDate   *time.Time     `json:"completed_date,omitempty"`
-	CreatedAt       time.Time      `json:"created_at"`
-	UpdatedAt       time.Time      `json:"updated_at"`
-	DeletedAt       gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
-}
-
-// AssetWarrantyDetails holds warranty information for assets, including start and end dates.
-type AssetWarrantyDetails struct {
-	ID            uint           `gorm:"primaryKey" json:"id"`
-	AssetID       uint           `gorm:"index;notNull" json:"asset_id"`
-	WarrantyStart time.Time      `json:"warranty_start"`
-	WarrantyEnd   time.Time      `json:"warranty_end"`
-	Provider      string         `gorm:"size:255" json:"provider"`
-	WarrantyTerms string         `gorm:"type:text" json:"warranty_terms"`
-	CreatedAt     time.Time      `json:"created_at"`
-	UpdatedAt     time.Time      `json:"updated_at"`
-	DeletedAt     gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
 }

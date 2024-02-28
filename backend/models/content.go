@@ -3,6 +3,9 @@
 package models
 
 import (
+	"database/sql/driver"
+	"encoding/json"
+	"errors"
 	"time"
 
 	"gorm.io/gorm"
@@ -21,6 +24,25 @@ func (ContentArticle) TableName() string {
 	return "content_articles"
 }
 
+// Implement driver.Valuer for ContentArticle
+func (ca ContentArticle) Value() (driver.Value, error) {
+	return json.Marshal(ca)
+}
+
+// Implement driver.Scanner for ContentArticle
+func (ca *ContentArticle) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for ContentArticle scan")
+	}
+
+	return json.Unmarshal(data, &ca)
+}
+
 type ContentCategory struct {
 	gorm.Model
 	Name        string `gorm:"type:varchar(100);unique;not null" json:"name"` // Category name
@@ -29,6 +51,25 @@ type ContentCategory struct {
 
 func (ContentCategory) TableName() string {
 	return "content_categories"
+}
+
+// Implement driver.Valuer for ContentCategory
+func (cc ContentCategory) Value() (driver.Value, error) {
+	return json.Marshal(cc)
+}
+
+// Implement driver.Scanner for ContentCategory
+func (cc *ContentCategory) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for ContentCategory scan")
+	}
+
+	return json.Unmarshal(data, &cc)
 }
 
 type UserInteraction struct {
@@ -43,6 +84,25 @@ func (UserInteraction) TableName() string {
 	return "user_interactions"
 }
 
+// Implement driver.Valuer for UserInteraction
+func (ui UserInteraction) Value() (driver.Value, error) {
+	return json.Marshal(ui)
+}
+
+// Implement driver.Scanner for UserInteraction
+func (ui *UserInteraction) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for UserInteraction scan")
+	}
+
+	return json.Unmarshal(data, &ui)
+}
+
 type ContentMedia struct {
 	gorm.Model
 	ArticleID   uint   `gorm:"index" json:"article_id"`                      // ID of the associated article
@@ -55,6 +115,25 @@ func (ContentMedia) TableName() string {
 	return "content_media"
 }
 
+// Implement driver.Valuer for ContentMedia
+func (cm ContentMedia) Value() (driver.Value, error) {
+	return json.Marshal(cm)
+}
+
+// Implement driver.Scanner for ContentMedia
+func (cm *ContentMedia) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for ContentMedia scan")
+	}
+
+	return json.Unmarshal(data, &cm)
+}
+
 type ArticleTag struct {
 	gorm.Model
 	ArticleID uint `gorm:"index;not null" json:"article_id"` // ID of the article
@@ -63,6 +142,25 @@ type ArticleTag struct {
 
 func (ArticleTag) TableName() string {
 	return "article_tags"
+}
+
+// Implement driver.Valuer for ArticleTag
+func (at ArticleTag) Value() (driver.Value, error) {
+	return json.Marshal(at)
+}
+
+// Implement driver.Scanner for ArticleTag
+func (at *ArticleTag) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for ArticleTag scan")
+	}
+
+	return json.Unmarshal(data, &at)
 }
 
 type UserJourneyEvent struct {
@@ -78,6 +176,25 @@ func (UserJourneyEvent) TableName() string {
 	return "user_journey_events"
 }
 
+// Implement driver.Valuer for UserJourneyEvent
+func (uje UserJourneyEvent) Value() (driver.Value, error) {
+	return json.Marshal(uje)
+}
+
+// Implement driver.Scanner for UserJourneyEvent
+func (uje *UserJourneyEvent) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for UserJourneyEvent scan")
+	}
+
+	return json.Unmarshal(data, &uje)
+}
+
 type LocalizedContent struct {
 	ID             uint   `gorm:"primaryKey"`
 	ContentID      uint   `gorm:"index;not null" json:"content_id"`          // ID of the original content
@@ -88,6 +205,25 @@ type LocalizedContent struct {
 
 func (LocalizedContent) TableName() string {
 	return "localized_contents"
+}
+
+// Implement driver.Valuer for LocalizedContent
+func (lc LocalizedContent) Value() (driver.Value, error) {
+	return json.Marshal(lc)
+}
+
+// Implement driver.Scanner for LocalizedContent
+func (lc *LocalizedContent) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for LocalizedContent scan")
+	}
+
+	return json.Unmarshal(data, &lc)
 }
 
 type Tenant struct {
@@ -102,6 +238,25 @@ func (Tenant) TableName() string {
 	return "tenants"
 }
 
+// Implement driver.Valuer for Tenant
+func (t Tenant) Value() (driver.Value, error) {
+	return json.Marshal(t)
+}
+
+// Implement driver.Scanner for Tenant
+func (t *Tenant) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for Tenant scan")
+	}
+
+	return json.Unmarshal(data, &t)
+}
+
 type TenantScopedModel struct {
 	TenantID uint `gorm:"index;not null" json:"tenant_id"` // Foreign key linking to the Tenant
 	// Include fields common to tenant-scoped models here
@@ -109,6 +264,25 @@ type TenantScopedModel struct {
 
 func (TenantScopedModel) TableName() string {
 	return "tenant_scoped_model"
+}
+
+// Implement driver.Valuer for TenantScopedModel
+func (tsm TenantScopedModel) Value() (driver.Value, error) {
+	return json.Marshal(tsm)
+}
+
+// Implement driver.Scanner for TenantScopedModel
+func (tsm *TenantScopedModel) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for TenantScopedModel scan")
+	}
+
+	return json.Unmarshal(data, &tsm)
 }
 
 type ContentCollection struct {
@@ -125,6 +299,25 @@ func (ContentCollection) TableName() string {
 	return "content_collections"
 }
 
+// Implement driver.Valuer for ContentCollection
+func (cc ContentCollection) Value() (driver.Value, error) {
+	return json.Marshal(cc)
+}
+
+// Implement driver.Scanner for ContentCollection
+func (cc *ContentCollection) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for ContentCollection scan")
+	}
+
+	return json.Unmarshal(data, &cc)
+}
+
 type ContentItem struct {
 	ID          uint   `gorm:"primaryKey"`
 	Type        string `gorm:"type:varchar(100);not null" json:"type"` // Type of content (e.g., article, video, image)
@@ -134,6 +327,25 @@ type ContentItem struct {
 
 func (ContentItem) TableName() string {
 	return "content_items"
+}
+
+// Implement driver.Valuer for ContentItem
+func (ci ContentItem) Value() (driver.Value, error) {
+	return json.Marshal(ci)
+}
+
+// Implement driver.Scanner for ContentItem
+func (ci *ContentItem) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for ContentItem scan")
+	}
+
+	return json.Unmarshal(data, &ci)
 }
 
 type BehaviorEvent struct {
@@ -148,15 +360,53 @@ func (BehaviorEvent) TableName() string {
 	return "behavior_events"
 }
 
+// Implement driver.Valuer for BehaviorEvent
+func (be BehaviorEvent) Value() (driver.Value, error) {
+	return json.Marshal(be)
+}
+
+// Implement driver.Scanner for BehaviorEvent
+func (be *BehaviorEvent) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for BehaviorEvent scan")
+	}
+
+	return json.Unmarshal(data, &be)
+}
+
 type SystemMetric struct {
-	ID         uint      `gorm:"primaryKey"`
-	MetricType string    `gorm:"type:varchar(100);not null" json:"metric_type"` // Type of metric (e.g., CPU, memory usage)
-	Value      float64   `json:"value"`                                         // Metric value
-	RecordedAt time.Time `json:"recorded_at"`                                   // Timestamp when the metric was recorded
+	ID                uint      `gorm:"primaryKey"`
+	MetricType        string    `gorm:"type:varchar(100);not null" json:"metric_type"` // Type of metric (e.g., CPU, memory usage)
+	SystemMetricValue float64   `json:"value"`                                         // Metric value
+	RecordedAt        time.Time `json:"recorded_at"`                                   // Timestamp when the metric was recorded
 }
 
 func (SystemMetric) TableName() string {
 	return "system_metrics"
+}
+
+// Implement driver.Valuer for SystemMetric
+func (sm SystemMetric) Value() (driver.Value, error) {
+	return json.Marshal(sm)
+}
+
+// Implement driver.Scanner for SystemMetric
+func (sm *SystemMetric) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for SystemMetric scan")
+	}
+
+	return json.Unmarshal(data, &sm)
 }
 
 type UserPreferenceVector struct {
@@ -170,6 +420,25 @@ func (UserPreferenceVector) TableName() string {
 	return "user_preference_vectors"
 }
 
+// Implement driver.Valuer for UserPreferenceVector
+func (upv UserPreferenceVector) Value() (driver.Value, error) {
+	return json.Marshal(upv)
+}
+
+// Implement driver.Scanner for UserPreferenceVector
+func (upv *UserPreferenceVector) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for UserPreferenceVector scan")
+	}
+
+	return json.Unmarshal(data, &upv)
+}
+
 type ContentRecommendation struct {
 	ID            uint      `gorm:"primaryKey"`
 	UserID        uint      `gorm:"index;not null" json:"user_id"`    // ID of the user to whom the recommendation is made
@@ -180,6 +449,25 @@ type ContentRecommendation struct {
 
 func (ContentRecommendation) TableName() string {
 	return "content_recommendations"
+}
+
+// Implement driver.Valuer for ContentRecommendation
+func (cr ContentRecommendation) Value() (driver.Value, error) {
+	return json.Marshal(cr)
+}
+
+// Implement driver.Scanner for ContentRecommendation
+func (cr *ContentRecommendation) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for ContentRecommendation scan")
+	}
+
+	return json.Unmarshal(data, &cr)
 }
 
 type Community struct {
@@ -195,6 +483,25 @@ func (Community) TableName() string {
 	return "communities"
 }
 
+// Implement driver.Valuer for Community
+func (c Community) Value() (driver.Value, error) {
+	return json.Marshal(c)
+}
+
+// Implement driver.Scanner for Community
+func (c *Community) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for Community scan")
+	}
+
+	return json.Unmarshal(data, &c)
+}
+
 type CommunityPost struct {
 	ID          uint      `gorm:"primaryKey"`
 	CommunityID uint      `gorm:"index;not null" json:"community_id"`      // ID of the community where the post is made
@@ -208,6 +515,25 @@ func (CommunityPost) TableName() string {
 	return "community_posts"
 }
 
+// Implement driver.Valuer for CommunityPost
+func (cp CommunityPost) Value() (driver.Value, error) {
+	return json.Marshal(cp)
+}
+
+// Implement driver.Scanner for CommunityPost
+func (cp *CommunityPost) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for CommunityPost scan")
+	}
+
+	return json.Unmarshal(data, &cp)
+}
+
 type FeatureFlag struct {
 	ID             uint   `gorm:"primaryKey"`
 	FeatureName    string `gorm:"type:varchar(255);unique;not null" json:"feature_name"` // Name of the feature
@@ -217,6 +543,25 @@ type FeatureFlag struct {
 
 func (FeatureFlag) TableName() string {
 	return "feature_flags"
+}
+
+// Implement driver.Valuer for FeatureFlag
+func (ff FeatureFlag) Value() (driver.Value, error) {
+	return json.Marshal(ff)
+}
+
+// Implement driver.Scanner for FeatureFlag
+func (ff *FeatureFlag) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for FeatureFlag scan")
+	}
+
+	return json.Unmarshal(data, &ff)
 }
 
 type KnowledgeBaseArticle struct {
@@ -233,6 +578,25 @@ func (KnowledgeBaseArticle) TableName() string {
 	return "knowledge_base_article"
 }
 
+// Implement driver.Valuer for KnowledgeBaseArticle
+func (kba KnowledgeBaseArticle) Value() (driver.Value, error) {
+	return json.Marshal(kba)
+}
+
+// Implement driver.Scanner for KnowledgeBaseArticle
+func (kba *KnowledgeBaseArticle) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for KnowledgeBaseArticle scan")
+	}
+
+	return json.Unmarshal(data, &kba)
+}
+
 type ServiceDeskAnnouncement struct {
 	gorm.Model
 	Title       string     `json:"title" gorm:"type:varchar(255);not null"`
@@ -246,6 +610,25 @@ func (ServiceDeskAnnouncement) TableName() string {
 	return "service_desk_announcement"
 }
 
+// Implement driver.Valuer for ServiceDeskAnnouncement
+func (sda ServiceDeskAnnouncement) Value() (driver.Value, error) {
+	return json.Marshal(sda)
+}
+
+// Implement driver.Scanner for ServiceDeskAnnouncement
+func (sda *ServiceDeskAnnouncement) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for ServiceDeskAnnouncement scan")
+	}
+
+	return json.Unmarshal(data, &sda)
+}
+
 type FeedbackRequest struct {
 	gorm.Model
 	UserID      uint      `json:"user_id" gorm:"index;not null"`
@@ -256,4 +639,23 @@ type FeedbackRequest struct {
 
 func (FeedbackRequest) TableName() string {
 	return "feedback_request"
+}
+
+// Implement driver.Valuer for FeedbackRequest
+func (fr FeedbackRequest) Value() (driver.Value, error) {
+	return json.Marshal(fr)
+}
+
+// Implement driver.Scanner for FeedbackRequest
+func (fr *FeedbackRequest) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	data, ok := value.([]byte)
+	if !ok {
+		return errors.New("invalid data type for FeedbackRequest scan")
+	}
+
+	return json.Unmarshal(data, &fr)
 }
