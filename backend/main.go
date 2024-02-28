@@ -54,15 +54,19 @@ func main() {
 		log.Fatal(fmt.Sprintf("Error reading configuration: %v", err))
 	}
 
-	// Initialize and migrate the database
-	d, err := InitializeDatabase(configuration, log)
-	if err != nil {
-		fmt.Printf("Failed to initialize database: %v\n", err)
-		return
-	}
-	defer CloseDB()
+	database.SetupDatabase()
 
-	fmt.Println("Database initialized and migrated successfully!")
+	/*
+		// Initialize and migrate the database
+		d, err := InitializeDatabase(configuration, log)
+		if err != nil {
+			fmt.Printf("Failed to initialize database: %v\n", err)
+			return
+		}
+		defer CloseDB()
+
+		fmt.Println("Database initialized and migrated successfully!")
+	*/
 
 	/* // Legacy DB Init
 	// Auto Migrate Database Models (if not already migrated)
@@ -160,64 +164,6 @@ func InitDB(config *config.Config, log models.Logger) (*gorm.DB, error) {
 
 	return db, nil
 
-}
-
-// Auto Migrate Database Models (if not already migrated)
-func AutoMigrateModels(db *gorm.DB) error {
-	err := db.AutoMigrate(
-		&models.Users{},
-		&models.UserRole{},
-		&models.Position{},
-		&models.Department{},
-		&models.UserProfile{},
-		&models.ProjectAssignment{},
-		&models.Activity{},
-		&models.Agents{},
-		&models.Unit{},
-		&models.Permission{},
-		&models.Teams{},
-		&models.Role{},
-		&models.TeamPermission{},
-		&models.RoleBase{},
-		&models.RolePermission{},
-		&models.AgentRole{},
-		&models.UserAgent{},
-		&models.TeamAgent{},
-		&models.AgentPermission{},
-		&models.Ticket{},
-		&models.Comment{},
-		&models.TicketHistoryEntry{},
-		&models.RelatedTicket{},
-		&models.Tag{},
-		&models.SLA{},
-		&models.Priority{},
-		&models.Satisfaction{},
-		&models.Category{},
-		&models.SubCategory{},
-		&models.Status{},
-		&models.Policies{},
-		&models.TicketMediaAttachment{},
-		&models.Session{},
-		&models.UserAgentMapping{},
-		&models.Location{},
-		&models.ServiceRequestComment{},
-		&models.ServiceRequestHistoryEntry{},
-		&models.Incident{},
-		&models.IncidentHistoryEntry{},
-		&models.IncidentComment{},
-		&models.GoogleCredentials{},
-		&models.AgentLoginCredentials{},
-		&models.UsersLoginCredentials{},
-		&models.PasswordHistory{},
-		&models.AgentUserMapping{},
-		&models.Assets{},
-		&models.AssetTag{},
-		&models.AssetType{},
-		&models.AssetAssignment{},
-		&models.ServiceRequest{},
-		&models.Vendor{},
-	)
-	return err
 }
 
 // ////////////////////////////////////////////////////////////////

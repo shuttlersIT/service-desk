@@ -52,16 +52,16 @@ type Assets struct {
 	gorm.Model
 	AssetTag          string     `gorm:"size:100;uniqueIndex;not null" json:"assetTag"`
 	Name              string     `gorm:"size:255;not null" json:"name"`
-	Description       string     `gorm:"size:500" json:"description,omitempty"`
+	Description       *string    `gorm:"size:500" json:"description,omitempty"`
 	Status            string     `gorm:"size:100;not null" json:"status"`
 	CategoryID        uint       `gorm:"not null" json:"categoryId"`
-	Location          string     `gorm:"size:255" json:"location,omitempty"`
+	Location          *string    `gorm:"size:255" json:"location,omitempty"`
 	PurchaseDate      *time.Time `json:"purchaseDate,omitempty"`
 	WarrantyExpiry    *time.Time `json:"warrantyExpiry,omitempty"`
-	Manufacturer      string     `gorm:"size:255" json:"manufacturer,omitempty"`
-	SerialNumber      string     `gorm:"size:255;uniqueIndex" json:"serialNumber,omitempty"`
-	PurchaseCost      float64    `json:"purchaseCost,omitempty"`
-	CurrentValue      float64    `json:"currentValue,omitempty"`
+	Manufacturer      *string    `gorm:"size:255" json:"manufacturer,omitempty"`
+	SerialNumber      *string    `gorm:"size:255;uniqueIndex" json:"serialNumber,omitempty"`
+	PurchaseCost      *float64   `json:"purchaseCost,omitempty"`
+	CurrentValue      *float64   `json:"currentValue,omitempty"`
 	Depreciation      float64    `json:"depreciation,omitempty"`
 	AssetTypeID       uint       `gorm:"index;not null" json:"asset_type_id"`
 	AssetName         string     `gorm:"size:255;not null" json:"asset_name"`
@@ -75,10 +75,10 @@ type Assets struct {
 	CreatedByID       uint       `gorm:"index" json:"created_by_id"`
 	AssetAssignment   *uint      `json:"assetAssignment" gorm:"foreignKey:AssetAssignmentID"`
 	DecommissionDate  *time.Time `json:"decommission_date,omitempty"`
-	Tag               string     `gorm:"type:varchar(100);uniqueIndex" json:"tag"`
-	DepreciationValue float64    `gorm:"type:decimal(10,2)" json:"depreciationValue"`
-	UsefulLife        int        `gorm:"type:int" json:"usefulLife"`
-	SalvageValue      float64    `gorm:"type:decimal(10,2)" json:"salvageValue"`
+	Tag               *string    `gorm:"type:varchar(100);uniqueIndex" json:"tag,omitempty"`
+	DepreciationValue *float64   `gorm:"type:decimal(10,2)" json:"depreciationValue,omitempty"`
+	UsefulLife        *int       `gorm:"type:int" json:"usefulLife,omitempty"`
+	SalvageValue      *float64   `gorm:"type:decimal(10,2)" json:"salvageValue,omitempty"`
 }
 
 func (Assets) TableName() string {
@@ -139,8 +139,8 @@ func (i *InventoryItem) Scan(value interface{}) error {
 // AssetTag represents tags associated with an asset.
 type AssetTag struct {
 	gorm.Model
-	AssetTag string   `json:"tag"`
-	Tags     []string `gorm:"type:text[]" json:"tags"`
+	AssetTag *string  `json:"tag"`
+	Tags     []string `gorm:"type:text[]" json:"tags,omitempty"`
 	AssetID  uint     `gorm:"index" json:"asset_id"`
 }
 
@@ -504,10 +504,10 @@ func (cal *ComplianceAuditLog) Scan(value interface{}) error {
 type Vendor struct {
 	Assets        []Assets `gorm:"many2many:vendor_assets;" json:"assets,omitempty"`
 	VendorName    string   `gorm:"size:255;not null;unique" json:"vendor_name"`
-	Description   string   `gorm:"type:text" json:"description,omitempty"`
-	ContactInfo   string   `gorm:"type:text" json:"contact_info,omitempty"`
-	ContactPerson string   `gorm:"size:255" json:"contact_person,omitempty"`
-	Address       string   `gorm:"type:text" json:"address,omitempty"`
+	Description   *string  `gorm:"type:text" json:"description,omitempty"`
+	ContactInfo   *string  `gorm:"type:text" json:"contact_info,omitempty"`
+	ContactPerson *string  `gorm:"size:255" json:"contact_person,omitempty"`
+	Address       *string  `gorm:"type:text" json:"address,omitempty"`
 }
 
 func (v Vendor) TableName() string {
@@ -1901,7 +1901,7 @@ func (as *UserDBModel) GetAssetByNumber(assetNumber int) (*Assets, error) {
 // UpdateAssetStatusAndLocation updates both the status and location of an asset.
 func (s *AssetDBModel) UpdateAssetStatusAndLocation(assetID uint, newStatus, newLocation string) error {
 	return s.DB.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Model(&Assets{}).Where("id = ?", assetID).Updates(Assets{Status: newStatus, Location: newLocation}).Error; err != nil {
+		if err := tx.Model(&Assets{}).Where("id = ?", assetID).Updates(Assets{Status: newStatus, Location: &newLocation}).Error; err != nil {
 			s.log.Error(fmt.Sprintf("Failed to update status and location for asset %d: %v", assetID, err))
 			return err
 		}
@@ -2116,13 +2116,15 @@ func (model *AssetDBModel) CalculateNewDepreciationValue(assetID uint, yearsSinc
 		usefulLife := asset.UsefulLife // Assuming this is in years
 		salvageValue := asset.SalvageValue
 
-		if yearsSincePurchase > int(usefulLife) {
+		if yearsSincePurchase > int(*usefulLife) {
 			// Asset has exceeded its useful life; depreciation value is the difference between purchase price and salvage value.
-			newDepreciationValue := asset.PurchasePrice - salvageValue
+			pp := asset.PurchasePrice
+			sv := salvageValue
+			newDepreciationValue := pp - *sv
 			err = tx.Model(&asset).Update("depreciation_value", newDepreciationValue).Error
 		} else {
 			// Calculate annual depreciation expense
-			annualDepreciationExpense := (asset.PurchasePrice - salvageValue) / float64(usefulLife)
+			annualDepreciationExpense := (asset.PurchasePrice - *salvageValue) / float64(*usefulLife)
 
 			// Calculate total depreciation until now
 			totalDepreciation := float64(yearsSincePurchase) * annualDepreciationExpense
@@ -2384,17 +2386,17 @@ func (model *AssetDBModel) CalculateNewDepreciationValue1(assetID uint, yearsSin
 			model.log.Info("Invalid years since purchase", "assetID", assetID, "yearsSincePurchase", yearsSincePurchase)
 			return fmt.Errorf("invalid years since purchase for asset ID %d", assetID)
 		}
-		if asset.UsefulLife <= 0 || asset.SalvageValue < 0 {
+		if *asset.UsefulLife <= 0 || *asset.SalvageValue < 0 {
 			model.log.Info("Invalid asset parameters", "assetID", assetID, "UsefulLife", asset.UsefulLife, "SalvageValue", asset.SalvageValue)
 			return fmt.Errorf("asset with ID %d has invalid parameters", assetID)
 		}
 
 		// Calculate depreciation using the Straight-Line method, adjusting for the asset's actual useful life.
-		annualDepreciation := (asset.PurchasePrice - asset.SalvageValue) / float64(asset.UsefulLife)
-		depreciationAccumulated := float64(min(yearsSincePurchase, int(asset.UsefulLife))) * annualDepreciation
+		annualDepreciation := (asset.PurchasePrice - *asset.SalvageValue) / float64(*asset.UsefulLife)
+		depreciationAccumulated := float64(min(yearsSincePurchase, int(*asset.UsefulLife))) * annualDepreciation
 
 		// Cap the depreciation at the maximum possible value to prevent it from exceeding logical limits.
-		maxDepreciation := asset.PurchasePrice - asset.SalvageValue
+		maxDepreciation := asset.PurchasePrice - *asset.SalvageValue
 		if depreciationAccumulated > maxDepreciation {
 			depreciationAccumulated = maxDepreciation
 		}
@@ -2422,19 +2424,19 @@ func (model *AssetDBModel) CalculateNewDepreciationValue1Extra(assetID uint, yea
 			model.log.Error("Asset not found", "assetID", assetID, "error", err)
 			return fmt.Errorf("asset not found for ID %d: %w", assetID, err)
 		}
-
+		sv := asset.SalvageValue
 		// Validate input to ensure valid calculation parameters.
-		if yearsSincePurchase < 0 || asset.UsefulLife <= 0 || asset.SalvageValue < 0 || asset.SalvageValue >= asset.PurchasePrice {
+		if yearsSincePurchase < 0 || *asset.UsefulLife <= 0 || (*sv) < 0 || *sv >= asset.PurchasePrice {
 			model.log.Info("Invalid calculation parameters", "assetID", assetID, "yearsSincePurchase", yearsSincePurchase, "UsefulLife", asset.UsefulLife, "SalvageValue", asset.SalvageValue)
 			return fmt.Errorf("invalid calculation parameters for asset ID %d", assetID)
 		}
 
 		// Calculate depreciation using the Straight-Line method.
-		annualDepreciation := (asset.PurchasePrice - asset.SalvageValue) / float64(asset.UsefulLife)
-		depreciationAccumulated := float64(min(yearsSincePurchase, int(asset.UsefulLife))) * annualDepreciation
+		annualDepreciation := (asset.PurchasePrice - *asset.SalvageValue) / float64(*asset.UsefulLife)
+		depreciationAccumulated := float64(min(yearsSincePurchase, int(*asset.UsefulLife))) * annualDepreciation
 
 		// Cap the depreciation at the maximum possible value.
-		maxDepreciation := asset.PurchasePrice - asset.SalvageValue
+		maxDepreciation := asset.PurchasePrice - *asset.SalvageValue
 		if depreciationAccumulated > maxDepreciation {
 			depreciationAccumulated = maxDepreciation
 		}
@@ -2472,13 +2474,13 @@ func (model *AssetDBModel) CalculateNewDepreciationValue2(assetID uint, yearsSin
 		usefulLife := asset.UsefulLife // Assuming this is in years
 		salvageValue := asset.SalvageValue
 
-		if yearsSincePurchase > int(usefulLife) {
+		if yearsSincePurchase > int(*usefulLife) {
 			// Asset has exceeded its useful life; depreciation value is the difference between purchase price and salvage value.
-			newDepreciationValue := asset.PurchasePrice - salvageValue
+			newDepreciationValue := asset.PurchasePrice - *salvageValue
 			err = tx.Model(&asset).Update("depreciation_value", newDepreciationValue).Error
 		} else {
 			// Calculate annual depreciation expense
-			annualDepreciationExpense := (asset.PurchasePrice - salvageValue) / float64(usefulLife)
+			annualDepreciationExpense := (asset.PurchasePrice - *salvageValue) / float64(*usefulLife)
 
 			// Calculate total depreciation until now
 			totalDepreciation := float64(yearsSincePurchase) * annualDepreciationExpense

@@ -3,6 +3,7 @@ module github.com/shuttlersit/service-desk/backend
 go 1.22.0
 
 require (
+	github.com/cenkalti/backoff v2.2.1+incompatible
 	github.com/cenkalti/backoff/v4 v4.2.1
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/gin-contrib/sessions v0.0.5
