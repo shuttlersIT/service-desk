@@ -679,7 +679,7 @@ func (s *DefaultAssetService) CalculateAssetDepreciation(assetID uint, years int
 
 		// Placeholder: Depreciation calculation logic goes here.
 		// For example, straight-line depreciation over the 'years' period.
-		newDepreciationValue := asset.PurchasePrice - (asset.PurchasePrice / float64(asset.UsefulLife) * float64(years))
+		newDepreciationValue := asset.PurchasePrice - (asset.PurchasePrice / float64(*asset.UsefulLife) * float64(years))
 
 		if err := tx.Model(&asset).Update("depreciation_value", newDepreciationValue).Error; err != nil {
 			return fmt.Errorf("updating depreciation value for asset ID %d: %w", assetID, err)
@@ -968,9 +968,9 @@ func (service *DefaultAssetService) CalculateAssetDepreciation2(assetID uint) er
 		}
 
 		// Assuming straight-line depreciation for simplicity
-		annualDepreciation := asset.PurchaseCost / float64(asset.UsefulLife)
+		annualDepreciation := *asset.PurchaseCost / float64(*asset.UsefulLife)
 		accumulatedDepreciation := annualDepreciation * float64(time.Now().Year()-asset.PurchaseDate.Year())
-		newBookValue := asset.PurchaseCost - accumulatedDepreciation
+		newBookValue := *asset.PurchaseCost - accumulatedDepreciation
 
 		if err := tx.Model(&asset).Update("book_value", newBookValue).Error; err != nil {
 			return fmt.Errorf("updating book value for asset %d: %w", assetID, err)

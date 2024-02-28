@@ -25,7 +25,6 @@ import (
 )
 
 // events := models.NewEventsDBModel(db, log)
-var db *gorm.DB
 
 func main() {
 
@@ -54,7 +53,7 @@ func main() {
 		log.Fatal(fmt.Sprintf("Error reading configuration: %v", err))
 	}
 
-	database.SetupDatabase()
+	db := database.SetupDatabase(configuration, log)
 
 	/*
 		// Initialize and migrate the database
@@ -100,7 +99,6 @@ func main() {
 			log.Info(fmt.Sprintf("DB SETUP STATUS: %v", configuration.DBSetupStatus))
 		}
 	*/
-	db = d
 	fmt.Printf("db service running")
 
 	// Public routes
@@ -476,7 +474,7 @@ func InitializeDatabase(config *config.Config, log models.Logger) (*gorm.DB, err
 	fmt.Println("DB INITIALIZED")
 
 	// Migrate models to the database
-	if err := database.MigrateModels(db); err != nil {
+	if err := database.AutoMigrateModels(db, log); err != nil {
 		return nil, err
 	}
 	fmt.Println("MODELS MIGRATED")
@@ -493,8 +491,3 @@ func CloseDB() {
 		}
 	}
 }
-
-// Replace 'your_db_url' with your actual MySQL database URL
-var dbURL, DBUrlErr = database.CreateGormDsn(config * config.Config)
-
-var configuration, ConfigErr = config.ReadConfig()
